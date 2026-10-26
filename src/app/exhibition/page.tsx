@@ -5,27 +5,37 @@ import Link from 'next/link';
 import { getCheckpoints, getVisitorVisits } from '@/lib/supabase';
 import { Checkpoint, BoothVisit } from '@/lib/types';
 import { getOrInitVisitorId } from '@/lib/visitor';
-import { Compass, Search, MapPin, QrCode, CheckCircle2, Star, ChevronRight } from 'lucide-react';
+import { Compass, Search, MapPin, QrCode, CheckCircle2, ChevronRight, LayoutList, Map as MapIcon } from 'lucide-react';
+import BoothThumb from '@/components/BoothThumb';
+import Modal from '@/components/Modal';
+import FloorPlanMap from '@/components/FloorPlanMap';
 
 export default function ExhibitionPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
-  const [visitedSet, setVisitedSet] = useState<Set<string>>(new Set());
+  const [visits, setVisits] = useState<BoothVisit[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedBooth, setSelectedBooth] = useState<Checkpoint | null>(null);
+  const [view, setView] = useState<'list' | 'map'>('list');
 
   useEffect(() => {
     async function loadData() {
       const visitorId = getOrInitVisitorId();
       const [cList, vList] = await Promise.all([
         getCheckpoints(),
-        getVisitorVisits(visitorId)
+        getVisitorVisits(visitorId),
       ]);
       setCheckpoints(cList);
-      setVisitedSet(new Set(vList.map(v => v.checkpoint_id)));
+      setVisits(vList);
     }
     loadData();
   }, []);
+
+  const visitedSet = new Set(visits.map(v => v.checkpoint_id));
+  const lastCheckpointId =
+    [...visits].sort((a, b) =>
+      (b.visited_at || '').localeCompare(a.visited_at || '')
+    )[0]?.checkpoint_id ?? null;
 
   const categories = ['All', ...Array.from(new Set(checkpoints.map(c => c.category)))];
 
@@ -43,38 +53,62 @@ export default function ExhibitionPage() {
       {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-extrabold text-white font-display flex items-center gap-2">
-            <Compass className="w-5 h-5 text-brand-400" /> Laluan Aspirasi Exhibition
+          <h1 className="display text-3xl text-ink flex items-center gap-2">
+            <Compass className="w-6 h-6 text-brand-600" aria-hidden="true" /> Booths
           </h1>
-          <p className="text-xs text-slate-400">Explore UM faculty booths & interactive showcases</p>
+          <p className="text-xs text-slate-500">Explore faculty booths and interactive showcases</p>
         </div>
-        <span className="text-xs font-mono font-bold px-2.5 py-1 rounded-full bg-brand-500/20 text-brand-300 border border-brand-500/30">
-          {checkpoints.length} Booths
-        </span>
+        <span className="sticker bg-brand-500 text-white text-[9px]">{checkpoints.length} Booths</span>
       </div>
 
       {/* SEARCH BAR */}
       <div className="relative">
-        <Search className="w-4 h-4 text-slate-500 absolute left-3.5 top-3" />
+        <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-3.5" aria-hidden="true" />
         <input
-          type="text"
-          placeholder="Search booth name, faculty, or location..."
+          type="search"
+          name="booth-search"
+          aria-label="Search booths"
+          placeholder="Search booth, faculty or location…"
           value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-slate-900 border border-slate-800 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-brand-400"
+          onChange={e => setSearchQuery(e.target.value)}
+          className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border-2 border-ink text-ink placeholder-slate-400 text-base focus:outline-none shadow-brut"
         />
       </div>
 
+      {/* VIEW TOGGLE */}
+      <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border-2 border-ink shadow-brut text-xs font-bold w-fit">
+        <button
+          type="button"
+          onClick={() => setView('list')}
+          aria-pressed={view === 'list'}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors ${
+            view === 'list' ? 'bg-ink text-cream-50' : 'text-slate-500 hover:text-ink'
+          }`}
+        >
+          <LayoutList className="w-3.5 h-3.5" aria-hidden="true" /> List
+        </button>
+        <button
+          type="button"
+          onClick={() => setView('map')}
+          aria-pressed={view === 'map'}
+          className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl transition-colors ${
+            view === 'map' ? 'bg-ink text-cream-50' : 'text-slate-500 hover:text-ink'
+          }`}
+        >
+          <MapIcon className="w-3.5 h-3.5" aria-hidden="true" /> Map
+        </button>
+      </div>
+
       {/* CATEGORY FILTER PILLS */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1 scrollbar-none">
-        {categories.map((cat) => (
+      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+        {categories.map(cat => (
           <button
             key={cat}
+            type="button"
             onClick={() => setSelectedCategory(cat)}
-            className={`px-3 py-1.5 rounded-xl text-xs font-semibold whitespace-nowrap transition-all ${
-              selectedCategory === cat
-                ? 'bg-brand-500 text-slate-950 shadow-md shadow-brand-500/20'
-                : 'bg-slate-900 text-slate-400 hover:text-slate-200 border border-slate-800'
+            aria-pressed={selectedCategory === cat}
+            className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-colors border-2 border-ink ${
+              selectedCategory === cat ? 'bg-brand-500 text-white' : 'bg-white text-slate-600'
             }`}
           >
             {cat}
@@ -82,119 +116,117 @@ export default function ExhibitionPage() {
         ))}
       </div>
 
-      {/* BOOTHS LIST */}
-      <div className="grid grid-cols-1 gap-3">
-        {filteredBooths.map((booth) => {
-          const isVisited = visitedSet.has(booth.id);
-          return (
-            <div
-              key={booth.id}
-              className="glass-card glass-card-hover rounded-2xl p-4 border border-slate-800 flex flex-col justify-between group"
-            >
-              <div className="flex items-start gap-3.5 mb-3">
-                <div className="w-16 h-16 rounded-xl overflow-hidden bg-slate-800 shrink-0 border border-slate-700 relative">
-                  <img src={booth.image_url || ''} alt={booth.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform" />
-                  {isVisited && (
-                    <div className="absolute top-1 right-1 bg-emerald-500 text-slate-950 p-0.5 rounded-full">
-                      <CheckCircle2 className="w-3.5 h-3.5" />
-                    </div>
-                  )}
-                </div>
-
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between mb-0.5">
-                    <span className="text-[10px] uppercase tracking-wider font-extrabold px-2 py-0.5 rounded bg-brand-500/10 text-brand-300 border border-brand-500/20 truncate">
+      {view === 'map' ? (
+        <FloorPlanMap
+          checkpoints={filteredBooths}
+          visitedIds={visitedSet}
+          lastCheckpointId={lastCheckpointId}
+          onSelect={setSelectedBooth}
+        />
+      ) : (
+        <div className="grid grid-cols-1 gap-3">
+          {filteredBooths.map(booth => {
+            const isVisited = visitedSet.has(booth.id);
+            return (
+              <article key={booth.id} className="card card-hover overflow-hidden group flex flex-col">
+                <button
+                  type="button"
+                  onClick={() => setSelectedBooth(booth)}
+                  className="text-left w-full"
+                  aria-label={`View details for ${booth.name}`}
+                >
+                  {/* Photo banner */}
+                  <div className="relative h-32 border-b-2 border-ink overflow-hidden">
+                    <BoothThumb src={booth.image_url} alt={booth.name} iconClassName="w-10 h-10" className="group-hover:scale-105 transition-transform duration-300" />
+                    <span className="absolute top-2 left-2 sticker bg-ink text-cream-50 text-[9px] max-w-[68%] truncate">
                       {booth.category}
                     </span>
                     {isVisited && (
-                      <span className="text-[10px] font-bold text-emerald-400 flex items-center gap-1">
-                        <CheckCircle2 className="w-3 h-3" /> STAMPED
+                      <span className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full border-2 border-ink">
+                        <CheckCircle2 className="w-3 h-3" aria-hidden="true" /> STAMPED
                       </span>
                     )}
                   </div>
-                  
-                  <h3 className="font-bold text-white text-sm leading-tight line-clamp-1 group-hover:text-brand-300 transition-colors">
-                    {booth.name}
-                  </h3>
-                  <p className="text-xs text-brand-400 font-medium">{booth.faculty}</p>
-                  
-                  <p className="text-[11px] text-slate-400 flex items-center gap-1 mt-1 truncate">
-                    <MapPin className="w-3 h-3 text-slate-500 shrink-0" /> {booth.location}
-                  </p>
-                </div>
-              </div>
 
-              <p className="text-xs text-slate-300 line-clamp-2 mb-3 leading-relaxed">
-                {booth.description}
-              </p>
+                  <div className="px-4 pt-4 flex flex-col">
+                    <h3 className="font-extrabold text-ink text-sm leading-tight line-clamp-2 group-hover:text-brand-600 transition-colors">
+                      {booth.name}
+                    </h3>
+                    <p className="text-xs text-brand-600 font-bold mt-0.5">{booth.faculty}</p>
 
-              <div className="pt-2 border-t border-slate-800/80 flex items-center justify-between">
-                <button
-                  onClick={() => setSelectedBooth(booth)}
-                  className="text-xs font-semibold text-slate-400 hover:text-white flex items-center gap-0.5"
-                >
-                  View Details <ChevronRight className="w-3.5 h-3.5" />
+                    <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-cream-100 border-2 border-ink/10 rounded-full px-2 py-0.5 mt-2 self-start max-w-full">
+                      <MapPin className="w-3 h-3 text-slate-400 shrink-0" aria-hidden="true" />
+                      <span className="truncate">{booth.location}</span>
+                    </span>
+
+                    <p className="text-xs text-slate-600 line-clamp-2 mt-2 leading-relaxed">
+                      {booth.description}
+                    </p>
+                  </div>
                 </button>
 
-                <Link
-                  href={`/checkpoint/${booth.qr_token}`}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 text-xs font-bold shadow-md shadow-brand-500/20 transition-all"
-                >
-                  <QrCode className="w-3.5 h-3.5" />
-                  <span>Scan Checkpoint</span>
-                </Link>
-              </div>
-            </div>
-          );
-        })}
+                <div className="px-4 pb-4 pt-3 mt-auto flex items-center justify-between">
+                  <button
+                    type="button"
+                    onClick={() => setSelectedBooth(booth)}
+                    className="text-xs font-bold text-slate-500 hover:text-ink flex items-center gap-0.5"
+                  >
+                    Details <ChevronRight className="w-3.5 h-3.5" aria-hidden="true" />
+                  </button>
 
-        {filteredBooths.length === 0 && (
-          <div className="text-center py-12 glass-card rounded-2xl border border-slate-800 p-6 space-y-2">
-            <Compass className="w-10 h-10 text-slate-600 mx-auto" />
-            <h4 className="font-bold text-white text-sm">No exhibition booths match your query</h4>
-            <p className="text-xs text-slate-400">Try adjusting your search terms or category selection.</p>
-          </div>
-        )}
-      </div>
+                  <Link
+                    href="/scan"
+                    className="btn flex items-center gap-1.5 px-3 py-1.5 bg-brand-500 text-white text-xs"
+                  >
+                    <QrCode className="w-3.5 h-3.5" aria-hidden="true" />
+                    <span>Scan</span>
+                  </Link>
+                </div>
+              </article>
+            );
+          })}
+
+          {filteredBooths.length === 0 && (
+            <div className="text-center py-12 card p-6 space-y-2">
+              <Compass className="w-10 h-10 text-slate-300 mx-auto" aria-hidden="true" />
+              <h4 className="font-bold text-ink text-sm">No booths match your query</h4>
+              <p className="text-xs text-slate-500">Try adjusting your search or category.</p>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* BOOTH DETAILS MODAL */}
       {selectedBooth && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-sm glass-card rounded-3xl p-6 border border-brand-500/30 shadow-2xl relative">
-            <button
-              onClick={() => setSelectedBooth(null)}
-              className="absolute top-4 right-4 p-1 rounded-full text-slate-400 hover:text-white hover:bg-slate-800"
-            >
-              ✕
-            </button>
-
-            <div className="w-full h-40 rounded-2xl overflow-hidden mb-4 border border-slate-700 relative">
-              <img src={selectedBooth.image_url || ''} alt={selectedBooth.name} className="w-full h-full object-cover" />
-              <span className="absolute top-2 left-2 px-2.5 py-1 rounded-lg bg-black/70 backdrop-blur-md text-brand-300 text-[10px] font-bold uppercase tracking-wider border border-white/10">
-                {selectedBooth.category}
-              </span>
+        <Modal onClose={() => setSelectedBooth(null)} labelledBy="booth-detail-title">
+          <div className="p-6">
+            <div className="w-full h-40 rounded-2xl overflow-hidden mb-4 border-2 border-ink relative">
+              <BoothThumb src={selectedBooth.image_url} alt={selectedBooth.name} iconClassName="w-12 h-12" />
+              <span className="absolute top-2 left-2 sticker bg-ink text-cream-50 text-[9px]">{selectedBooth.category}</span>
             </div>
 
-            <h3 className="font-extrabold text-white text-lg leading-tight font-display mb-1">{selectedBooth.name}</h3>
-            <p className="text-xs text-brand-400 font-bold mb-2">{selectedBooth.faculty}</p>
+            <h3 id="booth-detail-title" className="display text-2xl text-ink leading-tight mb-1">
+              {selectedBooth.name}
+            </h3>
+            <p className="text-xs text-brand-600 font-bold mb-2">{selectedBooth.faculty}</p>
 
-            <div className="flex items-center gap-1.5 text-xs text-slate-300 mb-4 p-2 rounded-xl bg-slate-950 border border-slate-800">
-              <MapPin className="w-4 h-4 text-brand-400 shrink-0" />
+            <div className="flex items-center gap-1.5 text-xs text-slate-600 mb-4 p-2 rounded-xl bg-cream-100 border-2 border-ink/10">
+              <MapPin className="w-4 h-4 text-brand-600 shrink-0" aria-hidden="true" />
               <span>{selectedBooth.location}</span>
             </div>
 
-            <p className="text-xs text-slate-300 leading-relaxed mb-6">
+            <p className="text-sm text-slate-600 leading-relaxed mb-6">
               {selectedBooth.description}
             </p>
 
             <Link
-              href={`/checkpoint/${selectedBooth.qr_token}`}
-              className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-brand-400 hover:from-brand-500 hover:to-brand-300 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25"
+              href="/scan"
+              className="btn w-full py-3 bg-brand-500 text-white text-sm flex items-center justify-center gap-2"
             >
-              <QrCode className="w-4 h-4" /> Go To Checkpoint & Collect Stamp
+              <QrCode className="w-4 h-4" aria-hidden="true" /> Scan booth QR to collect stamp
             </Link>
           </div>
-        </div>
+        </Modal>
       )}
     </div>
   );

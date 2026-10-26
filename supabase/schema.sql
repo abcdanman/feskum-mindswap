@@ -68,7 +68,7 @@ CREATE TABLE IF NOT EXISTS public.speakers (
   photo_url TEXT NULL,
   session_title TEXT NOT NULL,
   session_time TEXT NOT NULL,
-  session_date TEXT DEFAULT '11-12 Nov 2026',
+  session_date TEXT DEFAULT '13-14 Nov 2026',
   display_order INT DEFAULT 0,
   is_active BOOLEAN DEFAULT true,
   created_at TIMESTAMPTZ DEFAULT now()
@@ -122,6 +122,18 @@ CREATE POLICY "Public visitors can view speakers" ON public.speakers FOR SELECT 
 CREATE POLICY "Public visitors can view voting events" ON public.voting_events FOR SELECT USING (true);
 CREATE POLICY "Public visitors can vote for speakers" ON public.speaker_votes FOR ALL USING (true) WITH CHECK (true);
 
+-- POLICIES: Admin writes (anon key powers the client-side passcode admin portal)
+-- The admin portal authenticates with a client-side passcode, so it writes with
+-- the anon key too. These tables therefore need FOR ALL policies.
+DROP POLICY IF EXISTS "Public CRUD checkpoints" ON public.checkpoints;
+CREATE POLICY "Public CRUD checkpoints" ON public.checkpoints FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public CRUD speakers" ON public.speakers;
+CREATE POLICY "Public CRUD speakers" ON public.speakers FOR ALL USING (true) WITH CHECK (true);
+
+DROP POLICY IF EXISTS "Public CRUD reward settings" ON public.reward_settings;
+CREATE POLICY "Public CRUD reward settings" ON public.reward_settings FOR ALL USING (true) WITH CHECK (true);
+
 -- SEED DATA (DEFAULT REWARD THRESHOLD & VOTING EVENT)
 INSERT INTO public.reward_settings (id, title, stamp_threshold, description, is_active)
 VALUES ('00000000-0000-0000-0000-000000000001', 'Laluan Aspirasi Passport Reward', 8, 'Complete 8 exhibition booth checkpoints to unlock your official MindSwap @ FESKUM 2026 souvenir!', true)
@@ -132,21 +144,40 @@ VALUES ('00000000-0000-0000-0000-000000000002', 'UM Talk People Choice Award 202
 ON CONFLICT (id) DO NOTHING;
 
 -- SEED DATA: 12 EXHIBITION BOOTHS (LALUAN ASPIRASI)
-INSERT INTO public.checkpoints (name, faculty, category, description, location, qr_token, display_order)
+INSERT INTO public.checkpoints (name, faculty, category, description, location, image_url, qr_token, display_order)
 VALUES
-('Robotics & AI Innovation Showcase', 'Faculty of Engineering', 'AI & Robotics', 'Interactive autonomous swarm drones and robotic arm demonstration.', 'Booth A-01, DTC Marquee', 'qr-eng-robotics', 1),
-('Quantum Computing & Cyber Defense', 'Faculty of Computer Science & IT', 'Cybersecurity & Tech', 'Hands-on hardware cryptography module & quantum simulation terminal.', 'Booth A-02, DTC Marquee', 'qr-fsktm-quantum', 2),
-('Bio-Tech & Tropical Biodiversity Lab', 'Faculty of Science', 'Biotechnology', 'Live bioluminescent flora showcase and micro-algae biofuel prototype.', 'Booth A-03, DTC Marquee', 'qr-science-biotech', 3),
-('Zero-Carbon Urban Farming', 'Faculty of Built Environment', 'Sustainability', 'Hydroponic smart farm wall powered by solar micro-grids.', 'Booth A-04, DTC Marquee', 'qr-fab-greenfarm', 4),
-('Bionic Prosthetics & Neural Sensing', 'Faculty of Medicine', 'HealthTech', 'Mind-controlled prosthetic grip prototype and real-time EEG biofeedback.', 'Booth B-01, DTC Marquee', 'qr-med-bionics', 5),
-('Nano-Material Dental Regenerators', 'Faculty of Dentistry', 'MedTech', 'Bio-active glass matrix display for zero-pain enamel repair.', 'Booth B-02, DTC Marquee', 'qr-dent-nanomed', 6),
-('Heritage Digital Archiving & AI VR', 'Faculty of Arts & Social Sciences', 'Digital Humanities', 'Immersive VR journey through ancient Southeast Asian maritime trade routes.', 'Booth B-03, DTC Marquee', 'qr-fass-vrheritage', 7),
-('Clean Energy Battery Tech & Graphene', 'Faculty of Pharmacy', 'Green Energy', 'Graphene supercapacitor rapid charging station demo.', 'Booth B-04, DTC Marquee', 'qr-pharm-graphene', 8),
-('Inclusive EdTech & Sign AI Translator', 'Faculty of Education', 'EdTech & Social Impact', 'Real-time camera sign language translation app for inclusive classrooms.', 'Booth C-01, DTC Marquee', 'qr-edu-signai', 9),
-('FinTech AI Fraud Detection Sandbox', 'Faculty of Business & Economics', 'FinTech', 'Interactive algorithmic trading simulation and anti-money laundering AI.', 'Booth C-02, DTC Marquee', 'qr-fbe-fintech', 10),
-('Smart Legal Contract AI Assistant', 'Faculty of Law', 'LegalTech', 'Automated dispute resolution assistant and blockchain notary demo.', 'Booth C-03, DTC Marquee', 'qr-law-smartcontract', 11),
-('UM Makerspace Hardware Prototyping', 'UM Makers Club', 'Maker Space', '3D printing live station, PCB prototyping, and custom laser cutting booth.', 'Booth C-04, DTC Marquee', 'qr-makers-hardware', 12)
+('Robotics & AI Innovation Showcase', 'Faculty of Engineering', 'AI & Robotics', 'Interactive autonomous swarm drones and robotic arm demonstration.', 'Booth A-01, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&auto=format&fit=crop&q=70', 'qr-eng-robotics', 1),
+('Quantum Computing & Cyber Defense', 'Faculty of Computer Science & IT', 'Cybersecurity & Tech', 'Hands-on hardware cryptography module & quantum simulation terminal.', 'Booth A-02, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=70', 'qr-fsktm-quantum', 2),
+('Bio-Tech & Tropical Biodiversity Lab', 'Faculty of Science', 'Biotechnology', 'Live bioluminescent flora showcase and micro-algae biofuel prototype.', 'Booth A-03, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=70', 'qr-science-biotech', 3),
+('Zero-Carbon Urban Farming', 'Faculty of Built Environment', 'Sustainability', 'Hydroponic smart farm wall powered by solar micro-grids.', 'Booth A-04, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&auto=format&fit=crop&q=70', 'qr-fab-greenfarm', 4),
+('Bionic Prosthetics & Neural Sensing', 'Faculty of Medicine', 'HealthTech', 'Mind-controlled prosthetic grip prototype and real-time EEG biofeedback.', 'Booth B-01, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=800&auto=format&fit=crop&q=70', 'qr-med-bionics', 5),
+('Nano-Material Dental Regenerators', 'Faculty of Dentistry', 'MedTech', 'Bio-active glass matrix display for zero-pain enamel repair.', 'Booth B-02, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=800&auto=format&fit=crop&q=70', 'qr-dent-nanomed', 6),
+('Heritage Digital Archiving & AI VR', 'Faculty of Arts & Social Sciences', 'Digital Humanities', 'Immersive VR journey through ancient Southeast Asian maritime trade routes.', 'Booth B-03, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=70', 'qr-fass-vrheritage', 7),
+('Clean Energy Battery Tech & Graphene', 'Faculty of Pharmacy', 'Green Energy', 'Graphene supercapacitor rapid charging station demo.', 'Booth B-04, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&auto=format&fit=crop&q=70', 'qr-pharm-graphene', 8),
+('Inclusive EdTech & Sign AI Translator', 'Faculty of Education', 'EdTech & Social Impact', 'Real-time camera sign language translation app for inclusive classrooms.', 'Booth C-01, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1573164713988-8665fc963095?w=800&auto=format&fit=crop&q=70', 'qr-edu-signai', 9),
+('FinTech AI Fraud Detection Sandbox', 'Faculty of Business & Economics', 'FinTech', 'Interactive algorithmic trading simulation and anti-money laundering AI.', 'Booth C-02, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=70', 'qr-fbe-fintech', 10),
+('Smart Legal Contract AI Assistant', 'Faculty of Law', 'LegalTech', 'Automated dispute resolution assistant and blockchain notary demo.', 'Booth C-03, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=70', 'qr-law-smartcontract', 11),
+('UM Makerspace Hardware Prototyping', 'UM Makers Club', 'Maker Space', '3D printing live station, PCB prototyping, and custom laser cutting booth.', 'Booth C-04, Marquee Tent, High Impact Research Building', 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=800&auto=format&fit=crop&q=70', 'qr-makers-hardware', 12)
 ON CONFLICT (qr_token) DO NOTHING;
+
+-- BACKFILL: ensure existing booth rows get their photos (idempotent)
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-eng-robotics';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1550751827-4bd374c3f58b?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-fsktm-quantum';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1581091226825-a6a2a5aee158?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-science-biotech';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1507413245164-6160d8298b31?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-fab-greenfarm';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1581092160562-40aa08e78837?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-med-bionics';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1581092918056-0c4c3acd3789?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-dent-nanomed';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-fass-vrheritage';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1555949963-aa79dcee981c?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-pharm-graphene';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1573164713988-8665fc963095?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-edu-signai';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1518770660439-4636190af475?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-fbe-fintech';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1504384308090-c894fdcc538d?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-law-smartcontract';
+UPDATE public.checkpoints SET image_url = 'https://images.unsplash.com/photo-1532094349884-543bc11b234d?w=800&auto=format&fit=crop&q=70' WHERE qr_token = 'qr-makers-hardware';
+
+-- VENUE MIGRATION: replace the old DTC Marquee label on existing installations
+UPDATE public.checkpoints
+SET location = replace(location, 'DTC Marquee', 'Marquee Tent, High Impact Research Building')
+WHERE location LIKE '%DTC Marquee%';
 
 -- SEED DATA: 16 UM TALK SPEAKERS
 INSERT INTO public.speakers (name, position, organisation, bio, photo_url, session_title, session_time, display_order)
@@ -167,3 +198,42 @@ VALUES
 ('Dr. Alex Wong Cheng', 'Lead Researcher', 'Quantum Information Center UM', 'Explores topological qubits and quantum cryptography protocols.', 'https://images.unsplash.com/photo-1522075469751-3a6694fb2f61?w=400&auto=format&fit=crop&q=80', 'Demystifying Quantum Computing for Engineers', '05:30 PM - 06:00 PM', 14),
 ('Dr. Zarina Mansor', 'Director of Sustainability', 'UM Sustainability Office', 'Architect of UM campus zero-waste initiative and circular economy frameworks.', 'https://images.unsplash.com/photo-1573497019940-1c28c88b4f3e?w=400&auto=format&fit=crop&q=80', 'Circular Economy Frameworks for Higher Education', '06:00 PM - 06:30 PM', 15),
 ('Dato Dr. Amiruddin Harun', 'Guest Keynote Speaker', 'Ministry of Science & Innovation', 'Keynote address on national deep tech incubation policies and startup funding.', 'https://images.unsplash.com/photo-1560250097-0b93528c311a?w=400&auto=format&fit=crop&q=80', 'Malaysia Deep Tech Vision 2030', '06:30 PM - 07:00 PM', 16);
+
+UPDATE public.speakers SET session_date = '13 Nov 2026' WHERE display_order BETWEEN 1 AND 8;
+UPDATE public.speakers SET session_date = '14 Nov 2026' WHERE display_order BETWEEN 9 AND 16;
+
+-- ============================================================
+-- MIGRATION: attendee identity + ranking + admin-configurable metric
+-- (Safe to run on an existing database)
+-- ============================================================
+ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS student_id TEXT;
+ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS faculty TEXT;
+ALTER TABLE public.visitors ADD COLUMN IF NOT EXISTS show_on_leaderboard BOOLEAN DEFAULT true;
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_visitors_student_id
+  ON public.visitors (student_id) WHERE student_id IS NOT NULL;
+
+ALTER TABLE public.reward_settings
+  ADD COLUMN IF NOT EXISTS ranking_metric TEXT DEFAULT 'stamps'
+  CHECK (ranking_metric IN ('stamps', 'points', 'stamps_rating'));
+
+-- ============================================================
+-- STORAGE: public bucket for booth / speaker photos
+-- ============================================================
+INSERT INTO storage.buckets (id, name, public)
+VALUES ('booth-images', 'booth-images', true)
+ON CONFLICT (id) DO NOTHING;
+
+DROP POLICY IF EXISTS "Public read booth-images" ON storage.objects;
+DROP POLICY IF EXISTS "Public upload booth-images" ON storage.objects;
+DROP POLICY IF EXISTS "Public update booth-images" ON storage.objects;
+
+CREATE POLICY "Public read booth-images"
+  ON storage.objects FOR SELECT TO anon USING (bucket_id = 'booth-images');
+CREATE POLICY "Public upload booth-images"
+  ON storage.objects FOR INSERT TO anon WITH CHECK (bucket_id = 'booth-images');
+CREATE POLICY "Public update booth-images"
+  ON storage.objects FOR UPDATE TO anon USING (bucket_id = 'booth-images');
+
+-- Reload PostgREST schema cache so new columns are visible immediately
+NOTIFY pgrst, 'reload schema';

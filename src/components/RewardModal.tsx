@@ -2,8 +2,9 @@
 
 import React, { useEffect } from 'react';
 import confetti from 'canvas-confetti';
-import { Gift, Sparkles, CheckCircle2, ShieldCheck, X } from 'lucide-react';
+import { Gift, Sparkles, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { VisitorReward, RewardSetting } from '@/lib/types';
+import Modal from '@/components/Modal';
 
 interface RewardModalProps {
   rewardSetting: RewardSetting;
@@ -14,77 +15,60 @@ interface RewardModalProps {
 
 export default function RewardModal({ rewardSetting, visitorReward, visitorId, onClose }: RewardModalProps) {
   useEffect(() => {
-    confetti({
-      particleCount: 90,
-      spread: 80,
-      origin: { y: 0.6 }
-    });
+    confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 } });
   }, []);
 
   const isClaimed = visitorReward.status === 'claimed';
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-md animate-fadeIn">
-      <div className="w-full max-w-sm bg-white rounded-3xl p-6 border-2 border-amber-400 shadow-2xl relative text-center">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 p-1.5 rounded-full text-slate-400 hover:text-slate-700 hover:bg-slate-100"
-        >
-          <X className="w-5 h-5" />
-        </button>
-
+    <Modal onClose={onClose} labelledBy="reward-title" panelClassName="border-gold-500">
+      <div className="p-6 text-center">
         {/* Celebration Gift Icon */}
-        <div className="w-20 h-20 mx-auto mb-4 rounded-3xl bg-gradient-to-tr from-amber-400 to-amber-200 p-0.5 shadow-lg shadow-amber-400/30 animate-bounce">
-          <div className="w-full h-full bg-white rounded-[22px] flex items-center justify-center">
-            <Gift className="w-10 h-10 text-amber-500" />
-          </div>
+        <div className="w-20 h-20 mx-auto mb-4 rounded-2xl bg-gold-400 border-2 border-ink flex items-center justify-center shadow-brut animate-bounce">
+          <Gift className="w-10 h-10 text-ink" aria-hidden="true" />
         </div>
 
-        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full bg-amber-50 text-amber-800 border border-amber-300 text-xs font-extrabold uppercase tracking-wider mb-2">
-          <Sparkles className="w-3.5 h-3.5 text-amber-600" /> REWARD UNLOCKED
+        <span className="sticker bg-gold-400 text-ink text-[10px] mb-2">
+          <Sparkles className="w-3.5 h-3.5" aria-hidden="true" /> Reward unlocked
         </span>
 
-        <h3 className="font-extrabold text-slate-900 text-xl mb-2 font-display">
-          {rewardSetting.title}
-        </h3>
+        <h3 id="reward-title" className="display text-2xl text-ink mb-2 mt-2">{rewardSetting.title}</h3>
 
-        <p className="text-xs text-slate-600 mb-6 leading-relaxed">
-          {rewardSetting.description}
-        </p>
+        <p className="text-xs text-slate-600 mb-6 leading-relaxed">{rewardSetting.description}</p>
 
         {/* Claim Status Card */}
-        <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 mb-6 space-y-2 text-left">
+        <div className="p-4 rounded-xl bg-cream-100 border-2 border-ink mb-6 space-y-2 text-left">
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase">Redemption Status</span>
+            <span className="eyebrow text-slate-500">Redemption status</span>
             {isClaimed ? (
-              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-xs flex items-center gap-1 border border-emerald-300">
+              <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 font-extrabold text-[10px] flex items-center gap-1 border-2 border-ink">
                 <CheckCircle2 className="w-3 h-3" /> CLAIMED
               </span>
             ) : (
-              <span className="px-2.5 py-0.5 rounded-full bg-amber-100 text-amber-900 font-extrabold text-xs flex items-center gap-1 border border-amber-300">
-                READY TO REDEEM
+              <span className="px-2.5 py-0.5 rounded-full bg-gold-400 text-ink font-extrabold text-[10px] flex items-center gap-1 border-2 border-ink">
+                READY
               </span>
             )}
           </div>
 
-          <div className="pt-2 border-t border-slate-200">
-            <span className="text-[11px] text-slate-500 font-bold uppercase">Show this to DTC Helpdesk Staff</span>
-            <div className="mt-1 p-2.5 rounded-xl bg-white border border-slate-300 flex items-center justify-between shadow-sm">
-              <span className="text-xs font-mono font-extrabold text-brand-600 truncate max-w-[200px]">
+          <div className="pt-2 border-t-2 border-ink/10">
+            <span className="eyebrow text-slate-500">Show this to HIR Helpdesk staff</span>
+            <div className="mt-1 p-2.5 rounded-lg bg-white border-2 border-ink flex items-center justify-between">
+              <span className="text-xs mono font-bold text-brand-600 truncate max-w-[200px] select-all">
                 ID: {visitorId}
               </span>
-              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" />
+              <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" aria-hidden="true" />
             </div>
           </div>
         </div>
 
         <button
           onClick={onClose}
-          className="w-full py-3 px-4 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-sm shadow-md shadow-amber-500/20 transition-all"
+          className="btn w-full py-3 bg-gold-400 hover:bg-gold-500 text-ink text-sm uppercase"
         >
-          Got It, Thanks!
+          Got it
         </button>
       </div>
-    </div>
+    </Modal>
   );
 }

@@ -6,7 +6,8 @@ import confetti from 'canvas-confetti';
 import { getOrInitVisitorId } from '@/lib/visitor';
 import { getCheckpointByQrToken, getVisitorVisits, submitBoothRating, getRewardSetting } from '@/lib/supabase';
 import { Checkpoint, BoothVisit, RewardSetting } from '@/lib/types';
-import { Star, CheckCircle2, QrCode, Ticket, ArrowLeft, MapPin, Sparkles, AlertCircle, Send } from 'lucide-react';
+import { Star, CheckCircle2, Ticket, ArrowLeft, MapPin, Sparkles, AlertCircle, Send, QrCode } from 'lucide-react';
+import BoothThumb from '@/components/BoothThumb';
 
 export default function CheckpointPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -36,7 +37,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
       const [cp, visits, rSetting] = await Promise.all([
         getCheckpointByQrToken(qrToken),
         getVisitorVisits(id),
-        getRewardSetting()
+        getRewardSetting(),
       ]);
 
       setCheckpoint(cp);
@@ -69,12 +70,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
       setExistingVisit(res.visit);
       setTotalVisitsCount(prev => prev + 1);
 
-      // Trigger Confetti Celebration
-      confetti({
-        particleCount: 100,
-        spread: 80,
-        origin: { y: 0.6 }
-      });
+      confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
     } else {
       setErrorMsg(res.message || 'Failed to submit rating. Please try again.');
     }
@@ -84,27 +80,24 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
   if (loading) {
     return (
       <div className="py-20 text-center space-y-3">
-        <div className="w-12 h-12 border-4 border-brand-400 border-t-transparent rounded-full animate-spin mx-auto" />
-        <p className="text-xs text-slate-400 font-medium">Validating QR Checkpoint...</p>
+        <div className="w-12 h-12 border-4 border-ink border-t-brand-500 rounded-full animate-spin mx-auto" />
+        <p className="text-xs text-slate-500 font-medium">Validating QR checkpoint...</p>
       </div>
     );
   }
 
   if (!checkpoint) {
     return (
-      <div className="py-12 glass-card rounded-3xl p-6 text-center space-y-4 border border-rose-500/30">
-        <div className="w-14 h-14 rounded-2xl bg-rose-500/20 text-rose-400 flex items-center justify-center mx-auto">
+      <div className="py-12 card p-6 text-center space-y-4 border-rose-300">
+        <div className="w-14 h-14 rounded-2xl bg-rose-50 text-rose-600 flex items-center justify-center mx-auto border-2 border-ink">
           <AlertCircle className="w-8 h-8" />
         </div>
         <div>
-          <h2 className="text-lg font-bold text-white">Invalid Checkpoint</h2>
-          <p className="text-xs text-slate-400 mt-1">This exhibition booth QR code does not exist or has expired.</p>
+          <h2 className="display text-2xl text-ink">Invalid checkpoint</h2>
+          <p className="text-xs text-slate-500 mt-1">This booth QR code does not exist or has expired.</p>
         </div>
-        <Link
-          href="/exhibition"
-          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-800 text-white text-xs font-bold hover:bg-slate-700"
-        >
-          <ArrowLeft className="w-4 h-4" /> View All Exhibition Booths
+        <Link href="/exhibition" className="btn inline-flex items-center gap-2 px-4 py-2.5 bg-white text-ink text-xs">
+          <ArrowLeft className="w-4 h-4" /> View all booths
         </Link>
       </div>
     );
@@ -118,124 +111,137 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
       {/* NAVIGATION BACK */}
       <Link
         href="/passport"
-        className="inline-flex items-center gap-1.5 text-xs font-semibold text-slate-400 hover:text-white"
+        className="inline-flex items-center gap-1.5 text-xs font-bold text-slate-500 hover:text-ink"
       >
         <ArrowLeft className="w-4 h-4" /> Back to Passport
       </Link>
 
+      {/* STEP INDICATOR: Scanned → Rate → Stamped */}
+      <div className="card p-3.5 flex items-center">
+        {[
+          { icon: QrCode, label: 'Scanned', done: true, active: false },
+          { icon: Star, label: 'Rate', done: false, active: !isCompleted },
+          { icon: CheckCircle2, label: 'Stamped', done: isCompleted, active: false },
+        ].map((s, i, arr) => {
+          const StepIcon = s.icon;
+          return (
+            <React.Fragment key={s.label}>
+              <div className="flex flex-col items-center gap-1">
+                <span
+                  className={`w-8 h-8 rounded-full border-2 border-ink flex items-center justify-center ${
+                    s.done ? 'bg-emerald-500 text-white' : s.active ? 'bg-brand-500 text-white' : 'bg-cream-100 text-slate-400'
+                  }`}
+                >
+                  <StepIcon className="w-4 h-4" />
+                </span>
+                <span className="text-[9px] font-bold uppercase tracking-wide text-slate-500">{s.label}</span>
+              </div>
+              {i < arr.length - 1 && (
+                <div className={`flex-1 h-1 mx-1 rounded-full ${s.done ? 'bg-emerald-500' : 'bg-slate-200'}`} />
+              )}
+            </React.Fragment>
+          );
+        })}
+      </div>
+
       {/* BOOTH HEADER HERO CARD */}
-      <div className="glass-card rounded-3xl p-5 border border-brand-500/30 bg-gradient-to-b from-slate-900 to-slate-950 space-y-4 shadow-xl">
-        <div className="w-full h-44 rounded-2xl overflow-hidden border border-slate-700 relative">
-          <img src={checkpoint.image_url || ''} alt={checkpoint.name} className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-gradient-to-t from-slate-950 via-transparent to-transparent" />
-          
-          <span className="absolute top-3 left-3 px-3 py-1 rounded-full bg-slate-950/80 backdrop-blur-md text-brand-300 text-[10px] font-extrabold uppercase tracking-wider border border-white/10">
-            {checkpoint.category}
-          </span>
+      <div className="card p-5 space-y-4">
+        <div className="w-full h-44 rounded-2xl overflow-hidden border-2 border-ink relative">
+          <BoothThumb src={checkpoint.image_url} alt={checkpoint.name} iconClassName="w-12 h-12" />
+          <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
+          <span className="absolute top-3 left-3 sticker bg-ink text-cream-50 text-[9px]">{checkpoint.category}</span>
         </div>
 
         <div>
-          <span className="text-[10px] font-bold text-brand-400 uppercase tracking-widest block mb-0.5">
-            {checkpoint.faculty}
-          </span>
-          <h1 className="text-xl font-extrabold text-white font-display leading-tight">{checkpoint.name}</h1>
-          
-          <div className="flex items-center gap-1.5 text-xs text-slate-300 mt-2 p-2 rounded-xl bg-slate-950/80 border border-slate-800">
-            <MapPin className="w-4 h-4 text-brand-400 shrink-0" />
+          <span className="eyebrow text-brand-600 block mb-0.5">{checkpoint.faculty}</span>
+          <h1 className="display text-3xl text-ink leading-tight">{checkpoint.name}</h1>
+
+          <div className="flex items-center gap-1.5 text-xs text-slate-600 mt-2 p-2 rounded-xl bg-cream-100 border-2 border-ink/10">
+            <MapPin className="w-4 h-4 text-brand-600 shrink-0" />
             <span>{checkpoint.location}</span>
           </div>
         </div>
 
-        <p className="text-xs text-slate-300 leading-relaxed">
-          {checkpoint.description}
-        </p>
+        <p className="text-xs text-slate-600 leading-relaxed">{checkpoint.description}</p>
       </div>
 
       {/* COMPLETED STAMP ALREADY COLLECTED VIEW */}
       {isCompleted ? (
-        <div className="glass-card rounded-3xl p-6 border-2 border-emerald-500/40 bg-emerald-950/20 text-center space-y-4 animate-stampBump shadow-2xl">
-          <div className="w-16 h-16 rounded-full bg-emerald-500/20 text-emerald-400 flex items-center justify-center mx-auto border-2 border-emerald-500/50">
+        <div className="card p-6 border-emerald-300 text-center space-y-4 animate-stampBump">
+          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto border-2 border-ink">
             <CheckCircle2 className="w-10 h-10" />
           </div>
 
           <div>
-            <span className="px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-300 text-xs font-extrabold uppercase tracking-wider border border-emerald-500/30">
-              ✓ STAMP COLLECTED!
-            </span>
-            <h3 className="text-lg font-extrabold text-white font-display mt-2">
-              {successStamp ? 'Congratulations!' : "You've Already Visited This Booth"}
+            <span className="sticker bg-emerald-400 text-ink text-[10px]">Stamp collected</span>
+            <h3 className="display text-2xl text-ink mt-2">
+              {successStamp ? 'Congratulations!' : "You've already visited"}
             </h3>
-            <p className="text-xs text-slate-300 mt-1">
-              Your stamp for <span className="text-brand-300 font-bold">{checkpoint.faculty}</span> has been logged in your Digital Passport.
+            <p className="text-xs text-slate-600 mt-1">
+              Your stamp for <span className="text-brand-600 font-bold">{checkpoint.faculty}</span> has been logged in your passport.
             </p>
           </div>
 
           {/* RATING DISPLAY */}
-          <div className="p-3 rounded-2xl bg-slate-950/90 border border-slate-800 max-w-xs mx-auto space-y-1">
-            <span className="text-[10px] uppercase font-bold text-slate-400 block">Your Rating</span>
+          <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink/10 max-w-xs mx-auto space-y-1">
+            <span className="eyebrow text-slate-500 block">Your rating</span>
             <div className="flex justify-center gap-1">
-              {[1, 2, 3, 4, 5].map((star) => (
+              {[1, 2, 3, 4, 5].map(star => (
                 <Star
                   key={star}
-                  className={`w-5 h-5 ${
-                    star <= (activeVisit?.rating || 5)
-                      ? 'text-amber-400 fill-amber-400'
-                      : 'text-slate-700'
-                  }`}
+                  className={`w-5 h-5 ${star <= (activeVisit?.rating || 5) ? 'text-gold-400 fill-gold-400' : 'text-slate-200'}`}
                 />
               ))}
             </div>
             {activeVisit?.review && (
-              <p className="text-xs text-slate-300 italic pt-1 border-t border-slate-800">
-                &quot;{activeVisit.review}&quot;
-              </p>
+              <p className="text-xs text-slate-600 italic pt-1 border-t-2 border-ink/10">&quot;{activeVisit.review}&quot;</p>
             )}
           </div>
 
-          <div className="p-3 rounded-2xl bg-brand-500/10 border border-brand-500/30 flex items-center justify-between text-xs font-bold">
-            <span className="text-white">Passport Progress</span>
-            <span className="text-brand-300 font-mono">{totalVisitsCount} / {rewardSetting?.stamp_threshold || 8} Stamps</span>
+          <div className="p-3 rounded-xl bg-brand-50 border-2 border-ink flex items-center justify-between text-xs font-bold">
+            <span className="text-ink">Passport progress</span>
+            <span className="text-brand-700 mono">{totalVisitsCount} / {rewardSetting?.stamp_threshold || 8} stamps</span>
           </div>
 
-          <Link
-            href="/passport"
-            className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-brand-600 to-brand-400 hover:from-brand-500 hover:to-brand-300 text-slate-950 font-bold text-sm flex items-center justify-center gap-2 shadow-lg shadow-brand-500/25 transition-all"
-          >
-            <Ticket className="w-4 h-4" /> View Passport & Claim Rewards
+          <Link href="/passport" className="btn w-full py-3 bg-brand-500 text-white text-sm flex items-center justify-center gap-2">
+            <Ticket className="w-4 h-4" /> View passport & claim rewards
           </Link>
         </div>
       ) : (
         /* RATING & STAMP COLLECTION FORM */
-        <div className="glass-card rounded-3xl p-6 border border-brand-500/40 bg-slate-900/90 space-y-4 shadow-xl">
-          <div className="flex items-center gap-2 border-b border-slate-800 pb-3">
-            <Sparkles className="w-5 h-5 text-amber-400" />
+        <div className="card p-6 space-y-4">
+          <div className="flex items-center gap-2 border-b-2 border-ink/10 pb-3">
+            <Sparkles className="w-5 h-5 text-gold-500" />
             <div>
-              <h3 className="font-extrabold text-white text-sm">Rate Booth to Collect Stamp</h3>
-              <p className="text-[11px] text-slate-400">Your feedback helps crown the Best Faculty Booth!</p>
+              <h3 className="display text-xl text-ink leading-none">Rate to collect stamp</h3>
+              <p className="text-[11px] text-slate-500">Your feedback helps crown the Best Faculty Booth!</p>
             </div>
           </div>
 
           <form onSubmit={handleSubmitRating} className="space-y-4">
             {/* STAR RATING SELECTOR */}
             <div>
-              <label className="block text-xs font-bold uppercase tracking-wider text-slate-300 text-center mb-2">
+              <label className="block eyebrow text-slate-500 text-center mb-2">
                 How would you rate this showcase?
               </label>
-              <div className="flex justify-center gap-2 p-3 rounded-2xl bg-slate-950 border border-slate-800">
-                {[1, 2, 3, 4, 5].map((star) => (
+              <div className="flex justify-center gap-2 p-3 rounded-2xl bg-cream-100 border-2 border-ink/10">
+                {[1, 2, 3, 4, 5].map(star => (
                   <button
                     key={star}
                     type="button"
                     onClick={() => setRating(star)}
                     onMouseEnter={() => setHoverRating(star)}
                     onMouseLeave={() => setHoverRating(0)}
-                    className="p-1 text-slate-700 hover:scale-125 transition-transform focus:outline-none"
+                    aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
+                    aria-pressed={rating === star}
+                    className="p-1 text-slate-300 hover:scale-125 transition-transform focus:outline-none"
                   >
                     <Star
+                      aria-hidden="true"
                       className={`w-8 h-8 ${
                         star <= (hoverRating || rating)
-                          ? 'text-amber-400 fill-amber-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]'
-                          : 'text-slate-700'
+                          ? 'text-gold-400 fill-gold-400 drop-shadow-[0_0_8px_rgba(251,191,36,0.6)]'
+                          : 'text-slate-200'
                       }`}
                     />
                   </button>
@@ -245,21 +251,23 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
 
             {/* OPTIONAL REVIEW TEXT */}
             <div>
-              <label className="block text-xs font-semibold text-slate-300 mb-1">
-                Quick Review / Thoughts (Optional)
+              <label htmlFor="booth-review" className="block text-xs font-semibold text-slate-600 mb-1">
+                Quick review (optional)
               </label>
               <textarea
+                id="booth-review"
+                name="review"
                 rows={2}
-                placeholder="Tell us what impressed you about this booth..."
+                placeholder="What impressed you about this booth?"
                 value={review}
-                onChange={(e) => setReview(e.target.value)}
-                className="w-full p-3 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-xs focus:outline-none focus:border-brand-400 resize-none"
+                onChange={e => setReview(e.target.value)}
+                className="w-full p-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base focus:outline-none focus:bg-white resize-none"
                 maxLength={200}
               />
             </div>
 
             {errorMsg && (
-              <div className="p-3 rounded-xl bg-rose-500/20 border border-rose-500/40 text-rose-300 text-xs font-semibold text-center">
+              <div role="alert" aria-live="polite" className="p-3 rounded-xl bg-rose-50 border-2 border-ink text-rose-700 text-xs font-semibold text-center">
                 {errorMsg}
               </div>
             )}
@@ -267,13 +275,13 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
             <button
               type="submit"
               disabled={isSubmitting}
-              className="w-full py-3.5 px-4 rounded-2xl bg-gradient-to-r from-brand-500 via-teal-400 to-emerald-400 hover:from-brand-400 hover:to-emerald-300 text-slate-950 font-extrabold text-sm flex items-center justify-center gap-2 shadow-xl shadow-brand-500/30 transition-all active:scale-95"
+              className="btn w-full py-3.5 bg-brand-500 text-white text-sm flex items-center justify-center gap-2"
             >
               {isSubmitting ? (
-                <div className="w-5 h-5 border-2 border-slate-950 border-t-transparent rounded-full animate-spin" />
+                <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
               ) : (
                 <>
-                  <Send className="w-4 h-4" /> SUBMIT RATING & COLLECT STAMP
+                  <Send className="w-4 h-4" /> Submit rating & collect stamp
                 </>
               )}
             </button>

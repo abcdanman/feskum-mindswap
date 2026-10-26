@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="MindSwap FESKUM 2026">
+  <rect x="0" y="0" width="512" height="512" rx="112" fill="#0f172a"/>
+  <!-- passport stamp ring -->
+  <circle cx="256" cy="256" r="156" fill="none" stroke="#f8f6f0" stroke-width="40"/>
+  <!-- perforation ticks -->
+  <g stroke="#0f172a" stroke-width="34" stroke-linecap="butt">
+    <line x1="256" y1="100" x2="256" y2="132"/>
+    <line x1="256" y1="380" x2="256" y2="412"/>
+    <line x1="100" y1="256" x2="132" y2="256"/>
+    <line x1="380" y1="256" x2="412" y2="256"/>
+  </g>
+  <!-- star -->
+  <polygon
+    points="256.0,144.0 283.6,218.0 362.5,221.4 300.7,270.5 321.8,346.6 256.0,303.0 190.2,346.6 211.3,270.5 149.5,221.4 228.4,218.0"
+    fill="#e63946"/>
+</svg>

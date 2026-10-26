@@ -14,6 +14,7 @@ tsconfig.tsbuildinfo
 .env*.local
 
 # Debug / Logs
+.playwright-cli/
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
@@ -24,3 +25,6 @@ pnpm-debug.log*
 *.pem
 .idea/
 .vscode/
+.vercel
+.env*
+!.env.example

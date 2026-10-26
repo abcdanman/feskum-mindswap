@@ -1,6 +1,17 @@
 import { createClient } from '@supabase/supabase-js';
-import { Checkpoint, BoothVisit, Speaker, RewardSetting, VisitorReward, SpeakerVote, BoothAnalytics } from './types';
+import {
+  Checkpoint,
+  BoothVisit,
+  Speaker,
+  RewardSetting,
+  VisitorReward,
+  SpeakerVote,
+  BoothAnalytics,
+  RankingMetric,
+  LeaderboardEntry,
+} from './types';
 import { INITIAL_CHECKPOINTS, INITIAL_SPEAKERS, INITIAL_REWARD_SETTING } from './mockData';
+import { maskName } from './visitor';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -43,15 +54,15 @@ function setLocalData<T>(key: string, data: T): void {
 // -------------------------------------------------------------
 // CHECKPOINTS API
 // -------------------------------------------------------------
-export async function getCheckpoints(): Promise<Checkpoint[]> {
+export async function getCheckpoints(includeInactive = false): Promise<Checkpoint[]> {
   if (supabase) {
-    const { data, error } = await supabase
-      .from('checkpoints')
-      .select('*')
-      .order('display_order', { ascending: true });
-    if (!error && data && data.length > 0) return data;
+    let query = supabase.from('checkpoints').select('*').order('display_order', { ascending: true });
+    if (!includeInactive) query = query.eq('is_active', true);
+    const { data, error } = await query;
+    if (!error && data) return data;
   }
-  return getLocalData<Checkpoint[]>(STORAGE_KEYS.CHECKPOINTS, INITIAL_CHECKPOINTS);
+  const local = getLocalData<Checkpoint[]>(STORAGE_KEYS.CHECKPOINTS, INITIAL_CHECKPOINTS);
+  return includeInactive ? local : local.filter(c => c.is_active !== false);
 }
 
 export async function getCheckpointByQrToken(qrToken: string): Promise<Checkpoint | null> {
@@ -61,23 +72,34 @@ export async function getCheckpointByQrToken(qrToken: string): Promise<Checkpoin
       .select('*')
       .eq('qr_token', qrToken)
       .single();
-    if (!error && data) return data;
+    if (!error && data) return data.is_active === false ? null : data;
   }
   const checkpoints = await getCheckpoints();
   return checkpoints.find(c => c.qr_token === qrToken || c.id === qrToken) || null;
 }
 
-export async function saveCheckpoint(checkpoint: Partial<Checkpoint>): Promise<Checkpoint> {
+export async function saveCheckpoint(
+  checkpoint: Partial<Checkpoint>
+): Promise<{ data: Checkpoint | null; error: string | null }> {
   if (supabase) {
+    if (!checkpoint.id) {
+      const existing = await getCheckpoints(true);
+      checkpoint = {
+        ...checkpoint,
+        display_order: checkpoint.display_order ?? existing.length + 1,
+      };
+    }
     const { data, error } = await supabase.from('checkpoints').upsert(checkpoint).select().single();
-    if (!error && data) return data;
+    if (!error && data) return { data, error: null };
+    return { data: null, error: error?.message || 'Failed to save booth.' };
   }
-  const checkpoints = await getCheckpoints();
+
+  const checkpoints = await getCheckpoints(true);
   let updated: Checkpoint[];
   let target: Checkpoint;
   if (checkpoint.id) {
     target = { ...checkpoints.find(c => c.id === checkpoint.id)!, ...checkpoint } as Checkpoint;
-    updated = checkpoints.map(c => c.id === checkpoint.id ? target : c);
+    updated = checkpoints.map(c => (c.id === checkpoint.id ? target : c));
   } else {
     target = {
       id: 'booth-' + Date.now(),
@@ -85,7 +107,8 @@ export async function saveCheckpoint(checkpoint: Partial<Checkpoint>): Promise<C
       faculty: checkpoint.faculty || 'Faculty',
       category: checkpoint.category || 'Exhibition',
       description: checkpoint.description || '',
-      location: checkpoint.location || 'DTC Marquee',
+      location: checkpoint.location || 'Marquee Tent, High Impact Research Building',
+      image_url: checkpoint.image_url || null,
       qr_token: checkpoint.qr_token || 'qr-' + Date.now(),
       is_active: checkpoint.is_active ?? true,
       display_order: checkpoints.length + 1,
@@ -93,7 +116,17 @@ export async function saveCheckpoint(checkpoint: Partial<Checkpoint>): Promise<C
     updated = [...checkpoints, target];
   }
   setLocalData(STORAGE_KEYS.CHECKPOINTS, updated);
-  return target;
+  return { data: target, error: null };
+}
+
+export async function deleteCheckpoint(id: string): Promise<{ error: string | null }> {
+  if (supabase) {
+    const { error } = await supabase.from('checkpoints').delete().eq('id', id);
+    if (error) return { error: error.message };
+  }
+  const checkpoints = await getCheckpoints(true);
+  setLocalData(STORAGE_KEYS.CHECKPOINTS, checkpoints.filter(c => c.id !== id));
+  return { error: null };
 }
 
 // -------------------------------------------------------------
@@ -156,12 +189,13 @@ export async function submitBoothRating(
         return { success: false, message: "You've already collected this stamp!" };
       }
       console.error('Supabase visit error:', error);
-    } else if (data) {
-      return { success: true, visit: data };
+      return { success: false, message: 'Could not save your stamp. Check your connection and try again.' };
     }
+    if (data) return { success: true, visit: data };
+    return { success: false, message: 'Could not save your stamp. Please try again.' };
   }
 
-  // Fallback to local storage
+  // Fallback to local storage only when Supabase is not configured
   const allVisits = getLocalData<BoothVisit[]>(STORAGE_KEYS.VISITS, []);
   allVisits.push(newVisit);
   setLocalData(STORAGE_KEYS.VISITS, allVisits);
@@ -174,19 +208,20 @@ export async function submitBoothRating(
 export async function getRewardSetting(): Promise<RewardSetting> {
   if (supabase) {
     const { data, error } = await supabase.from('reward_settings').select('*').limit(1).single();
-    if (!error && data) return data;
+    if (!error && data) return { ranking_metric: 'stamps', ...data };
   }
   return getLocalData<RewardSetting>(STORAGE_KEYS.REWARD_SETTINGS, INITIAL_REWARD_SETTING);
 }
 
-export async function saveRewardSetting(setting: Partial<RewardSetting>): Promise<RewardSetting> {
+export async function saveRewardSetting(setting: Partial<RewardSetting>): Promise<{ data: RewardSetting; error: string | null }> {
   const current = await getRewardSetting();
   const updated = { ...current, ...setting };
   if (supabase) {
-    await supabase.from('reward_settings').upsert(updated);
+    const { error } = await supabase.from('reward_settings').upsert(updated);
+    if (error) return { data: updated, error: error.message };
   }
   setLocalData(STORAGE_KEYS.REWARD_SETTINGS, updated);
-  return updated;
+  return { data: updated, error: null };
 }
 
 export async function getVisitorRewardStatus(visitorId: string): Promise<VisitorReward | null> {
@@ -254,20 +289,259 @@ export async function claimVisitorReward(visitorId: string, staffName: string = 
 }
 
 // -------------------------------------------------------------
+// VISITOR IDENTITY & IMAGE UPLOAD
+// -------------------------------------------------------------
+export async function registerVisitorIdentity(
+  visitorId: string,
+  identity: { name: string; matric: string; faculty: string; showOnLeaderboard: boolean }
+): Promise<{ visitorId: string; reclaimed: boolean }> {
+  if (!supabase) return { visitorId, reclaimed: false };
+
+  const payload = {
+    display_name: identity.name.trim(),
+    student_id: identity.matric.trim() || null,
+    faculty: identity.faculty.trim() || null,
+    show_on_leaderboard: identity.showOnLeaderboard,
+  };
+
+  // If this matric already exists, reuse that identity so a returning attendee
+  // keeps their stamps/rank even on a new device.
+  if (payload.student_id) {
+    const { data: existing } = await supabase
+      .from('visitors')
+      .select('id')
+      .eq('student_id', payload.student_id)
+      .maybeSingle();
+    if (existing?.id) {
+      await supabase.from('visitors').update(payload).eq('id', existing.id);
+      return { visitorId: existing.id, reclaimed: true };
+    }
+  }
+
+  const { error } = await supabase.from('visitors').upsert({ id: visitorId, ...payload });
+  if (error) {
+    // Surface but don't block — local cache still holds identity.
+    console.error('registerVisitorIdentity error:', error.message);
+  }
+  return { visitorId, reclaimed: false };
+}
+
+export async function uploadImage(file: File, folder = 'booths'): Promise<string | null> {
+  if (!supabase) return null;
+  const ext = file.name.split('.').pop()?.toLowerCase() || 'jpg';
+  const path = `${folder}/${Date.now()}-${Math.random().toString(36).slice(2, 8)}.${ext}`;
+  const { error } = await supabase.storage.from('booth-images').upload(path, file, {
+    cacheControl: '31536000',
+    upsert: false,
+    contentType: file.type,
+  });
+  if (error) {
+    console.error('uploadImage error:', error.message);
+    return null;
+  }
+  const { data } = supabase.storage.from('booth-images').getPublicUrl(path);
+  return data.publicUrl;
+}
+
+// -------------------------------------------------------------
+// LEADERBOARD & RANKING
+// -------------------------------------------------------------
+const POINTS_PER_STAMP = 10;
+const POINTS_PER_VOTE = 25;
+
+interface RawRankRow {
+  visitor_id: string;
+  visitor_ids: string[];
+  stamps: number;
+  rating_sum: number;
+  votes: number;
+  name: string;
+}
+
+interface VisitorRow {
+  id: string;
+  display_name: string | null;
+  show_on_leaderboard: boolean | null;
+  student_id: string | null;
+}
+
+async function buildRankingRows(): Promise<RawRankRow[]> {
+  if (!supabase) return [];
+
+  const [visitsRes, votesRes, visitorsRes] = await Promise.all([
+    supabase.from('booth_visits').select('visitor_id, checkpoint_id, rating'),
+    supabase.from('speaker_votes').select('visitor_id'),
+    supabase.from('visitors').select('id, display_name, show_on_leaderboard, student_id'),
+  ]);
+
+  const visits = (visitsRes.data || []) as { visitor_id: string; checkpoint_id: string; rating: number }[];
+  const votes = (votesRes.data || []) as { visitor_id: string }[];
+  const visitors = (visitorsRes.data || []) as VisitorRow[];
+  if (!visits.length && !votes.length) return [];
+
+  const visitorMap = new Map(visitors.map(v => [v.id, v]));
+
+  // Group by visitor_id, then merge rows that share the same student_id so the
+  // same person on two devices is ranked together.
+  const byVisitor = new Map<
+    string,
+    { visitor_ids: Set<string>; stamps: Set<string>; rating_sum: number; votes: number; sampleVisitorId: string }
+  >();
+  const keyFor = (visitorId: string) => {
+    const v = visitorMap.get(visitorId);
+    return v?.student_id ? `sid:${v.student_id}` : `vid:${visitorId}`;
+  };
+
+  const ensure = (key: string, visitorId: string) => {
+    let row = byVisitor.get(key);
+    if (!row) {
+      row = { visitor_ids: new Set(), stamps: new Set(), rating_sum: 0, votes: 0, sampleVisitorId: visitorId };
+      byVisitor.set(key, row);
+    }
+    row.visitor_ids.add(visitorId);
+    return row;
+  };
+
+  visits.forEach(v => {
+    const row = ensure(keyFor(v.visitor_id), v.visitor_id);
+    if (!row.stamps.has(v.checkpoint_id)) {
+      row.stamps.add(v.checkpoint_id);
+      row.rating_sum += v.rating || 0;
+    }
+  });
+  votes.forEach(v => {
+    ensure(keyFor(v.visitor_id), v.visitor_id).votes += 1;
+  });
+
+  const rows: RawRankRow[] = [];
+  byVisitor.forEach(row => {
+    const groupVisitors = [...row.visitor_ids]
+      .map(id => visitorMap.get(id))
+      .filter((v): v is VisitorRow => Boolean(v));
+    const showOk = groupVisitors.length > 0 && groupVisitors.every(v => v.show_on_leaderboard !== false);
+    const rawName = groupVisitors.find(v => v.display_name)?.display_name || 'Visitor';
+    rows.push({
+      visitor_id: row.sampleVisitorId,
+      visitor_ids: [...row.visitor_ids],
+      stamps: row.stamps.size,
+      rating_sum: row.rating_sum,
+      votes: row.votes,
+      name: showOk ? rawName : '',
+    });
+  });
+  return rows;
+}
+
+function scoreRow(row: RawRankRow, metric: RankingMetric): number {
+  if (metric === 'points') return row.stamps * POINTS_PER_STAMP + row.votes * POINTS_PER_VOTE;
+  return row.stamps;
+}
+
+export async function getLeaderboard(
+  limit = 10,
+  metric: RankingMetric = 'stamps',
+  myVisitorId?: string
+): Promise<LeaderboardEntry[]> {
+  const rows = await buildRankingRows();
+  const avg = (r: RawRankRow) => (r.stamps > 0 ? r.rating_sum / r.stamps : 0);
+
+  const sorted = rows
+    .filter(r => r.stamps > 0)
+    .sort((a, b) => {
+      if (metric === 'stamps_rating') {
+        return b.stamps - a.stamps || avg(b) - avg(a);
+      }
+      return scoreRow(b, metric) - scoreRow(a, metric) || b.stamps - a.stamps || avg(b) - avg(a);
+    });
+
+  return sorted.slice(0, limit).map((r, i) => ({
+    rank: i + 1,
+    visitor_id: r.visitor_id,
+    name: r.name ? maskName(r.name) : 'Anonymous',
+    stamps: r.stamps,
+    avg_rating: Number(avg(r).toFixed(2)),
+    votes: r.votes,
+    points: scoreRow(r, metric),
+    is_you: myVisitorId ? r.visitor_ids.includes(myVisitorId) : false,
+  }));
+}
+
+export async function getVisitorRank(
+  visitorId: string,
+  metric: RankingMetric = 'stamps'
+): Promise<{ rank: number; total: number; entry: LeaderboardEntry | null }> {
+  const rows = await buildRankingRows();
+  const avg = (r: RawRankRow) => (r.stamps > 0 ? r.rating_sum / r.stamps : 0);
+
+  const active = rows.filter(r => r.stamps > 0);
+  const sorted = active.sort((a, b) => {
+    if (metric === 'stamps_rating') return b.stamps - a.stamps || avg(b) - avg(a);
+    return scoreRow(b, metric) - scoreRow(a, metric) || b.stamps - a.stamps || avg(b) - avg(a);
+  });
+
+  const idx = sorted.findIndex(r => r.visitor_ids.includes(visitorId));
+  if (idx === -1) return { rank: 0, total: sorted.length, entry: null };
+  const r = sorted[idx];
+  return {
+    rank: idx + 1,
+    total: sorted.length,
+    entry: {
+      rank: idx + 1,
+      visitor_id: r.visitor_id,
+      name: r.name ? maskName(r.name) : 'Anonymous',
+      stamps: r.stamps,
+      avg_rating: Number(avg(r).toFixed(2)),
+      votes: r.votes,
+      points: scoreRow(r, metric),
+      is_you: true,
+    },
+  };
+}
+
+// -------------------------------------------------------------
 // SPEAKERS & PEOPLE'S CHOICE VOTING API
 // -------------------------------------------------------------
 export async function getSpeakers(): Promise<Speaker[]> {
   if (supabase) {
     const { data, error } = await supabase.from('speakers').select('*').order('display_order', { ascending: true });
-    if (!error && data && data.length > 0) return data;
+    if (!error && data && data.length > 0) {
+      // Aggregate live vote tallies from the speaker_votes table
+      const { data: votes } = await supabase.from('speaker_votes').select('speaker_id');
+      if (votes) {
+        const counts = new Map<string, number>();
+        votes.forEach((v: { speaker_id: string }) => counts.set(v.speaker_id, (counts.get(v.speaker_id) || 0) + 1));
+        return data.map((s: Speaker) => ({ ...s, vote_count: counts.get(s.id) || 0 }));
+      }
+      return data;
+    }
   }
-  return getLocalData<Speaker[]>(STORAGE_KEYS.SPEAKERS, INITIAL_SPEAKERS);
+  const local = getLocalData<Speaker[]>(STORAGE_KEYS.SPEAKERS, INITIAL_SPEAKERS);
+  return local.map(s => ({ ...s, vote_count: s.vote_count || 0 }));
 }
 
-export async function saveSpeaker(speaker: Partial<Speaker>): Promise<Speaker> {
+export async function saveSpeaker(speaker: Partial<Speaker>): Promise<{ data: Speaker | null; error: string | null }> {
   if (supabase) {
-    const { data, error } = await supabase.from('speakers').upsert(speaker).select().single();
-    if (!error && data) return data;
+    let displayOrder = speaker.display_order;
+    if (!speaker.id && displayOrder == null) {
+      const existing = await getSpeakers();
+      displayOrder = existing.length + 1;
+    }
+    const payload = {
+      ...(speaker.id ? { id: speaker.id } : {}),
+      name: speaker.name,
+      position: speaker.position,
+      organisation: speaker.organisation,
+      bio: speaker.bio,
+      photo_url: speaker.photo_url ?? null,
+      session_title: speaker.session_title,
+      session_time: speaker.session_time,
+      session_date: speaker.session_date,
+      display_order: displayOrder ?? 0,
+      is_active: speaker.is_active ?? true,
+    };
+    const { data, error } = await supabase.from('speakers').upsert(payload).select().single();
+    if (!error && data) return { data, error: null };
+    return { data: null, error: error?.message || 'Failed to save speaker.' };
   }
   const speakers = await getSpeakers();
   let updated: Speaker[];
@@ -284,8 +558,8 @@ export async function saveSpeaker(speaker: Partial<Speaker>): Promise<Speaker> {
       bio: speaker.bio || '',
       session_title: speaker.session_title || 'Session Topic',
       session_time: speaker.session_time || '10:00 AM - 10:30 AM',
-      session_date: speaker.session_date || '11 Nov 2026',
-      photo_url: speaker.photo_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=400&auto=format&fit=crop&q=80',
+      session_date: speaker.session_date || '13 Nov 2026',
+      photo_url: speaker.photo_url || INITIAL_SPEAKERS[0]?.photo_url || '',
       display_order: speakers.length + 1,
       is_active: speaker.is_active ?? true,
       vote_count: speaker.vote_count || 0
@@ -293,16 +567,18 @@ export async function saveSpeaker(speaker: Partial<Speaker>): Promise<Speaker> {
     updated = [...speakers, target];
   }
   setLocalData(STORAGE_KEYS.SPEAKERS, updated);
-  return target;
+  return { data: target, error: null };
 }
 
-export async function deleteSpeaker(id: string): Promise<void> {
+export async function deleteSpeaker(id: string): Promise<{ error: string | null }> {
   if (supabase) {
-    await supabase.from('speakers').delete().eq('id', id);
+    const { error } = await supabase.from('speakers').delete().eq('id', id);
+    if (error) return { error: error.message };
   }
   const speakers = await getSpeakers();
   const updated = speakers.filter(s => s.id !== id);
   setLocalData(STORAGE_KEYS.SPEAKERS, updated);
+  return { error: null };
 }
 
 export async function hasVisitorVoted(visitorId: string): Promise<boolean> {
@@ -332,10 +608,13 @@ export async function submitSpeakerVote(visitorId: string, speakerId: string): P
       if (error.code === '23505') {
         return { success: false, message: 'You have already cast your vote!' };
       }
+      console.error('Supabase vote error:', error);
+      return { success: false, message: 'Could not record your vote. Check your connection and try again.' };
     }
+    return { success: true };
   }
 
-  // Local fallback
+  // Local fallback only when Supabase is not configured
   const votes = getLocalData<SpeakerVote[]>(STORAGE_KEYS.VOTES, []);
   votes.push({
     id: 'vote-' + Date.now(),
@@ -358,31 +637,51 @@ export async function submitSpeakerVote(visitorId: string, speakerId: string): P
 // ADMIN ANALYTICS API
 // -------------------------------------------------------------
 export async function getAdminAnalytics() {
-  const checkpoints = await getCheckpoints();
-  const visits = getLocalData<BoothVisit[]>(STORAGE_KEYS.VISITS, []);
-  const votes = getLocalData<SpeakerVote[]>(STORAGE_KEYS.VOTES, []);
-  const rewards = getLocalData<VisitorReward[]>(STORAGE_KEYS.REWARDS, []);
+  const checkpoints = await getCheckpoints(true);
   const speakers = await getSpeakers();
 
-  // Aggregate booth performance
-  const boothAnalytics: BoothAnalytics[] = checkpoints.map(c => {
-    const boothVisits = visits.filter(v => v.checkpoint_id === c.id);
-    const count = boothVisits.length;
-    const avg = count > 0 ? boothVisits.reduce((acc, curr) => acc + curr.rating, 0) / count : 0;
-    return {
-      id: c.id,
-      name: c.name,
-      faculty: c.faculty,
-      category: c.category,
-      total_visits: count,
-      avg_rating: Number(avg.toFixed(2))
-    };
-  });
+  // Default to local data (offline / Supabase not configured)
+  let visits = getLocalData<BoothVisit[]>(STORAGE_KEYS.VISITS, []);
+  let speakerVotes = getLocalData<SpeakerVote[]>(STORAGE_KEYS.VOTES, []);
+  let rewards = getLocalData<VisitorReward[]>(STORAGE_KEYS.REWARDS, []);
+  let registeredVisitors = 0;
 
-  const totalVisitors = new Set(visits.map(v => v.visitor_id)).size || (visits.length > 0 ? visits.length : 0);
+  if (supabase) {
+    const [visitsRes, votesRes, rewardsRes, visitorsRes] = await Promise.all([
+      supabase.from('booth_visits').select('*'),
+      supabase.from('speaker_votes').select('*'),
+      supabase.from('visitor_rewards').select('*'),
+      supabase.from('visitors').select('id'),
+    ]);
+    if (!visitsRes.error && visitsRes.data) visits = visitsRes.data as BoothVisit[];
+    if (!votesRes.error && votesRes.data) speakerVotes = votesRes.data as SpeakerVote[];
+    if (!rewardsRes.error && rewardsRes.data) rewards = rewardsRes.data as VisitorReward[];
+    if (!visitorsRes.error && visitorsRes.data) registeredVisitors = visitorsRes.data.length;
+  }
+
+  // Aggregate booth performance, ranked by footfall then average rating
+  const boothAnalytics: BoothAnalytics[] = checkpoints
+    .map(c => {
+      const boothVisits = visits.filter(v => v.checkpoint_id === c.id);
+      const count = boothVisits.length;
+      const avg = count > 0 ? boothVisits.reduce((acc, curr) => acc + curr.rating, 0) / count : 0;
+      return {
+        id: c.id,
+        name: c.name,
+        faculty: c.faculty,
+        category: c.category,
+        total_visits: count,
+        avg_rating: Number(avg.toFixed(2))
+      };
+    })
+    .sort((a, b) => b.total_visits - a.total_visits || b.avg_rating - a.avg_rating);
+
+  const activeVisitors = new Set(visits.map(v => v.visitor_id)).size;
+  const totalVisitors = registeredVisitors > 0 ? registeredVisitors : activeVisitors;
   const totalVisits = visits.length;
-  const avgOverallRating = visits.length > 0 ? (visits.reduce((acc, curr) => acc + curr.rating, 0) / visits.length).toFixed(2) : '5.00';
-  const totalVotes = votes.length + speakers.reduce((acc, s) => acc + (s.vote_count || 0), 0);
+  const avgOverallRating =
+    visits.length > 0 ? (visits.reduce((acc, curr) => acc + curr.rating, 0) / visits.length).toFixed(2) : '0.00';
+  const totalVotes = speakerVotes.length;
   const rewardsUnlocked = rewards.length;
   const rewardsClaimed = rewards.filter(r => r.status === 'claimed').length;
 
@@ -395,6 +694,36 @@ export async function getAdminAnalytics() {
     rewardsClaimed,
     boothAnalytics,
     visits,
-    speakers
+    speakers,
+    speakerVotes
   };
+}
+
+// -------------------------------------------------------------
+// ADMIN WRITE HEALTH CHECK
+// Performs a harmless insert+delete probe so staff can confirm that
+// Row-Level Security allows admin writes before the event.
+// -------------------------------------------------------------
+export async function checkAdminWrite(): Promise<{ ok: boolean; message: string }> {
+  if (!supabase) {
+    return { ok: false, message: 'Supabase not configured — running in local offline mode.' };
+  }
+  const probeId = crypto.randomUUID();
+  const { error: insertError } = await supabase
+    .from('checkpoints')
+    .insert({
+      id: probeId,
+      name: 'Write probe (safe to ignore)',
+      faculty: 'Diagnostic',
+      category: 'Exhibition',
+      description: 'Temporary diagnostic row.',
+      location: 'Diagnostic',
+      qr_token: 'probe-' + probeId,
+      display_order: 9999
+    });
+  if (insertError) {
+    return { ok: false, message: insertError.message };
+  }
+  await supabase.from('checkpoints').delete().eq('id', probeId);
+  return { ok: true, message: 'Admin write access confirmed.' };
 }

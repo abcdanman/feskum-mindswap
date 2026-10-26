@@ -2,15 +2,25 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getRewardSetting, saveRewardSetting, getVisitorRewardStatus, claimVisitorReward, getVisitorVisits } from '@/lib/supabase';
-import { RewardSetting, VisitorReward } from '@/lib/types';
-import { Gift, ShieldCheck, CheckCircle2, ArrowLeft, Save, Search, UserCheck, AlertTriangle } from 'lucide-react';
+import {
+  getRewardSetting,
+  saveRewardSetting,
+  getVisitorRewardStatus,
+  claimVisitorReward,
+  getVisitorVisits,
+} from '@/lib/supabase';
+import { RewardSetting, VisitorReward, RankingMetric } from '@/lib/types';
+import { Gift, ShieldCheck, CheckCircle2, ArrowLeft, Save, Search, UserCheck, AlertTriangle, Trophy } from 'lucide-react';
+
+const inputCls =
+  'w-full p-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-sm focus:outline-none focus:bg-white';
 
 export default function AdminRewardsPage() {
   const [rewardSetting, setRewardSetting] = useState<RewardSetting | null>(null);
   const [thresholdInput, setThresholdInput] = useState<number>(8);
   const [titleInput, setTitleInput] = useState<string>('');
   const [descInput, setDescInput] = useState<string>('');
+  const [metricInput, setMetricInput] = useState<RankingMetric>('stamps');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
   // Helpdesk Redemption State
@@ -18,7 +28,7 @@ export default function AdminRewardsPage() {
   const [searchedReward, setSearchedReward] = useState<VisitorReward | null>(null);
   const [visitorStampCount, setVisitorStampCount] = useState<number>(0);
   const [searchDone, setSearchDone] = useState<boolean>(false);
-  const [staffName, setStaffName] = useState<string>('DTC Helpdesk Staff A');
+  const [staffName, setStaffName] = useState<string>('HIR Helpdesk Staff A');
   const [claimMsg, setClaimMsg] = useState<string>('');
 
   useEffect(() => {
@@ -31,15 +41,21 @@ export default function AdminRewardsPage() {
     setThresholdInput(setting.stamp_threshold);
     setTitleInput(setting.title);
     setDescInput(setting.description);
+    setMetricInput((setting.ranking_metric || 'stamps') as RankingMetric);
   }
 
   const handleSaveSettings = async (e: React.FormEvent) => {
     e.preventDefault();
-    await saveRewardSetting({
+    const { error } = await saveRewardSetting({
       stamp_threshold: thresholdInput,
       title: titleInput,
       description: descInput,
+      ranking_metric: metricInput,
     });
+    if (error) {
+      alert(`Save failed: ${error}`);
+      return;
+    }
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
   };
@@ -50,7 +66,7 @@ export default function AdminRewardsPage() {
 
     const [reward, visits] = await Promise.all([
       getVisitorRewardStatus(searchVisitorId.trim()),
-      getVisitorVisits(searchVisitorId.trim())
+      getVisitorVisits(searchVisitorId.trim()),
     ]);
 
     setSearchedReward(reward);
@@ -64,7 +80,7 @@ export default function AdminRewardsPage() {
     const updated = await claimVisitorReward(searchVisitorId.trim(), staffName);
     if (updated) {
       setSearchedReward(updated);
-      setClaimMsg('✓ Souvenir successfully marked as CLAIMED!');
+      setClaimMsg('Souvenir marked as CLAIMED.');
     }
   };
 
@@ -72,99 +88,93 @@ export default function AdminRewardsPage() {
     <div className="space-y-4 animate-fadeIn">
       {/* HEADER */}
       <div className="flex items-center gap-2">
-        <Link href="/admin" className="p-2 rounded-xl bg-slate-900 text-slate-400 hover:text-white border border-slate-800">
+        <Link href="/admin" className="p-2 rounded-xl bg-white text-ink border-2 border-ink shadow-brut">
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-lg font-extrabold text-white font-display">Reward Config & DTC Helpdesk</h1>
-          <p className="text-xs text-slate-400">Configure stamp threshold & redeem visitor prizes</p>
+          <h1 className="display text-2xl text-ink leading-none">Helpdesk</h1>
+          <p className="text-[11px] text-slate-500">Redeem prizes & configure rewards / ranking</p>
         </div>
       </div>
 
-      {/* STAFF HELPDESK REDEMPTION SCANNER */}
-      <div className="glass-card rounded-3xl p-5 border-2 border-amber-500/40 bg-gradient-to-b from-slate-900 to-slate-950 space-y-4 shadow-xl">
-        <div className="flex items-center gap-2.5 border-b border-slate-800 pb-3">
-          <div className="w-10 h-10 rounded-2xl bg-amber-500/20 text-amber-300 flex items-center justify-center font-bold">
+      {/* HELPDESK REDEMPTION */}
+      <div className="card p-5 space-y-4 bg-gold-400/10">
+        <div className="flex items-center gap-2.5 border-b-2 border-ink/10 pb-3">
+          <div className="w-10 h-10 rounded-xl bg-gold-400 border-2 border-ink flex items-center justify-center text-ink">
             <Gift className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="font-extrabold text-white text-sm">DTC Helpdesk Prize Claim Tool</h2>
-            <p className="text-[11px] text-slate-400">Enter or scan Visitor ID to verify eligibility</p>
+            <h2 className="font-extrabold text-ink text-sm">Prize claim tool</h2>
+            <p className="text-[11px] text-slate-500">Enter Visitor ID to verify eligibility</p>
           </div>
         </div>
 
-        <form onSubmit={handleLookupVisitor} className="space-y-3">
-          <div className="flex gap-2">
-            <input
-              type="text"
-              placeholder="Paste Visitor ID Token..."
-              value={searchVisitorId}
-              onChange={(e) => setSearchVisitorId(e.target.value)}
-              className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white placeholder-slate-500 text-xs font-mono focus:outline-none focus:border-amber-400"
-            />
-            <button
-              type="submit"
-              className="px-4 py-2.5 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-950 font-bold text-xs flex items-center gap-1 shrink-0"
-            >
-              <Search className="w-4 h-4" /> Verify
-            </button>
-          </div>
+        <form onSubmit={handleLookupVisitor} className="flex gap-2">
+          <input
+            type="text"
+            placeholder="Paste Visitor ID..."
+            value={searchVisitorId}
+            onChange={e => setSearchVisitorId(e.target.value)}
+            className={`${inputCls} flex-1 mono !text-xs`}
+          />
+          <button type="submit" className="btn px-4 bg-gold-400 text-ink flex items-center gap-1 text-xs shrink-0">
+            <Search className="w-4 h-4" /> Verify
+          </button>
         </form>
 
-        {/* LOOKUP RESULT CARD */}
         {searchDone && (
-          <div className="p-4 rounded-2xl bg-slate-950 border border-slate-800 space-y-3 animate-fadeIn">
+          <div className="p-4 rounded-xl bg-white border-2 border-ink space-y-3">
             <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-slate-400">Total Booth Stamps Collected:</span>
-              <span className="text-brand-300 font-mono text-sm">{visitorStampCount} Stamps</span>
+              <span className="text-slate-500">Stamps collected</span>
+              <span className="text-brand-600 mono text-sm">{visitorStampCount}</span>
             </div>
 
             {searchedReward ? (
-              <div className="p-3 rounded-xl bg-slate-900 border border-slate-800 space-y-2">
+              <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink/10 space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="text-xs text-slate-300 font-semibold">Reward Status</span>
+                  <span className="text-xs text-slate-700 font-semibold">Reward status</span>
                   {searchedReward.status === 'claimed' ? (
-                    <span className="px-2.5 py-0.5 rounded-full bg-rose-500/20 text-rose-300 font-bold text-xs border border-rose-500/30">
-                      ALREADY CLAIMED
+                    <span className="px-2.5 py-0.5 rounded-full bg-rose-50 text-rose-700 font-bold text-[10px] border-2 border-ink">
+                      CLAIMED
                     </span>
                   ) : (
-                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 font-bold text-xs border border-emerald-500/30">
-                      READY FOR REDEMPTION
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-50 text-emerald-700 font-bold text-[10px] border-2 border-ink">
+                      READY
                     </span>
                   )}
                 </div>
 
                 {searchedReward.status === 'claimed' ? (
-                  <p className="text-[11px] text-slate-400 italic">
-                    Claimed on {new Date(searchedReward.claimed_at || '').toLocaleString()} by {searchedReward.claimed_by_staff}
+                  <p className="text-[11px] text-slate-500 italic">
+                    Claimed {new Date(searchedReward.claimed_at || '').toLocaleString()} by {searchedReward.claimed_by_staff}
                   </p>
                 ) : (
                   <div className="pt-2 space-y-2">
                     <input
                       type="text"
-                      placeholder="Staff Name / ID"
+                      placeholder="Staff name / ID"
                       value={staffName}
-                      onChange={(e) => setStaffName(e.target.value)}
-                      className="w-full p-2 rounded-lg bg-slate-950 border border-slate-800 text-xs text-white"
+                      onChange={e => setStaffName(e.target.value)}
+                      className={`${inputCls} !text-xs`}
                     />
                     <button
                       onClick={handleClaim}
-                      className="w-full py-2.5 px-4 rounded-xl bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5 shadow-md shadow-emerald-500/20"
+                      className="btn w-full py-2.5 bg-emerald-500 text-white text-xs flex items-center justify-center gap-1.5"
                     >
-                      <UserCheck className="w-4 h-4" /> MARK PRIZE AS CLAIMED
+                      <UserCheck className="w-4 h-4" /> Mark prize claimed
                     </button>
                   </div>
                 )}
               </div>
             ) : (
-              <div className="p-3 rounded-xl bg-rose-500/10 border border-rose-500/30 text-rose-300 text-xs flex items-center gap-2">
+              <div className="p-3 rounded-xl bg-rose-50 border-2 border-ink text-rose-700 text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span>This visitor has not reached the required stamp threshold ({thresholdInput} stamps) yet.</span>
+                <span>Not eligible yet — needs {thresholdInput} stamps.</span>
               </div>
             )}
 
             {claimMsg && (
-              <div className="p-2.5 rounded-xl bg-emerald-500 text-slate-950 font-bold text-xs text-center animate-bounce">
+              <div className="p-2.5 rounded-xl bg-emerald-500 text-white font-bold text-xs text-center border-2 border-ink">
                 {claimMsg}
               </div>
             )}
@@ -172,56 +182,68 @@ export default function AdminRewardsPage() {
         )}
       </div>
 
-      {/* REWARD THRESHOLD CONFIG */}
-      <div className="glass-card rounded-3xl p-5 border border-slate-800 space-y-4">
-        <h3 className="font-extrabold text-white text-sm font-display flex items-center gap-2">
-          <ShieldCheck className="w-4 h-4 text-brand-400" /> Reward Threshold Settings
+      {/* THRESHOLD + RANKING CONFIG */}
+      <div className="card p-5 space-y-4">
+        <h3 className="display text-xl text-ink leading-none flex items-center gap-2">
+          <ShieldCheck className="w-5 h-5 text-brand-600" /> Settings
         </h3>
 
         <form onSubmit={handleSaveSettings} className="space-y-3 text-xs">
           <div>
-            <label className="block text-slate-300 font-bold mb-1">Required Stamps for Reward Unlock</label>
+            <label className="eyebrow text-slate-500 block mb-1">Required stamps for reward</label>
             <input
               type="number"
               min={1}
               max={20}
               value={thresholdInput}
-              onChange={(e) => setThresholdInput(Number(e.target.value))}
-              className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white font-mono focus:outline-none focus:border-brand-400"
+              onChange={e => setThresholdInput(Number(e.target.value))}
+              className={`${inputCls} mono`}
             />
           </div>
 
           <div>
-            <label className="block text-slate-300 font-bold mb-1">Reward Title</label>
+            <label className="eyebrow text-slate-500 block mb-1 flex items-center gap-1.5">
+              <Trophy className="w-3.5 h-3.5 text-gold-500" /> Leaderboard ranking metric
+            </label>
+            <select
+              value={metricInput}
+              onChange={e => setMetricInput(e.target.value as RankingMetric)}
+              className={inputCls}
+            >
+              <option value="stamps">Booth stamps collected</option>
+              <option value="stamps_rating">Stamps, tie-broken by rating given</option>
+              <option value="points">Points (stamps ×10 + votes ×25)</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="eyebrow text-slate-500 block mb-1">Reward title</label>
             <input
               type="text"
               value={titleInput}
-              onChange={(e) => setTitleInput(e.target.value)}
-              className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-brand-400"
+              onChange={e => setTitleInput(e.target.value)}
+              className={inputCls}
             />
           </div>
 
           <div>
-            <label className="block text-slate-300 font-bold mb-1">Reward Instructions</label>
+            <label className="eyebrow text-slate-500 block mb-1">Reward instructions</label>
             <textarea
               rows={2}
               value={descInput}
-              onChange={(e) => setDescInput(e.target.value)}
-              className="w-full p-2.5 rounded-xl bg-slate-950 border border-slate-800 text-white focus:outline-none focus:border-brand-400 resize-none"
+              onChange={e => setDescInput(e.target.value)}
+              className={`${inputCls} resize-none`}
             />
           </div>
 
           {savedSuccess && (
-            <p className="text-xs text-emerald-400 font-bold text-center">
-              ✓ Reward threshold updated successfully!
+            <p className="text-xs text-emerald-600 font-bold text-center flex items-center justify-center gap-1">
+              <CheckCircle2 className="w-4 h-4" /> Settings updated
             </p>
           )}
 
-          <button
-            type="submit"
-            className="w-full py-2.5 px-4 rounded-xl bg-brand-500 hover:bg-brand-400 text-slate-950 font-bold text-xs flex items-center justify-center gap-1.5"
-          >
-            <Save className="w-4 h-4" /> Save Reward Settings
+          <button type="submit" className="btn w-full py-3 bg-brand-500 hover:bg-brand-600 text-white text-sm flex items-center justify-center gap-1.5 uppercase">
+            <Save className="w-4 h-4" /> Save settings
           </button>
         </form>
       </div>

@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512" role="img" aria-label="MindSwap FESKUM 2026">
+  <rect x="0" y="0" width="512" height="512" fill="#0f172a"/>
+  <circle cx="256" cy="256" r="148" fill="none" stroke="#f8f6f0" stroke-width="38"/>
+  <g stroke="#0f172a" stroke-width="32" stroke-linecap="butt">
+    <line x1="256" y1="108" x2="256" y2="138"/>
+    <line x1="256" y1="374" x2="256" y2="404"/>
+    <line x1="108" y1="256" x2="138" y2="256"/>
+    <line x1="374" y1="256" x2="404" y2="256"/>
+  </g>
+  <polygon
+    points="256.0,152.0 281.9,220.4 354.9,223.9 297.8,269.6 317.1,340.1 256.0,300.0 194.9,340.1 214.2,269.6 157.1,223.9 230.1,220.4"
+    fill="#e63946"/>
+</svg>

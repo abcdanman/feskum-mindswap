@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useState } from 'react';
 import Link from 'next/link';
 import { getAdminAnalytics, getCheckpoints } from '@/lib/supabase';
 import { ArrowLeft, Download, FileSpreadsheet, CheckCircle2 } from 'lucide-react';
@@ -12,7 +12,7 @@ export default function AdminExportPage() {
   const exportBoothVisitsCSV = async () => {
     setExporting(true);
     const analytics = await getAdminAnalytics();
-    const checkpoints = await getCheckpoints();
+    const checkpoints = await getCheckpoints(true);
     const cpMap = new Map(checkpoints.map(c => [c.id, c]));
 
     let csvContent = 'Visitor ID,Checkpoint Name,Faculty,Rating,Review,Visited At\n';
@@ -26,7 +26,7 @@ export default function AdminExportPage() {
 
     downloadCSV(csvContent, 'MindSwap_2026_Booth_Visits.csv');
     setExporting(false);
-    setSuccessMsg('Booth Visits CSV downloaded! Open in Google Sheets.');
+    setSuccessMsg('Booth Visits CSV downloaded.');
   };
 
   const exportSpeakerVotesCSV = async () => {
@@ -43,7 +43,7 @@ export default function AdminExportPage() {
 
     downloadCSV(csvContent, 'MindSwap_2026_Speaker_Votes.csv');
     setExporting(false);
-    setSuccessMsg('Speaker Votes CSV downloaded! Open in Google Sheets.');
+    setSuccessMsg('Speaker Votes CSV downloaded.');
   };
 
   function downloadCSV(content: string, filename: string) {
@@ -59,30 +59,29 @@ export default function AdminExportPage() {
 
   return (
     <div className="space-y-4 animate-fadeIn">
-      {/* HEADER */}
       <div className="flex items-center gap-2">
-        <Link href="/admin" className="p-2 rounded-xl bg-slate-900 text-slate-400 hover:text-white border border-slate-800">
+        <Link href="/admin" className="p-2 rounded-xl bg-white text-ink border-2 border-ink shadow-brut">
           <ArrowLeft className="w-4 h-4" />
         </Link>
         <div>
-          <h1 className="text-lg font-extrabold text-white font-display">Data Export for Google Sheets</h1>
-          <p className="text-xs text-slate-400">Export database analytics to CSV format</p>
+          <h1 className="display text-2xl text-ink leading-none">Export data</h1>
+          <p className="text-[11px] text-slate-500">CSV downloads for Google Sheets</p>
         </div>
       </div>
 
-      <div className="glass-card rounded-3xl p-5 border border-brand-500/30 space-y-4 shadow-xl">
+      <div className="card p-5 space-y-4">
         <div className="flex items-center gap-3">
-          <div className="w-12 h-12 rounded-2xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center border border-emerald-500/30">
+          <div className="w-12 h-12 rounded-xl bg-emerald-100 border-2 border-ink text-emerald-700 flex items-center justify-center">
             <FileSpreadsheet className="w-6 h-6" />
           </div>
           <div>
-            <h3 className="font-bold text-white text-sm">Google Sheets Compatible Export</h3>
-            <p className="text-xs text-slate-400">Instant one-click CSV download for event reporting.</p>
+            <h3 className="font-extrabold text-ink text-sm">One-click CSV export</h3>
+            <p className="text-xs text-slate-500">Instant downloads for event reporting.</p>
           </div>
         </div>
 
         {successMsg && (
-          <div className="p-3 rounded-xl bg-emerald-500/20 border border-emerald-500 text-emerald-300 text-xs font-bold text-center flex items-center justify-center gap-1.5 animate-bounce">
+          <div className="p-3 rounded-xl bg-emerald-50 border-2 border-ink text-emerald-700 text-xs font-bold text-center flex items-center justify-center gap-1.5">
             <CheckCircle2 className="w-4 h-4" /> {successMsg}
           </div>
         )}
@@ -91,25 +90,25 @@ export default function AdminExportPage() {
           <button
             onClick={exportBoothVisitsCSV}
             disabled={exporting}
-            className="w-full p-4 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-brand-500/50 flex items-center justify-between text-left transition-all group"
+            className="btn w-full p-4 bg-white flex items-center justify-between text-left"
           >
             <div>
-              <h4 className="font-bold text-white text-xs group-hover:text-brand-300">Booth Visits & Ratings CSV</h4>
-              <p className="text-[11px] text-slate-400">Visitor IDs, booth ratings (1-5 stars), timestamp & reviews</p>
+              <h4 className="font-bold text-ink text-xs">Booth Visits & Ratings CSV</h4>
+              <p className="text-[11px] text-slate-500">Visitor IDs, ratings, timestamps & reviews</p>
             </div>
-            <Download className="w-4 h-4 text-brand-400 shrink-0" />
+            <Download className="w-4 h-4 text-brand-600 shrink-0" />
           </button>
 
           <button
             onClick={exportSpeakerVotesCSV}
             disabled={exporting}
-            className="w-full p-4 rounded-2xl bg-slate-900 hover:bg-slate-800 border border-slate-800 hover:border-purple-500/50 flex items-center justify-between text-left transition-all group"
+            className="btn w-full p-4 bg-white flex items-center justify-between text-left"
           >
             <div>
-              <h4 className="font-bold text-white text-xs group-hover:text-purple-300">UM Talk Speaker Votes CSV</h4>
-              <p className="text-[11px] text-slate-400">People Choice vote counts per speaker</p>
+              <h4 className="font-bold text-ink text-xs">UM Talk Speaker Votes CSV</h4>
+              <p className="text-[11px] text-slate-500">People Choice vote counts per speaker</p>
             </div>
-            <Download className="w-4 h-4 text-purple-400 shrink-0" />
+            <Download className="w-4 h-4 text-purple-600 shrink-0" />
           </button>
         </div>
       </div>

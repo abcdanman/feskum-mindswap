@@ -6,7 +6,7 @@ import { getCheckpoints, getVisitorVisits, getRewardSetting, getVisitorRewardSta
 import { Checkpoint, BoothVisit, RewardSetting, VisitorReward } from '@/lib/types';
 import StampCard from '@/components/StampCard';
 import RewardModal from '@/components/RewardModal';
-import { Ticket, Trophy, QrCode } from 'lucide-react';
+import { Ticket, Trophy, QrCode, Trophy as TrophyIcon, CheckCircle2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PassportPage() {
@@ -62,24 +62,30 @@ export default function PassportPage() {
     return true;
   });
 
+  const filters: { key: typeof filter; label: string; count: number }[] = [
+    { key: 'all', label: 'All', count: checkpoints.length },
+    { key: 'completed', label: 'Collected', count: completedCount },
+    { key: 'pending', label: 'Pending', count: checkpoints.length - completedCount },
+  ];
+
   return (
     <div className="space-y-5 animate-fadeIn">
       {/* PASSPORT HEADER */}
-      <div className="bg-white rounded-3xl p-5 border border-slate-200/80 space-y-4 shadow-sm">
+      <div className="card p-5 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2.5">
-            <div className="w-10 h-10 rounded-2xl bg-brand-50 border border-brand-200 flex items-center justify-center text-brand-600">
+            <div className="w-11 h-11 rounded-xl bg-brand-500 border-2 border-ink flex items-center justify-center text-white shadow-brut">
               <Ticket className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="text-xl font-extrabold text-slate-900 font-display lowercase">digital passport.</h1>
-              <p className="text-xs text-slate-500">Laluan Aspirasi @ FESKUM 2026</p>
+              <h1 className="display text-2xl text-ink leading-none">Digital passport</h1>
+              <p className="text-[11px] text-slate-500">Laluan Aspirasi @ FESKUM 2026</p>
             </div>
           </div>
 
           <div className="text-right">
-            <span className="text-xs text-slate-500 block">Stamps</span>
-            <span className="text-xl font-mono font-extrabold text-brand-600">
+            <span className="eyebrow text-slate-500 block">Stamps</span>
+            <span className="mono text-xl font-bold text-brand-600">
               {completedCount} <span className="text-slate-400 font-normal text-sm">/ {totalBooths}</span>
             </span>
           </div>
@@ -87,36 +93,54 @@ export default function PassportPage() {
 
         {/* Progress Bar */}
         <div className="space-y-1.5">
-          <div className="w-full bg-slate-100 h-3.5 rounded-full overflow-hidden p-0.5 border border-slate-200">
+          <div className="w-full bg-cream-200 h-4 rounded-full overflow-hidden border-2 border-ink">
             <div
-              className="bg-brand-500 h-full rounded-full transition-all duration-700 shadow-sm"
+              className="bg-brand-500 h-full transition-all duration-700"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold px-1">
+          <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold px-0.5">
             <span>{completedCount} of {threshold} required for reward</span>
-            <span>{progressPercent}% Complete</span>
+            <span className="mono tnum">{progressPercent}%</span>
           </div>
+        </div>
+
+        {/* Stamp slots meter */}
+        <div className="flex flex-wrap gap-1.5 pt-1">
+          {Array.from({ length: threshold }).map((_, i) => {
+            const filled = i < completedCount;
+            return (
+              <span
+                key={i}
+                aria-hidden="true"
+                className={`w-7 h-7 rounded-lg border-2 border-ink flex items-center justify-center ${
+                  filled ? 'bg-emerald-500 text-white' : 'bg-cream-100 text-slate-300'
+                }`}
+              >
+                {filled ? <CheckCircle2 className="w-4 h-4" /> : <span className="text-[10px] font-bold tnum">{i + 1}</span>}
+              </span>
+            );
+          })}
         </div>
 
         {/* Reward Status Banner */}
         {isUnlocked && (
-          <div className="p-4 rounded-2xl bg-amber-50 border border-amber-300 flex items-center justify-between animate-pulseGlow shadow-sm">
+          <div className="p-4 rounded-xl bg-gold-400 border-2 border-ink flex items-center justify-between animate-pulseGlow">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-amber-400 text-slate-950 flex items-center justify-center shrink-0 shadow-sm">
+              <div className="w-10 h-10 rounded-xl bg-ink text-gold-400 flex items-center justify-center shrink-0">
                 <Trophy className="w-5 h-5" />
               </div>
               <div>
-                <h4 className="font-extrabold text-amber-900 text-xs uppercase tracking-wider">🎉 REWARD UNLOCKED!</h4>
-                <p className="text-[11px] text-amber-800">Show your reward badge at the DTC Helpdesk.</p>
+                <h4 className="display text-lg text-ink leading-none">Reward unlocked!</h4>
+                <p className="text-[11px] text-ink/70">Show your badge at the HIR Helpdesk.</p>
               </div>
             </div>
 
             <button
               onClick={() => setShowRewardModal(true)}
-              className="px-3.5 py-2 rounded-xl bg-amber-500 text-slate-950 font-extrabold text-xs shadow-md hover:bg-amber-400 transition-all shrink-0"
+              className="px-3.5 py-2 rounded-xl bg-ink text-cream-50 font-extrabold text-xs shrink-0"
             >
-              Show Badge
+              Show badge
             </button>
           </div>
         )}
@@ -124,39 +148,26 @@ export default function PassportPage() {
 
       {/* FILTER TABS */}
       <div className="flex items-center justify-between gap-2">
-        <div className="flex items-center gap-1.5 p-1 rounded-2xl bg-white border border-slate-200 text-xs font-bold shadow-sm">
-          <button
-            onClick={() => setFilter('all')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
-              filter === 'all' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            All ({checkpoints.length})
-          </button>
-          <button
-            onClick={() => setFilter('completed')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
-              filter === 'completed' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Collected ({completedCount})
-          </button>
-          <button
-            onClick={() => setFilter('pending')}
-            className={`px-3 py-1.5 rounded-xl transition-all ${
-              filter === 'pending' ? 'bg-slate-900 text-white' : 'text-slate-500 hover:text-slate-900'
-            }`}
-          >
-            Pending ({checkpoints.length - completedCount})
-          </button>
+        <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border-2 border-ink shadow-brut text-xs font-bold">
+          {filters.map(f => (
+            <button
+              key={f.key}
+              onClick={() => setFilter(f.key)}
+              className={`px-3 py-1.5 rounded-xl transition-colors ${
+                filter === f.key ? 'bg-ink text-cream-50' : 'text-slate-500 hover:text-ink'
+              }`}
+            >
+              {f.label} ({f.count})
+            </button>
+          ))}
         </div>
 
         <Link
-          href="/checkpoint/qr-eng-robotics"
-          className="p-2.5 rounded-2xl bg-white hover:bg-slate-100 text-slate-700 text-xs font-bold flex items-center gap-1 border border-slate-200 shadow-sm"
-          title="Scan QR Demo"
+          href="/leaderboard"
+          className="p-2.5 rounded-2xl bg-white border-2 border-ink shadow-brut text-ink hover:bg-cream-100"
+          title="Leaderboard"
         >
-          <QrCode className="w-4 h-4 text-brand-600" />
+          <TrophyIcon className="w-4 h-4 text-gold-500" />
         </Link>
       </div>
 
@@ -170,6 +181,44 @@ export default function PassportPage() {
             index={idx}
           />
         ))}
+
+        {filteredCheckpoints.length === 0 && (
+          <div className="text-center py-12 card p-6 space-y-2">
+            {checkpoints.length === 0 ? (
+              <>
+                <QrCode className="w-10 h-10 text-slate-300 mx-auto" />
+                <h4 className="font-bold text-ink text-sm">No booths published yet</h4>
+                <p className="text-xs text-slate-500">Check back once the exhibition floor opens.</p>
+              </>
+            ) : (
+              <>
+                <Ticket className="w-10 h-10 text-slate-300 mx-auto" />
+                <h4 className="font-bold text-ink text-sm">
+                  {filter === 'completed' ? 'No stamps yet' : 'All booths collected'}
+                </h4>
+                <p className="text-xs text-slate-500">
+                  {filter === 'completed'
+                    ? 'Scan a booth QR to start filling your passport.'
+                    : 'Every booth has been stamped. Legendary.'}
+                </p>
+                <Link
+                  href={filter === 'completed' ? '/scan' : '/leaderboard'}
+                  className="btn inline-flex items-center gap-1.5 mt-2 px-3.5 py-2 bg-brand-500 text-white text-xs"
+                >
+                  {filter === 'completed' ? (
+                    <>
+                      <QrCode className="w-3.5 h-3.5" /> Scan a booth
+                    </>
+                  ) : (
+                    <>
+                      <Trophy className="w-3.5 h-3.5" /> View leaderboard
+                    </>
+                  )}
+                </Link>
+              </>
+            )}
+          </div>
+        )}
       </div>
 
       {/* REWARD MODAL POPUP */}

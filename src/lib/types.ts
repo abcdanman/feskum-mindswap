@@ -1,8 +1,24 @@
 export interface Visitor {
   id: string;
   display_name?: string | null;
+  student_id?: string | null;
+  faculty?: string | null;
+  show_on_leaderboard?: boolean | null;
   device_fingerprint?: string | null;
   created_at?: string;
+}
+
+export type RankingMetric = 'stamps' | 'points' | 'stamps_rating';
+
+export interface LeaderboardEntry {
+  rank: number;
+  visitor_id: string;
+  name: string;
+  stamps: number;
+  avg_rating: number;
+  votes: number;
+  points: number;
+  is_you?: boolean;
 }
 
 export interface Checkpoint {
@@ -36,6 +52,7 @@ export interface RewardSetting {
   stamp_threshold: number;
   description: string;
   is_active: boolean;
+  ranking_metric?: RankingMetric;
   created_at?: string;
 }
 
