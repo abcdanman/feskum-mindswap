@@ -2,7 +2,7 @@
 
 **Last updated:** 27 Oct 2026
 **Event:** 13–14 Nov 2026 · Marquee Tent, High Impact Research Building, Universiti Malaya
-**Status:** Live in production; username/partner/quiz release implemented, migration applied; app deploy pending
+**Status:** Live in production; username/partner/quiz release deployed 27 Oct 2026
 **Live URL:** https://feskum-mindswap.vercel.app
 
 This memo is the working memory for the project: what is finished, what is risky, what to improve next, why decisions were made, and what still needs an answer.
