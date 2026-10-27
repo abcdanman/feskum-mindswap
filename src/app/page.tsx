@@ -10,7 +10,10 @@ import { Checkpoint, RewardSetting } from '@/lib/types';
 
 export default function HomePage() {
   const [stampCount, setStampCount] = useState<number>(0);
+  const [partnerCount, setPartnerCount] = useState<number>(0);
   const [totalBooths, setTotalBooths] = useState<number>(12);
+  const [requiredBoothCount, setRequiredBoothCount] = useState<number>(0);
+  const [partnerBoothCount, setPartnerBoothCount] = useState<number>(0);
   const [rewardSetting, setRewardSetting] = useState<RewardSetting | null>(null);
   const [featuredBooths, setFeaturedBooths] = useState<Checkpoint[]>([]);
   const [name, setName] = useState('');
@@ -22,10 +25,20 @@ export default function HomePage() {
       const checkpoints = await getCheckpoints();
       const setting = await getRewardSetting();
 
-      setStampCount(visits.length);
+      const checkpointMap = new Map(checkpoints.map(c => [c.id, c]));
+      const requiredVisits = visits.filter(
+        v => (checkpointMap.get(v.checkpoint_id)?.booth_type ?? 'required') !== 'partner'
+      );
+      const partnerBooths = checkpoints.filter(c => c.booth_type === 'partner');
+      const requiredBooths = checkpoints.filter(c => c.booth_type !== 'partner');
+
+      setStampCount(requiredVisits.length);
+      setPartnerCount(visits.length - requiredVisits.length);
       setTotalBooths(checkpoints.length);
+      setRequiredBoothCount(requiredBooths.length);
+      setPartnerBoothCount(partnerBooths.length);
       setRewardSetting(setting);
-      setFeaturedBooths(checkpoints.slice(0, 3));
+      setFeaturedBooths((requiredBooths.length > 0 ? requiredBooths : checkpoints).slice(0, 3));
       setName(getVisitorIdentity().name.split(' ')[0] || 'delegate');
     }
     loadData();
@@ -36,7 +49,13 @@ export default function HomePage() {
   const unlocked = stampCount >= threshold;
 
   const actions = [
-    { href: '/exhibition', label: 'Booths', sub: `${totalBooths} faculty booths`, icon: Compass, accent: 'bg-blue-500' },
+    {
+      href: '/exhibition',
+      label: 'Booths',
+      sub: `${requiredBoothCount} required${partnerBoothCount > 0 ? ` · ${partnerBoothCount} partner` : ''}`,
+      icon: Compass,
+      accent: 'bg-blue-500',
+    },
     { href: '/leaderboard', label: 'Leaderboard', sub: 'Live standings', icon: Trophy, accent: 'bg-gold-500' },
   ];
 
@@ -91,7 +110,8 @@ export default function HomePage() {
 
         <div className="flex items-center justify-between pt-1">
           <span className="text-[11px] text-slate-500 font-medium">
-            {unlocked ? 'Reward unlocked!' : `${threshold - stampCount} more stamps to reward`}
+            {unlocked ? 'Reward unlocked!' : `${Math.max(threshold - stampCount, 0)} more required stamps`}
+            {partnerCount > 0 && <span className="text-slate-400"> · {partnerCount} partner</span>}
           </span>
           <Link href="/passport" className="text-xs font-extrabold text-brand-600 hover:text-brand-700 flex items-center gap-1 uppercase">
             Open <ArrowRight className="w-3.5 h-3.5" />

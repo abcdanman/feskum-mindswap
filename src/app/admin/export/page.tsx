@@ -14,19 +14,42 @@ export default function AdminExportPage() {
     const analytics = await getAdminAnalytics();
     const checkpoints = await getCheckpoints(true);
     const cpMap = new Map(checkpoints.map(c => [c.id, c]));
+    const visitorMap = new Map(analytics.visitorIdentities.map(v => [v.id, v]));
 
-    let csvContent = 'Visitor ID,Checkpoint Name,Faculty,Rating,Review,Visited At\n';
+    let csvContent =
+      'Visitor ID,Full Name,Username,Matric,Checkpoint Name,Faculty,Booth Type,Rating,Review,Quiz Correct,Quiz Total,Quiz Points,Quiz Completed At,Visited At\n';
     analytics.visits.forEach(v => {
       const cp = cpMap.get(v.checkpoint_id);
+      const visitor = visitorMap.get(v.visitor_id);
       const name = (cp?.name || 'Unknown').replace(/"/g, '""');
       const faculty = (cp?.faculty || 'Unknown').replace(/"/g, '""');
       const review = (v.review || '').replace(/"/g, '""');
-      csvContent += `"${v.visitor_id}","${name}","${faculty}",${v.rating},"${review}","${v.visited_at}"\n`;
+      const fullName = (visitor?.display_name || '').replace(/"/g, '""');
+      const username = (visitor?.username || '').replace(/"/g, '""');
+      const matric = (visitor?.student_id || '').replace(/"/g, '""');
+      const boothType = cp?.booth_type || 'required';
+      csvContent += `"${v.visitor_id}","${fullName}","${username}","${matric}","${name}","${faculty}","${boothType}",${v.rating},"${review}",${v.quiz_correct || 0},${v.quiz_total || 0},${v.quiz_points || 0},"${v.quiz_completed_at || ''}","${v.visited_at}"\n`;
     });
 
     downloadCSV(csvContent, 'MindSwap_2026_Booth_Visits.csv');
     setExporting(false);
     setSuccessMsg('Booth Visits CSV downloaded.');
+  };
+
+  const exportVisitorIdentitiesCSV = async () => {
+    setExporting(true);
+    const analytics = await getAdminAnalytics();
+    let csvContent = 'Visitor ID,Full Name,Username,Matric,Faculty\n';
+    analytics.visitorIdentities.forEach(v => {
+      const fullName = (v.display_name || '').replace(/"/g, '""');
+      const username = (v.username || '').replace(/"/g, '""');
+      const matric = (v.student_id || '').replace(/"/g, '""');
+      const faculty = (v.faculty || '').replace(/"/g, '""');
+      csvContent += `"${v.id}","${fullName}","${username}","${matric}","${faculty}"\n`;
+    });
+    downloadCSV(csvContent, 'MindSwap_2026_Visitors.csv');
+    setExporting(false);
+    setSuccessMsg('Visitor identities CSV downloaded.');
   };
 
   const exportSpeakerVotesCSV = async () => {
@@ -93,8 +116,20 @@ export default function AdminExportPage() {
             className="btn w-full p-4 bg-white flex items-center justify-between text-left"
           >
             <div>
-              <h4 className="font-bold text-ink text-xs">Booth Visits & Ratings CSV</h4>
-              <p className="text-[11px] text-slate-500">Visitor IDs, ratings, timestamps & reviews</p>
+              <h4 className="font-bold text-ink text-xs">Booth Visits & Quiz CSV</h4>
+              <p className="text-[11px] text-slate-500">Full names, usernames, ratings, quiz scores & timestamps</p>
+            </div>
+            <Download className="w-4 h-4 text-brand-600 shrink-0" />
+          </button>
+
+          <button
+            onClick={exportVisitorIdentitiesCSV}
+            disabled={exporting}
+            className="btn w-full p-4 bg-white flex items-center justify-between text-left"
+          >
+            <div>
+              <h4 className="font-bold text-ink text-xs">Visitor Identities CSV</h4>
+              <p className="text-[11px] text-slate-500">Full name, username, matric & faculty</p>
             </div>
             <Download className="w-4 h-4 text-brand-600 shrink-0" />
           </button>

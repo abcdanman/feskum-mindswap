@@ -13,6 +13,9 @@ tsconfig.tsbuildinfo
 .env
 .env*.local
 
+# Supabase CLI local link state
+supabase/.temp/
+
 # Debug / Logs
 .playwright-cli/
 npm-debug.log*

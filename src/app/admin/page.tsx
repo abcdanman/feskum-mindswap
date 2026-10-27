@@ -3,7 +3,7 @@
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getAdminAnalytics, checkAdminWrite } from '@/lib/supabase';
-import { Users, Ticket, Star, Gift, Award, Trophy, ShieldCheck, ShieldAlert, RefreshCw } from 'lucide-react';
+import { Users, Ticket, Star, Gift, Award, Trophy, ShieldCheck, ShieldAlert, RefreshCw, HelpCircle, Handshake } from 'lucide-react';
 
 export default function AdminOverviewPage() {
   const [analytics, setAnalytics] = useState<Awaited<ReturnType<typeof getAdminAnalytics>> | null>(null);
@@ -29,10 +29,14 @@ export default function AdminOverviewPage() {
     setAnalytics(data);
   }
 
+  const partnerBooths = analytics?.boothAnalytics.filter(booth => booth.booth_type === 'partner') || [];
+  const partnerVisits = partnerBooths.reduce((sum, booth) => sum + booth.total_visits, 0);
   const kpis = analytics
     ? [
         { label: 'Visitors', value: analytics.totalVisitors, sub: 'Registered identities', icon: Users, color: 'text-brand-600' },
         { label: 'Stamps', value: analytics.totalVisits, sub: 'QR visits logged', icon: Ticket, color: 'text-emerald-600' },
+        { label: 'Partner', value: partnerVisits, sub: 'Bonus stamps', icon: Handshake, color: 'text-amber-600' },
+        { label: 'Quizzes', value: analytics.totalQuizCompletions, sub: `${analytics.totalQuizPoints} bonus pts`, icon: HelpCircle, color: 'text-brand-600' },
         { label: 'Avg Rating', value: `${analytics.avgOverallRating}`, sub: 'Overall satisfaction', icon: Star, color: 'text-gold-500' },
         { label: 'Claimed', value: `${analytics.rewardsClaimed}/${analytics.rewardsUnlocked}`, sub: 'Helpdesk redemptions', icon: Gift, color: 'text-purple-600' },
       ]
@@ -94,7 +98,7 @@ export default function AdminOverviewPage() {
           <Trophy className="w-5 h-5 text-gold-500" aria-hidden="true" />
           <div>
             <h3 className="font-extrabold text-ink text-sm">Attendee Leaderboard</h3>
-            <p className="text-[11px] text-slate-500">View the public Top-10 standings</p>
+            <p className="text-[11px] text-slate-500">View the public full standings</p>
           </div>
         </div>
         <span className="eyebrow text-brand-600">View →</span>
@@ -147,14 +151,14 @@ export default function AdminOverviewPage() {
               <Award className="w-5 h-5 text-gold-500" />
               <div>
                 <h3 className="display text-xl text-ink leading-none">Best booth standings</h3>
-                <p className="text-[11px] text-slate-500">Ranked by footfall & star ratings</p>
+                <p className="text-[11px] text-slate-500">Required faculty booths · ranked by footfall & star ratings</p>
               </div>
             </div>
             <span className="sticker bg-gold-400 text-ink text-[9px]">Live</span>
           </div>
 
           <div className="space-y-2">
-            {analytics.boothAnalytics.map((booth, idx) => (
+            {analytics.boothAnalytics.filter(booth => booth.booth_type !== 'partner').map((booth, idx) => (
               <div key={booth.id} className="p-3 rounded-xl bg-cream-100 border-2 border-ink/10 flex items-center justify-between text-xs gap-2">
                 <div className="flex items-center gap-3 min-w-0">
                   <span className={`w-7 h-7 rounded-lg flex items-center justify-center font-extrabold text-xs shrink-0 border-2 border-ink ${
@@ -176,6 +180,46 @@ export default function AdminOverviewPage() {
                   <div>
                     <span className="mono font-bold text-gold-600 block">★ {booth.avg_rating}</span>
                     <span className="eyebrow text-slate-400">Stars</span>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {analytics && partnerBooths.length > 0 && (
+        <div className="card p-5 space-y-3">
+          <div className="flex items-center justify-between border-b-2 border-ink/10 pb-3">
+            <div className="flex items-center gap-2">
+              <Handshake className="w-5 h-5 text-amber-600" />
+              <div>
+                <h3 className="display text-xl text-ink leading-none">Partner booths</h3>
+                <p className="text-[11px] text-slate-500">Bonus stops · excluded from Best Booth</p>
+              </div>
+            </div>
+            <span className="sticker bg-gold-400 text-ink text-[9px]">Bonus</span>
+          </div>
+
+          <div className="space-y-2">
+            {partnerBooths.map(booth => (
+              <div key={booth.id} className="p-3 rounded-xl bg-amber-50 border-2 border-ink/10 flex items-center justify-between text-xs gap-2">
+                <div className="min-w-0">
+                  <h4 className="font-bold text-ink truncate">{booth.name}</h4>
+                  <p className="text-[10px] text-slate-500 truncate">{booth.faculty}</p>
+                </div>
+                <div className="flex items-center gap-3 text-right shrink-0">
+                  <div>
+                    <span className="mono font-bold text-ink block">{booth.total_visits}</span>
+                    <span className="eyebrow text-slate-400">Stamps</span>
+                  </div>
+                  <div>
+                    <span className="mono font-bold text-brand-600 block">{booth.quiz_completions}</span>
+                    <span className="eyebrow text-slate-400">Quiz</span>
+                  </div>
+                  <div>
+                    <span className="mono font-bold text-gold-600 block">{booth.quiz_points}</span>
+                    <span className="eyebrow text-slate-400">Pts</span>
                   </div>
                 </div>
               </div>

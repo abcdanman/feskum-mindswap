@@ -8,8 +8,9 @@ import {
   getVisitorRewardStatus,
   claimVisitorReward,
   getVisitorVisits,
+  findVisitorByUsername,
 } from '@/lib/supabase';
-import { RewardSetting, VisitorReward, RankingMetric } from '@/lib/types';
+import { RewardSetting, VisitorReward, RankingMetric, AdminAnalyticsVisitor } from '@/lib/types';
 import { Gift, ShieldCheck, CheckCircle2, ArrowLeft, Save, Search, UserCheck, AlertTriangle, Trophy } from 'lucide-react';
 
 const inputCls =
@@ -20,7 +21,7 @@ export default function AdminRewardsPage() {
   const [thresholdInput, setThresholdInput] = useState<number>(8);
   const [titleInput, setTitleInput] = useState<string>('');
   const [descInput, setDescInput] = useState<string>('');
-  const [metricInput, setMetricInput] = useState<RankingMetric>('stamps');
+  const [metricInput, setMetricInput] = useState<RankingMetric>('points');
   const [savedSuccess, setSavedSuccess] = useState<boolean>(false);
 
   // Helpdesk Redemption State
@@ -28,6 +29,8 @@ export default function AdminRewardsPage() {
   const [searchedReward, setSearchedReward] = useState<VisitorReward | null>(null);
   const [visitorStampCount, setVisitorStampCount] = useState<number>(0);
   const [searchDone, setSearchDone] = useState<boolean>(false);
+  const [searchedVisitor, setSearchedVisitor] = useState<AdminAnalyticsVisitor | null>(null);
+  const [searchedVisitorId, setSearchedVisitorId] = useState<string>('');
   const [staffName, setStaffName] = useState<string>('HIR Helpdesk Staff A');
   const [claimMsg, setClaimMsg] = useState<string>('');
 
@@ -41,7 +44,7 @@ export default function AdminRewardsPage() {
     setThresholdInput(setting.stamp_threshold);
     setTitleInput(setting.title);
     setDescInput(setting.description);
-    setMetricInput((setting.ranking_metric || 'stamps') as RankingMetric);
+    setMetricInput((setting.ranking_metric || 'points') as RankingMetric);
   }
 
   const handleSaveSettings = async (e: React.FormEvent) => {
@@ -62,22 +65,28 @@ export default function AdminRewardsPage() {
 
   const handleLookupVisitor = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!searchVisitorId.trim()) return;
+    const query = searchVisitorId.trim().replace(/^@+/, '');
+    if (!query) return;
 
+    const found = await findVisitorByUsername(query);
+    const visitorId = found?.id || query;
     const [reward, visits] = await Promise.all([
-      getVisitorRewardStatus(searchVisitorId.trim()),
-      getVisitorVisits(searchVisitorId.trim()),
+      getVisitorRewardStatus(visitorId),
+      getVisitorVisits(visitorId),
     ]);
+    const requiredCount = visits.filter(v => v.checkpoint?.booth_type !== 'partner').length;
 
+    setSearchedVisitor(found);
+    setSearchedVisitorId(visitorId);
     setSearchedReward(reward);
-    setVisitorStampCount(visits.length);
+    setVisitorStampCount(requiredCount);
     setSearchDone(true);
     setClaimMsg('');
   };
 
   const handleClaim = async () => {
-    if (!searchVisitorId.trim()) return;
-    const updated = await claimVisitorReward(searchVisitorId.trim(), staffName);
+    if (!searchedVisitorId) return;
+    const updated = await claimVisitorReward(searchedVisitorId, staffName);
     if (updated) {
       setSearchedReward(updated);
       setClaimMsg('Souvenir marked as CLAIMED.');
@@ -105,14 +114,14 @@ export default function AdminRewardsPage() {
           </div>
           <div>
             <h2 className="font-extrabold text-ink text-sm">Prize claim tool</h2>
-            <p className="text-[11px] text-slate-500">Enter Visitor ID to verify eligibility</p>
+            <p className="text-[11px] text-slate-500">Look up by @username or Visitor ID</p>
           </div>
         </div>
 
         <form onSubmit={handleLookupVisitor} className="flex gap-2">
           <input
             type="text"
-            placeholder="Paste Visitor ID..."
+            placeholder="@username or Visitor ID…"
             value={searchVisitorId}
             onChange={e => setSearchVisitorId(e.target.value)}
             className={`${inputCls} flex-1 mono !text-xs`}
@@ -124,8 +133,19 @@ export default function AdminRewardsPage() {
 
         {searchDone && (
           <div className="p-4 rounded-xl bg-white border-2 border-ink space-y-3">
+            {searchedVisitor && (
+              <div className="p-2.5 rounded-xl bg-cream-100 border-2 border-ink/10">
+                <p className="text-xs font-bold text-ink">
+                  {searchedVisitor.display_name || 'Visitor'}
+                  {searchedVisitor.username && <span className="text-brand-600"> · @{searchedVisitor.username}</span>}
+                </p>
+                {searchedVisitor.student_id && (
+                  <p className="text-[10px] mono text-slate-500">{searchedVisitor.student_id}</p>
+                )}
+              </div>
+            )}
             <div className="flex items-center justify-between text-xs font-bold">
-              <span className="text-slate-500">Stamps collected</span>
+              <span className="text-slate-500">Required stamps collected</span>
               <span className="text-brand-600 mono text-sm">{visitorStampCount}</span>
             </div>
 
@@ -169,7 +189,7 @@ export default function AdminRewardsPage() {
             ) : (
               <div className="p-3 rounded-xl bg-rose-50 border-2 border-ink text-rose-700 text-xs flex items-center gap-2">
                 <AlertTriangle className="w-4 h-4 shrink-0" />
-                <span>Not eligible yet — needs {thresholdInput} stamps.</span>
+                <span>Not eligible yet — needs {thresholdInput} required stamps.</span>
               </div>
             )}
 
@@ -212,7 +232,7 @@ export default function AdminRewardsPage() {
             >
               <option value="stamps">Booth stamps collected</option>
               <option value="stamps_rating">Stamps, tie-broken by rating given</option>
-              <option value="points">Points (stamps ×10 + votes ×25)</option>
+              <option value="points">Points (required ×10 + partner ×5 + trail +10 + quiz +5/correct + votes ×25)</option>
             </select>
           </div>
 

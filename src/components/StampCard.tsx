@@ -13,11 +13,12 @@ interface StampCardProps {
 
 export default function StampCard({ checkpoint, visit, index }: StampCardProps) {
   const isCompleted = Boolean(visit);
+  const isPartner = checkpoint.booth_type === 'partner';
 
   return (
     <div
       className={`relative group card card-hover p-4 ${
-        isCompleted ? 'bg-emerald-50' : 'bg-white'
+        isCompleted ? (isPartner ? 'bg-amber-50' : 'bg-emerald-50') : 'bg-white'
       }`}
     >
       {/* Number Badge */}
@@ -25,8 +26,12 @@ export default function StampCard({ checkpoint, visit, index }: StampCardProps) 
         <span className="display text-3xl text-slate-300 leading-none">
           {String(index + 1).padStart(2, '0')}
         </span>
-        <span className="sticker bg-brand-500 text-white text-[9px] truncate max-w-[150px]">
-          {checkpoint.category}
+        <span
+          className={`sticker text-[9px] truncate max-w-[150px] ${
+            isPartner ? 'bg-gold-400 text-ink' : 'bg-brand-500 text-white'
+          }`}
+        >
+          {isPartner ? 'Partner · ' : ''}{checkpoint.category}
         </span>
       </div>
 
@@ -34,7 +39,10 @@ export default function StampCard({ checkpoint, visit, index }: StampCardProps) 
       <h4 className="display text-lg text-ink leading-tight line-clamp-2 mb-1 group-hover:text-brand-600 transition-colors">
         {checkpoint.name}
       </h4>
-      <p className="text-xs text-brand-600 font-bold mb-2">{checkpoint.faculty}</p>
+      <p className="text-xs text-brand-600 font-bold mb-2">
+        {checkpoint.faculty}
+        {isPartner && <span className="text-slate-500 font-semibold"> · bonus +5</span>}
+      </p>
 
       <div className="flex items-center gap-1 text-[11px] text-slate-500 mb-3">
         <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
@@ -55,9 +63,13 @@ export default function StampCard({ checkpoint, visit, index }: StampCardProps) 
             ))}
           </div>
 
-          <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[10px] font-extrabold border-2 border-ink animate-stamp-bump">
+          <div
+            className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-extrabold border-2 border-ink animate-stamp-bump ${
+              isPartner ? 'bg-gold-400 text-ink' : 'bg-emerald-600 text-white'
+            }`}
+          >
             <CheckCircle2 className="w-3 h-3" />
-            <span>STAMPED</span>
+            <span>{isPartner ? 'PARTNER' : 'STAMPED'}</span>
           </div>
         </div>
       ) : (

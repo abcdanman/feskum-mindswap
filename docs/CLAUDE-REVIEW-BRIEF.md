@@ -12,10 +12,11 @@ You are a senior product designer, UX writer, and frontend engineer. Review the 
 - **Venue:** Marquee Tent, High Impact Research Building, Universiti Malaya.
 - **Date:** **13–14 Nov 2026**.
 - **Audience:** ~400 Universiti Malaya students (18–24), faculty exhibitors, secretariat, judges, and sponsors.
-- **Booths:** 9 active faculty/innovation booths. Each has a QR code at the physical booth.
-- **Core loop:** visitor enters name + optional matric + faculty → browses booths → scans a booth QR → rates the booth 1–5 stars with an optional review → collects a stamp → 8 stamps unlock a souvenir → shows the reward badge at the helpdesk → can also vote once for the UM Talk People’s Choice award.
-- **Admin:** hidden passcode-protected “Control room” for KPIs, booth CRUD, printable QR sheets, speaker CRUD, reward settings, prize claims, and CSV exports.
-- **No accounts:** no email, password, or login. Identity is a localStorage visitor ID, with optional reclaim by matric on a new device.
+- **Booths:** 8 required faculty/innovation booths, plus optional partner/promotional booths. Each has a QR code at the physical booth.
+- **Core loop:** visitor enters full name + unique @username + optional matric + faculty → browses booths → scans a booth QR → rates the booth 1–5 stars with an optional review → collects a stamp → 8 **required** stamps unlock a souvenir → may visit partner booths for bonus points → may answer an optional 2-question partner quiz → shows the reward badge at the helpdesk → can also vote once for the UM Talk People’s Choice award.
+- **Leaderboard:** points-based (required ×10, partner ×5, partner trail +10, quiz +5/correct, vote ×25), top-3 podium, ranks 4–50, full list, All/Day 1/Day 2 tabs, @usernames only.
+- **Admin:** hidden passcode-protected “Control room” for KPIs, booth CRUD (required/partner + quiz editor), printable QR sheets, speaker CRUD, reward settings, prize claims by @username or Visitor ID, and CSV exports.
+- **No accounts:** no email, password, or login. Identity is a localStorage visitor ID, with optional reclaim by matric on a new device. Full name stays private; the public leaderboard uses @username.
 - **Tech:** Next.js 15 App Router, React 19, TypeScript, Tailwind v3, Supabase (Postgres + storage), Vercel. Mobile-first, mostly static, designed for a one-month event window.
 - **Budget:** RM200 total. Website only needs to be live for **1 month** (Nov 2026). Vercel Hobby is RM0; Supabase Free is RM0 (or Pro ~RM118 for one month); a `.com` domain is ~RM60/year (annual only, cannot be bought for one month). Printing is separate (~RM117–184). Recommendations must respect this.
 
@@ -31,9 +32,9 @@ You are a senior product designer, UX writer, and frontend engineer. Review the 
 
 At 393px and 320px wide:
 
-1. Sticky header: `MINDSWAP 2026` logo, profile pill (`TEST Prod` + pencil).
+1. Sticky header: `MINDSWAP 2026` logo, trophy shortcut, profile pill (`@test_prod` + pencil).
 2. Hero card: “Laluan Aspirasi” sticker, `FESKUM 2026`, `WELCOME, TEST.`, huge `KEMUNCAK ASPIRASI!`, “Explore faculty booths. Collect stamps. Vote for your favourite.”, venue, and a grouped `13–14 Nov 2026 · Free entry` line.
-3. Passport widget: `0 / 8`, progress bar, “8 more stamps to reward”, `OPEN`.
+3. Passport widget: `0 / 8` required, progress bar, “8 more required stamps”, `OPEN`, partner count if any.
 4. Two action cards: Booths / Leaderboard.
 5. Red “SCAN A BOOTH” CTA.
 6. “How it works” 3-step strip.
@@ -50,9 +51,10 @@ Be honest about which of these are real problems and which are fine:
 - Too many competing elements at once: sticker + eyebrow + giant headline + another sticker + borders + shadows + bottom nav.
 - The hero still leads with a slogan before a first-time visitor’s job-to-be-done.
 - The home screen has both a passport widget and a navy bottom-nav Passport item; check whether the duplicate entry point is earning its space.
-- The first-run gate asks for name/faculty before the visitor sees any value.
+- The first-run gate asks for name/username/faculty before the visitor sees any value.
+- Partner booths and quizzes add optional choices; check that they do not compete with the required 8-stamp path.
 - Admin users now have a Home button, but the tab bar, back arrows, and sign-out may still feel like a separate app.
-- Reward claim requires reading a UUID to staff; that may feel technical and slow at a busy helpdesk.
+- Reward claim can use @username, but staff still need a fast, unambiguous handoff at a busy helpdesk.
 - The 320px layout is tight; body copy and labels get very small.
 
 ## 5. What I want from you
@@ -86,10 +88,10 @@ Propose a revised order and grouping of the home sections. Say what to cut, merg
 Concrete improvements for:
 1. First-run signup (show value before asking for data; fewer fields; clearer expectations).
 2. Scan → rate → stamp (reduce taps, make success obvious, handle duplicate scans).
-3. Passport → reward → helpdesk claim (make the handoff fast and unambiguous).
+3. Passport → reward → helpdesk claim (make the @username/ID handoff fast and unambiguous).
 4. Admin navigation (home, back, tabs, sign out).
 5. Cross-device reclaim by matric.
-6. Leaderboard and voting (make the “one vote” rule obvious).
+6. Leaderboard, day tabs, partner/quiz points, and voting (make the “one vote” rule obvious).
 
 ### G. Visual tightening
 Specific rules for:

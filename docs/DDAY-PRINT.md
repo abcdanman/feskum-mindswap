@@ -13,12 +13,12 @@ Companion docs: `EVENT-OPS.md` (runbook), `PROJECT-MEMO.md` (status/backlog).
 
 ## 1. Master print list
 
-Quantities assume **9 live booths**. Adjust if the final count changes.
+Quantities assume **8 required live booths**, plus any partner booths. Adjust if the final count changes.
 
 | # | Item | Qty | Size | Material | Finish | Purpose |
 | --- | --- | --- | --- | --- | --- | --- |
-| 1 | Booth QR cards | 9 + 3 spares | A5 | 250–300 gsm | **Matte** laminate | Main booth interaction |
-| 2 | Booth number tent cards | 9 | A5 folded | 300 gsm | None | Match booth to map |
+| 1 | Booth QR cards | 8 required + partners + 3 spares | A5 | 250–300 gsm | **Matte** laminate | Main booth interaction |
+| 2 | Booth number tent cards | 8 required + partners | A5 folded | 300 gsm | None | Match booth to map |
 | 3 | Entrance poster | 2 | A2 | 200 gsm on foam board | Matte | App QR + “how it works” |
 | 4 | “How it works” strip | 2 | A3 | 250 gsm / foam | Matte | Queue at entrance |
 | 5 | UM Talk stage poster | 2 | A2 | Foam board | Matte | Stage + seating |

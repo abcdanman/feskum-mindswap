@@ -6,7 +6,8 @@ import { Sparkles, ArrowRight, BadgeCheck } from 'lucide-react';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
 import { getOrInitVisitorId, setVisitorId, setVisitorIdentity, getVisitorIdentity } from '@/lib/visitor';
-import { registerVisitorIdentity } from '@/lib/supabase';
+import { registerVisitorIdentity, isUsernameAvailable } from '@/lib/supabase';
+import { validateUsername, USERNAME_RULES } from '@/lib/username';
 import { FACULTIES } from '@/lib/faculties';
 
 export default function IdentityGate({ children }: { children: React.ReactNode }) {
@@ -29,17 +30,39 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
   };
 
   const [name, setName] = useState('');
+  const [username, setUsername] = useState('');
   const [matric, setMatric] = useState('');
   const [faculty, setFaculty] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [usernameError, setUsernameError] = useState('');
   const [reclaimed, setReclaimed] = useState(false);
 
   useEffect(() => {
     const identity = getVisitorIdentity();
+    setName(identity.name);
+    setUsername(identity.username);
+    setMatric(identity.matric);
+    setFaculty(identity.faculty);
     setComplete(identity.complete);
     setReady(true);
   }, []);
+
+  const handleUsernameBlur = async () => {
+    if (!username.trim()) return;
+    const validation = await validateUsername(username);
+    if (!validation.ok) {
+      setUsernameError(validation.error);
+      return;
+    }
+    const availability = await isUsernameAvailable(validation.username, getOrInitVisitorId());
+    if (!availability.available) {
+      setUsernameError(availability.error || 'That username is already taken. Try another.');
+      return;
+    }
+    setUsername(validation.username);
+    setUsernameError('');
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -48,19 +71,32 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
       setError('Please fill in your name and faculty to continue.');
       return;
     }
+    const validation = await validateUsername(username);
+    if (!validation.ok) {
+      setUsernameError(validation.error);
+      setError('');
+      return;
+    }
+    setUsernameError('');
     setSubmitting(true);
 
     const { showOnLeaderboard } = getVisitorIdentity();
     const localId = getOrInitVisitorId();
-    const { visitorId, reclaimed: wasReclaimed } = await registerVisitorIdentity(localId, {
+    const { visitorId, reclaimed: wasReclaimed, error: saveError } = await registerVisitorIdentity(localId, {
       name,
+      username: validation.username,
       matric,
       faculty,
       showOnLeaderboard,
     });
+    if (saveError) {
+      setError(saveError);
+      setSubmitting(false);
+      return;
+    }
     if (visitorId && visitorId !== localId) setVisitorId(visitorId);
 
-    setVisitorIdentity({ name, matric, faculty, showOnLeaderboard });
+    setVisitorIdentity({ name, username: validation.username, matric, faculty, showOnLeaderboard });
     setReclaimed(wasReclaimed);
     setSubmitting(false);
     setComplete(true);
@@ -119,8 +155,43 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
             </div>
 
             <div>
+              <label htmlFor="identity-username" className="eyebrow text-slate-500 block mb-1.5">
+                02 / Username
+              </label>
+              <div className="relative">
+                <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 font-bold text-base">@</span>
+                <input
+                  id="identity-username"
+                  name="username"
+                  type="text"
+                  autoComplete="username"
+                  autoCapitalize="none"
+                  autoCorrect="off"
+                  spellCheck={false}
+                  placeholder="e.g. danish_aiman"
+                  value={username}
+                  onChange={e => {
+                    setUsername(e.target.value);
+                    setUsernameError('');
+                  }}
+                  onBlur={handleUsernameBlur}
+                  maxLength={20}
+                  aria-describedby="identity-username-help"
+                  aria-invalid={Boolean(usernameError)}
+                  className="w-full pl-8 pr-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base font-semibold mono focus:outline-none focus:bg-white"
+                />
+              </div>
+              <p id="identity-username-help" className="text-[11px] text-slate-500 mt-1.5">
+                Public on the leaderboard instead of your full name. {USERNAME_RULES}
+              </p>
+              {usernameError && (
+                <p role="alert" className="text-[11px] font-bold text-brand-700 mt-1.5">{usernameError}</p>
+              )}
+            </div>
+
+            <div>
               <label htmlFor="identity-matric" className="eyebrow text-slate-500 block mb-1.5">
-                02 / Matric / Student ID <span className="normal-case tracking-normal font-normal">(optional)</span>
+                03 / Matric / Student ID <span className="normal-case tracking-normal font-normal">(optional)</span>
               </label>
               <input
                 id="identity-matric"
@@ -141,7 +212,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
 
             <div>
               <label htmlFor="identity-faculty" className="eyebrow text-slate-500 block mb-1.5">
-                03 / Faculty
+                04 / Faculty
               </label>
               <select
                 id="identity-faculty"

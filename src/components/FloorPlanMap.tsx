@@ -61,6 +61,7 @@ export default function FloorPlanMap({
           const visited = visitedIds.has(checkpoint.id);
           const isHere = lastCheckpointId === checkpoint.id;
           const number = numberById.get(checkpoint.id);
+          const isPartner = checkpoint.booth_type === 'partner';
 
           return (
             <button
@@ -76,8 +77,8 @@ export default function FloorPlanMap({
               <span
                 className={`relative flex items-center justify-center w-9 h-9 rounded-full border-2 border-ink font-extrabold text-xs shadow-brut transition-transform group-hover:scale-110 group-active:scale-95 ${
                   visited
-                    ? 'bg-emerald-500 text-white'
-                    : 'bg-white text-ink'
+                    ? (isPartner ? 'bg-gold-400 text-ink' : 'bg-emerald-500 text-white')
+                    : (isPartner ? 'bg-amber-50 text-ink' : 'bg-white text-ink')
                 } ${isHere ? 'ring-4 ring-brand-300' : ''}`}
               >
                 {visited ? (
@@ -110,6 +111,10 @@ export default function FloorPlanMap({
           <span className="inline-flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-ink" aria-hidden="true" />
             Stamped
+          </span>
+          <span className="inline-flex items-center gap-1">
+            <span className="w-2.5 h-2.5 rounded-full bg-gold-400 border-2 border-ink" aria-hidden="true" />
+            Partner
           </span>
           <span className="inline-flex items-center gap-1">
             <span className="w-2.5 h-2.5 rounded-full bg-brand-500 border-2 border-ink" aria-hidden="true" />

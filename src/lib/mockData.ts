@@ -11,7 +11,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-eng-robotics',
     is_active: true,
-    display_order: 1
+    display_order: 1,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-2',
@@ -23,7 +25,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-fsktm-quantum',
     is_active: true,
-    display_order: 2
+    display_order: 2,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-3',
@@ -35,7 +39,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1532187863486-abf9dbad1b69?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-science-biotech',
     is_active: true,
-    display_order: 3
+    display_order: 3,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-4',
@@ -47,7 +53,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1530836369250-ef72a3f5cda8?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-fab-greenfarm',
     is_active: true,
-    display_order: 4
+    display_order: 4,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-5',
@@ -59,7 +67,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1576091160399-112ba8d25d1d?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-med-bionics',
     is_active: true,
-    display_order: 5
+    display_order: 5,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-6',
@@ -71,7 +81,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1606811841689-23dfddce3e95?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-dent-nanomed',
     is_active: true,
-    display_order: 6
+    display_order: 6,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-7',
@@ -83,7 +95,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1593508512255-86ab42a8e620?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-fass-vrheritage',
     is_active: true,
-    display_order: 7
+    display_order: 7,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-8',
@@ -95,7 +109,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1513836279014-a89f7a76ae86?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-pharm-graphene',
     is_active: true,
-    display_order: 8
+    display_order: 8,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-9',
@@ -107,7 +123,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1509062522246-3755977927d7?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-edu-signai',
     is_active: true,
-    display_order: 9
+    display_order: 9,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-10',
@@ -119,7 +137,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1611974789855-9c2a0a7236a3?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-fbe-fintech',
     is_active: true,
-    display_order: 10
+    display_order: 10,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-11',
@@ -131,7 +151,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-law-smartcontract',
     is_active: true,
-    display_order: 11
+    display_order: 11,
+    booth_type: 'required',
+    quiz: []
   },
   {
     id: 'booth-12',
@@ -143,7 +165,9 @@ export const INITIAL_CHECKPOINTS: Checkpoint[] = [
     image_url: 'https://images.unsplash.com/photo-1581092160607-ee22621dd758?w=800&auto=format&fit=crop&q=80',
     qr_token: 'qr-makers-hardware',
     is_active: true,
-    display_order: 12
+    display_order: 12,
+    booth_type: 'required',
+    quiz: []
   }
 ];
 
@@ -378,6 +402,7 @@ export const INITIAL_REWARD_SETTING: RewardSetting = {
   id: 'reward-setting-1',
   title: 'Laluan Aspirasi Passport Reward',
   stamp_threshold: 8,
-  description: 'Complete 8 exhibition booth checkpoints to unlock your official MindSwap @ FESKUM 2026 souvenir!',
-  is_active: true
+  description: 'Complete 8 required faculty booth checkpoints to unlock your official MindSwap @ FESKUM 2026 souvenir! Partner booths are optional bonus stops.',
+  is_active: true,
+  ranking_metric: 'points'
 };

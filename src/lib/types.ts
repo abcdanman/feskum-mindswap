@@ -1,6 +1,7 @@
 export interface Visitor {
   id: string;
   display_name?: string | null;
+  username?: string | null;
   student_id?: string | null;
   faculty?: string | null;
   show_on_leaderboard?: boolean | null;
@@ -9,12 +10,26 @@ export interface Visitor {
 }
 
 export type RankingMetric = 'stamps' | 'points' | 'stamps_rating';
+export type BoothType = 'required' | 'partner';
+export type LeaderboardDay = 'all' | 'day1' | 'day2';
+
+export interface QuizQuestion {
+  id: string;
+  question: string;
+  options: string[];
+  correctIndex: number;
+}
 
 export interface LeaderboardEntry {
   rank: number;
   visitor_id: string;
   name: string;
+  username?: string | null;
   stamps: number;
+  required_stamps: number;
+  partner_stamps: number;
+  quiz_points: number;
+  partner_trail_complete: boolean;
   avg_rating: number;
   votes: number;
   points: number;
@@ -30,6 +45,8 @@ export interface Checkpoint {
   location: string;
   image_url?: string | null;
   qr_token: string;
+  booth_type?: BoothType;
+  quiz?: QuizQuestion[] | null;
   is_active: boolean;
   display_order: number;
   created_at?: string;
@@ -43,6 +60,10 @@ export interface BoothVisit {
   rating: number;
   review?: string | null;
   visited_at: string;
+  quiz_correct?: number;
+  quiz_total?: number;
+  quiz_points?: number;
+  quiz_completed_at?: string | null;
   checkpoint?: Checkpoint;
 }
 
@@ -103,6 +124,17 @@ export interface BoothAnalytics {
   name: string;
   faculty: string;
   category: string;
+  booth_type: BoothType;
   total_visits: number;
+  quiz_completions: number;
+  quiz_points: number;
   avg_rating: number;
+}
+
+export interface AdminAnalyticsVisitor {
+  id: string;
+  display_name: string | null;
+  username: string | null;
+  student_id: string | null;
+  faculty: string | null;
 }

@@ -1,8 +1,8 @@
 # Project Memo — MindSwap @ FESKUM 2026
 
-**Last updated:** 26 Oct 2026
+**Last updated:** 27 Oct 2026
 **Event:** 13–14 Nov 2026 · Marquee Tent, High Impact Research Building, Universiti Malaya
-**Status:** Live in production
+**Status:** Live in production; username/partner/quiz release implemented, migration applied; app deploy pending
 **Live URL:** https://feskum-mindswap.vercel.app
 
 This memo is the working memory for the project: what is finished, what is risky, what to improve next, why decisions were made, and what still needs an answer.
@@ -15,12 +15,13 @@ This memo is the working memory for the project: what is finished, what is risky
 | --- | --- |
 | Hosting | Vercel (Hobby), static Next.js build |
 | Database | Supabase Postgres + Storage (`booth-images`) |
-| Live booths | 9 (all have images) |
+| Live booths | 8 required (test booth removed); 0 partner booths configured yet; partner booths optional via admin |
 | Speakers | 16 UM Talk speakers |
 | Tables | `visitors`, `checkpoints`, `booth_visits`, `reward_settings`, `visitor_rewards`, `speakers`, `voting_events`, `speaker_votes` |
-| Student auth | None — name + faculty (matric optional), stored in `localStorage` |
+| New columns | `visitors.username`; `checkpoints.booth_type`, `checkpoints.quiz`; `booth_visits.quiz_*` |
+| Student auth | None — full name + unique @username + faculty (matric optional), stored in `localStorage` |
 | Admin | Hidden entry + shared passcode (default `admin2026`) |
-| Reward | 8 stamps |
+| Reward | 8 required stamps |
 | Domain | **Not final** — still `*.vercel.app` |
 | Budget | RM200 for hosting/domain (see `BUDGET.md`) |
 
@@ -30,7 +31,13 @@ This memo is the working memory for the project: what is finished, what is risky
 
 ### Product & UX
 - [x] Students-only single user type; removed “Visitor / Non-UM guest”.
-- [x] First-open form simplified to **name + faculty required, matric optional**.
+- [x] First-open form requires **full name + unique @username + faculty**; matric optional. Full name stays private; leaderboard shows @username.
+- [x] Username validation: 3–20 lowercase letters/numbers/underscores, reserved-name blocking, English + Malaysian denylist, leetspeak/separator normalization, DB uniqueness.
+- [x] Partner booths: optional bonus stops worth +5 points; do not count toward the 8-stamp souvenir or Best Booth.
+- [x] Optional partner quizzes: max 2 questions, +5 per correct, one attempt, never blocks a stamp.
+- [x] Points leaderboard: required ×10, partner ×5, partner trail +10, quiz +5/correct, vote ×25.
+- [x] Leaderboard full list (top 3 podium, ranks 4–50, then 51+), All/Day 1/Day 2 tabs, 20s refresh, jump-to-me.
+- [x] Header trophy shortcut; profile pill shows @username.
 - [x] Faculty input is a native `<select>` (fixes the iOS/iPad popup bug).
 - [x] De-jargoned copy; home highlights **Booths** + **Leaderboard**; passport stays in the widget and nav.
 - [x] Nav renamed “Explore” → “Booths”; admin shield removed.
@@ -40,7 +47,7 @@ This memo is the working memory for the project: what is finished, what is risky
 - [x] “You were here” highlights the **last scanned booth** (no GPS permission).
 - [x] Passport stamps, progress bar, prize badge, and reward celebration.
 - [x] Booth rating (1–5 stars) + optional review.
-- [x] Leaderboard (best booths + top visitors, masked names, opt-out in profile).
+- [x] Leaderboard (points-based, full list, day tabs, @usernames, opt-out in profile).
 - [x] UM Talk speaker cards + People’s Choice voting.
 
 ### Bug fixes
@@ -64,8 +71,10 @@ This memo is the working memory for the project: what is finished, what is risky
 - [x] Overview: KPIs, DB write health, best-booth standings, **People’s Choice live tally** (30s refresh).
 - [x] Booths: add/edit, photo upload, per-booth QR, printable QR sheet.
 - [x] Speakers: manage 16 speakers and voting event.
-- [x] Helpdesk: verify Visitor ID, mark prize claimed.
-- [x] Export: booth-visit CSV + speaker-vote CSV.
+- [x] Helpdesk: verify by @username or Visitor ID, required-stamp count, mark prize claimed.
+- [x] Booth editor: Required/Partner toggle + optional 2-question quiz editor.
+- [x] Overview: partner/quiz KPIs and partner-booth performance.
+- [x] Export: booth-visit + quiz CSV, visitor identities CSV, speaker-vote CSV.
 - [x] Rewards: configurable threshold.
 
 ### Accessibility & mobile
@@ -86,7 +95,7 @@ This memo is the working memory for the project: what is finished, what is risky
 
 ### Infrastructure
 - [x] Static-capable build (no API routes, middleware, server actions, or `next/image`).
-- [x] Leaderboard aggregated client-side; only polling is the navbar (4s) and admin tally (30s).
+- [x] Leaderboard aggregated client-side; public leaderboard polls every 20s; admin tally every 30s.
 - [x] Favicon/icon set (SVG, PNG, maskable, apple-touch, ICO) + web manifest.
 - [x] Production deploy verified; routes and new bundles confirmed live.
 
@@ -109,7 +118,10 @@ This memo is the working memory for the project: what is finished, what is risky
 | Shared admin passcode, no audit log | Cannot trace who changed what | Brief staff; export before/after changes | Medium |
 | No error monitoring or analytics | Problems found only by attendees | UptimeRobot; add Sentry later | Low |
 | `next lint` has no ESLint config | Lint command prompts instead of running | Build + `tsc --noEmit` are the gate | Low |
-| Only 9 of the planned 12 booths are seeded | Missing booths cannot be scanned | Confirm final booth list; add before printing | High |
+| 8 required booths are live; planned count may be 12 | Missing booths cannot be scanned | Confirm final booth list; add required booths before printing | High |
+| Username moderation is client-side | A direct API write can bypass the denylist | Unique DB index still applies; monitor; move to RPC for hardening | Medium |
+| Quiz answers and points are client-side | A determined visitor can tamper with scores | Low-stakes event; monitor leaderboard; RPC hardening later | Medium |
+| Partner trail bonus depends on active partner list | Adding a partner later can require another visit for completion | Freeze partner list before doors open | Medium |
 
 ---
 
@@ -118,7 +130,9 @@ This memo is the working memory for the project: what is finished, what is risky
 ### P0 — before the event (do these first)
 - [ ] **Buy and connect the final domain.** Then regenerate and test the QR sheet. Do not print before this.
 - [ ] Rotate `NEXT_PUBLIC_ADMIN_PASSCODE` and `NEXT_PUBLIC_SCAN_BYPASS_CODE` in Vercel; redeploy; test on a phone.
-- [ ] Confirm the final booth list (9 live vs 12 planned); add missing booths with unique `qr_token`s and images.
+- [x] Applied `supabase/migrations/20261026_partner_booths_quiz_username.sql` on 27 Oct 2026; migration history marked applied.
+- [ ] Confirm the final required booth list (8 live vs 12 planned); add missing booths with unique `qr_token`s and images.
+- [ ] Create partner booths + quiz content via Admin → Booths; freeze the partner list before doors open.
 - [ ] Walk the venue: test campus Wi-Fi + mobile data, QR scanning under venue light, and load time on a mid-range phone.
 - [ ] Run the device matrix (iPhone Safari, iPad Safari, Android Chrome, ≤375px).
 - [ ] Set the reward threshold and test the full flow: scan → stamp → 8 stamps → badge → helpdesk verify → mark claimed.
@@ -130,6 +144,7 @@ This memo is the working memory for the project: what is finished, what is risky
 
 ### P1 — high value, can ship before or shortly after
 - [ ] Move admin auth server-side (Supabase Edge Function + signed cookie) so the passcode is not in the bundle.
+- [ ] Move username moderation and quiz scoring into RPC/Edge Functions; tighten RLS.
 - [ ] Tighten RLS and route writes through an Edge Function with rate limiting.
 - [ ] Add a service worker / offline fallback page (PWA install already supported by the manifest).
 - [ ] Replace polling with Supabase Realtime for the leaderboard and People’s Choice.
@@ -164,6 +179,11 @@ This memo is the working memory for the project: what is finished, what is risky
 | Oct 2026 | Stay on Vercel + Supabase | Lowest risk before the event; Cloudflare would need a rewrite |
 | Oct 2026 | QR URLs from `window.location.origin` | Simple and stateless — but makes the final domain a hard prerequisite |
 | Oct 2026 | Schematic floor plan first | Real venue plan not yet available |
+| Oct 2026 | Full name private; public leaderboard uses unique @username | Privacy while keeping standings readable |
+| Oct 2026 | Points ranking is the default | Rewards partner visits, quizzes, and UM Talk votes, not just required stamps |
+| Oct 2026 | Partner booths are optional bonus stops | Keeps the 8-stamp souvenir fair while allowing promotional partners |
+| Oct 2026 | Max 2 quiz questions per partner booth, +5/correct | Fast at-booth interaction; max +10 per booth |
+| Oct 2026 | Partner booths excluded from Best Booth | Judges compare like with like |
 
 ---
 
@@ -171,7 +191,8 @@ This memo is the working memory for the project: what is finished, what is risky
 
 - What is the final domain, and who buys/owns it?
 - Supabase **Free + keep-alive** or **Pro for the event month**? (Budget supports Pro.)
-- Is the final booth count 9 or 12?
+- Is the final required booth count 8 or 12?
+- Which partner booths join, and who writes/approves their quiz questions?
 - Will the venue provide a real floor-plan image?
 - Is the event considered non-commercial under Vercel Hobby?
 - Who owns the Vercel, Supabase, and domain accounts after the event?
@@ -197,6 +218,8 @@ This memo is the working memory for the project: what is finished, what is risky
 - [ ] Helpdesk runbook printed.
 
 ### T–1 day
+- [x] Migration applied; username/partner/quiz columns verified.
+- [ ] Partner booths + quizzes created; leaderboard day tabs checked.
 - [ ] Venue walk-through; signs mounted.
 - [ ] Hotspot + power bank charged.
 - [ ] Test data removed; baseline CSV exported.
@@ -218,3 +241,7 @@ See `docs/EVENT-OPS.md` §9.
 | Schema | `supabase/schema.sql` |
 | Floor-plan config | `src/lib/floorplan.ts` |
 | Data layer | `src/lib/supabase.ts` |
+| Username rules/moderation | `src/lib/username.ts` |
+| Scoring constants | `src/lib/scoring.ts` |
+| Event days / day tabs | `src/lib/event.ts` |
+| Migration | `supabase/migrations/20261026_partner_booths_quiz_username.sql` |

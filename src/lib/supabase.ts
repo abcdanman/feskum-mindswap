@@ -9,9 +9,14 @@ import {
   BoothAnalytics,
   RankingMetric,
   LeaderboardEntry,
+  LeaderboardDay,
+  QuizQuestion,
+  AdminAnalyticsVisitor,
 } from './types';
 import { INITIAL_CHECKPOINTS, INITIAL_SPEAKERS, INITIAL_REWARD_SETTING } from './mockData';
 import { maskName } from './visitor';
+import { getLeaderboardScore, calculateQuizScore, isPartnerTrailComplete, QUIZ_MAX_QUESTIONS } from './scoring';
+import { getLeaderboardDayRange } from './event';
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
@@ -89,7 +94,12 @@ export async function saveCheckpoint(
         display_order: checkpoint.display_order ?? existing.length + 1,
       };
     }
-    const { data, error } = await supabase.from('checkpoints').upsert(checkpoint).select().single();
+    const payload = {
+      ...checkpoint,
+      booth_type: checkpoint.booth_type ?? 'required',
+      quiz: checkpoint.quiz ?? [],
+    };
+    const { data, error } = await supabase.from('checkpoints').upsert(payload).select().single();
     if (!error && data) return { data, error: null };
     return { data: null, error: error?.message || 'Failed to save booth.' };
   }
@@ -112,6 +122,8 @@ export async function saveCheckpoint(
       qr_token: checkpoint.qr_token || 'qr-' + Date.now(),
       is_active: checkpoint.is_active ?? true,
       display_order: checkpoints.length + 1,
+      booth_type: checkpoint.booth_type || 'required',
+      quiz: checkpoint.quiz || [],
     };
     updated = [...checkpoints, target];
   }
@@ -202,13 +214,80 @@ export async function submitBoothRating(
   return { success: true, visit: newVisit };
 }
 
+export async function submitBoothQuiz(
+  visitorId: string,
+  checkpointId: string,
+  questions: QuizQuestion[],
+  answers: Array<number | null>
+): Promise<{
+  success: boolean;
+  visit?: BoothVisit;
+  correct: number;
+  total: number;
+  points: number;
+  message?: string;
+}> {
+  const quizQuestions = questions.slice(0, QUIZ_MAX_QUESTIONS);
+  if (!quizQuestions.length) {
+    return { success: false, correct: 0, total: 0, points: 0, message: 'This booth has no quiz.' };
+  }
+
+  const visits = await getVisitorVisits(visitorId);
+  const existing = visits.find(v => v.checkpoint_id === checkpointId);
+  if (!existing) {
+    return { success: false, correct: 0, total: quizQuestions.length, points: 0, message: 'Collect the stamp first.' };
+  }
+  if (existing.quiz_completed_at) {
+    return { success: false, correct: 0, total: quizQuestions.length, points: 0, message: 'You already completed this quiz.' };
+  }
+
+  const score = calculateQuizScore(quizQuestions, answers);
+  const completedAt = new Date().toISOString();
+
+  if (supabase) {
+    const { data, error } = await supabase
+      .from('booth_visits')
+      .update({
+        quiz_correct: score.correct,
+        quiz_total: score.total,
+        quiz_points: score.points,
+        quiz_completed_at: completedAt,
+      })
+      .eq('visitor_id', visitorId)
+      .eq('checkpoint_id', checkpointId)
+      .select()
+      .single();
+    if (error) {
+      console.error('Supabase quiz error:', error);
+      return { success: false, ...score, message: 'Could not save your quiz. Check your connection and try again.' };
+    }
+    if (data) return { success: true, visit: data, ...score };
+    return { success: false, ...score, message: 'Could not save your quiz. Please try again.' };
+  }
+
+  const allVisits = getLocalData<BoothVisit[]>(STORAGE_KEYS.VISITS, []);
+  const index = allVisits.findIndex(v => v.visitor_id === visitorId && v.checkpoint_id === checkpointId);
+  if (index === -1) {
+    return { success: false, ...score, message: 'Collect the stamp first.' };
+  }
+  allVisits[index] = {
+    ...allVisits[index],
+    quiz_correct: score.correct,
+    quiz_total: score.total,
+    quiz_points: score.points,
+    quiz_completed_at: completedAt,
+  };
+  setLocalData(STORAGE_KEYS.VISITS, allVisits);
+  return { success: true, visit: allVisits[index], ...score };
+}
+
 // -------------------------------------------------------------
 // REWARD SYSTEM API
 // -------------------------------------------------------------
 export async function getRewardSetting(): Promise<RewardSetting> {
   if (supabase) {
     const { data, error } = await supabase.from('reward_settings').select('*').limit(1).single();
-    if (!error && data) return { ranking_metric: 'stamps', ...data };
+    if (!error && data) return { ranking_metric: 'points', ...data };
   }
   return getLocalData<RewardSetting>(STORAGE_KEYS.REWARD_SETTINGS, INITIAL_REWARD_SETTING);
 }
@@ -293,15 +372,27 @@ export async function claimVisitorReward(visitorId: string, staffName: string = 
 // -------------------------------------------------------------
 export async function registerVisitorIdentity(
   visitorId: string,
-  identity: { name: string; matric: string; faculty: string; showOnLeaderboard: boolean }
-): Promise<{ visitorId: string; reclaimed: boolean }> {
-  if (!supabase) return { visitorId, reclaimed: false };
+  identity: { name: string; username: string; matric: string; faculty: string; showOnLeaderboard: boolean }
+): Promise<{ visitorId: string; reclaimed: boolean; error: string | null }> {
+  if (!supabase) return { visitorId, reclaimed: false, error: null };
 
+  const username = identity.username.trim().toLowerCase();
   const payload = {
     display_name: identity.name.trim(),
+    username,
     student_id: identity.matric.trim() || null,
     faculty: identity.faculty.trim() || null,
     show_on_leaderboard: identity.showOnLeaderboard,
+  };
+
+  const findOwner = async (excludeId?: string) => {
+    const { data } = await supabase
+      .from('visitors')
+      .select('id')
+      .eq('username', username)
+      .maybeSingle();
+    if (data?.id && data.id !== excludeId) return data.id;
+    return null;
   };
 
   // If this matric already exists, reuse that identity so a returning attendee
@@ -313,17 +404,64 @@ export async function registerVisitorIdentity(
       .eq('student_id', payload.student_id)
       .maybeSingle();
     if (existing?.id) {
-      await supabase.from('visitors').update(payload).eq('id', existing.id);
-      return { visitorId: existing.id, reclaimed: true };
+      const ownerId = await findOwner(existing.id);
+      if (ownerId) {
+        return { visitorId: existing.id, reclaimed: true, error: 'That username is already taken. Please choose another.' };
+      }
+      const { error } = await supabase.from('visitors').update(payload).eq('id', existing.id);
+      if (error) {
+        console.error('registerVisitorIdentity reclaim error:', error.message);
+        return { visitorId: existing.id, reclaimed: true, error: 'Could not save your profile. Check your connection and try again.' };
+      }
+      return { visitorId: existing.id, reclaimed: true, error: null };
     }
+  }
+
+  const ownerId = await findOwner(visitorId);
+  if (ownerId) {
+    return { visitorId, reclaimed: false, error: 'That username is already taken. Please choose another.' };
   }
 
   const { error } = await supabase.from('visitors').upsert({ id: visitorId, ...payload });
   if (error) {
-    // Surface but don't block — local cache still holds identity.
     console.error('registerVisitorIdentity error:', error.message);
+    if (error.code === '23505') {
+      return { visitorId, reclaimed: false, error: 'That username is already taken. Please choose another.' };
+    }
+    return { visitorId, reclaimed: false, error: 'Could not save your profile. Check your connection and try again.' };
   }
-  return { visitorId, reclaimed: false };
+  return { visitorId, reclaimed: false, error: null };
+}
+
+export async function isUsernameAvailable(
+  username: string,
+  visitorId?: string
+): Promise<{ available: boolean; error?: string }> {
+  if (!supabase) return { available: true };
+  const { data, error } = await supabase
+    .from('visitors')
+    .select('id')
+    .eq('username', username.trim().toLowerCase())
+    .maybeSingle();
+  if (error) {
+    console.error('isUsernameAvailable error:', error.message);
+    return { available: false, error: 'Could not check that username. Try again.' };
+  }
+  if (!data?.id || data.id === visitorId) return { available: true };
+  return { available: false };
+}
+
+export async function findVisitorByUsername(
+  username: string
+): Promise<AdminAnalyticsVisitor | null> {
+  if (!supabase) return null;
+  const { data, error } = await supabase
+    .from('visitors')
+    .select('id, display_name, username, student_id, faculty')
+    .eq('username', username.trim().replace(/^@+/, '').toLowerCase())
+    .maybeSingle();
+  if (error || !data) return null;
+  return data as AdminAnalyticsVisitor;
 }
 
 export async function uploadImage(file: File, folder = 'booths'): Promise<string | null> {
@@ -346,38 +484,77 @@ export async function uploadImage(file: File, folder = 'booths'): Promise<string
 // -------------------------------------------------------------
 // LEADERBOARD & RANKING
 // -------------------------------------------------------------
-const POINTS_PER_STAMP = 10;
-const POINTS_PER_VOTE = 25;
-
 interface RawRankRow {
   visitor_id: string;
   visitor_ids: string[];
-  stamps: number;
+  required_stamps: number;
+  partner_stamps: number;
+  quiz_points: number;
+  partner_trail_complete: boolean;
+  partner_completion_at: string | null;
   rating_sum: number;
   votes: number;
   name: string;
+  username: string | null;
 }
 
 interface VisitorRow {
   id: string;
   display_name: string | null;
+  username: string | null;
   show_on_leaderboard: boolean | null;
   student_id: string | null;
 }
 
-async function buildRankingRows(): Promise<RawRankRow[]> {
+interface VisitRow {
+  visitor_id: string;
+  checkpoint_id: string;
+  rating: number;
+  visited_at: string;
+  quiz_points?: number | null;
+}
+
+interface VoteRow {
+  visitor_id: string;
+  created_at?: string | null;
+}
+
+function isWithinRange(timestamp: string | null | undefined, range: { start: string; end: string } | null): boolean {
+  if (!range) return true;
+  if (!timestamp) return false;
+  const time = new Date(timestamp).getTime();
+  return time >= new Date(range.start).getTime() && time < new Date(range.end).getTime();
+}
+
+async function buildRankingRows(day: LeaderboardDay = 'all'): Promise<RawRankRow[]> {
   if (!supabase) return [];
 
-  const [visitsRes, votesRes, visitorsRes] = await Promise.all([
-    supabase.from('booth_visits').select('visitor_id, checkpoint_id, rating'),
-    supabase.from('speaker_votes').select('visitor_id'),
-    supabase.from('visitors').select('id, display_name, show_on_leaderboard, student_id'),
+  const [visitsRes, votesRes, visitorsRes, checkpointsRes] = await Promise.all([
+    supabase.from('booth_visits').select('visitor_id, checkpoint_id, rating, visited_at, quiz_points'),
+    supabase.from('speaker_votes').select('visitor_id, created_at'),
+    supabase.from('visitors').select('id, display_name, username, show_on_leaderboard, student_id'),
+    supabase.from('checkpoints').select('id, booth_type, is_active'),
   ]);
 
-  const visits = (visitsRes.data || []) as { visitor_id: string; checkpoint_id: string; rating: number }[];
-  const votes = (votesRes.data || []) as { visitor_id: string }[];
+  const visits = (visitsRes.data || []) as VisitRow[];
+  const votes = (votesRes.data || []) as VoteRow[];
   const visitors = (visitorsRes.data || []) as VisitorRow[];
+  let checkpoints = (checkpointsRes.data || []) as { id: string; booth_type?: string | null; is_active?: boolean | null }[];
+  if (checkpointsRes.error) {
+    const { data } = await supabase.from('checkpoints').select('id, is_active');
+    checkpoints = (data || []).map(c => ({ ...c, booth_type: 'required' }));
+  }
+
   if (!visits.length && !votes.length) return [];
+
+  const boothTypeById = new Map(
+    checkpoints.map(c => [c.id, c.booth_type === 'partner' ? 'partner' : 'required'] as const)
+  );
+  const partnerIds = new Set(
+    checkpoints.filter(c => c.is_active !== false && c.booth_type === 'partner').map(c => c.id)
+  );
+  const typeOf = (checkpointId: string) => boothTypeById.get(checkpointId) || 'required';
+  const range = getLeaderboardDayRange(day);
 
   const visitorMap = new Map(visitors.map(v => [v.id, v]));
 
@@ -385,7 +562,15 @@ async function buildRankingRows(): Promise<RawRankRow[]> {
   // same person on two devices is ranked together.
   const byVisitor = new Map<
     string,
-    { visitor_ids: Set<string>; stamps: Set<string>; rating_sum: number; votes: number; sampleVisitorId: string }
+    {
+      visitor_ids: Set<string>;
+      requiredStamps: Set<string>;
+      partnerStamps: Set<string>;
+      quiz_points: number;
+      rating_sum: number;
+      votes: number;
+      sampleVisitorId: string;
+    }
   >();
   const keyFor = (visitorId: string) => {
     const v = visitorMap.get(visitorId);
@@ -395,106 +580,177 @@ async function buildRankingRows(): Promise<RawRankRow[]> {
   const ensure = (key: string, visitorId: string) => {
     let row = byVisitor.get(key);
     if (!row) {
-      row = { visitor_ids: new Set(), stamps: new Set(), rating_sum: 0, votes: 0, sampleVisitorId: visitorId };
+      row = {
+        visitor_ids: new Set(),
+        requiredStamps: new Set(),
+        partnerStamps: new Set(),
+        quiz_points: 0,
+        rating_sum: 0,
+        votes: 0,
+        sampleVisitorId: visitorId,
+      };
       byVisitor.set(key, row);
     }
     row.visitor_ids.add(visitorId);
     return row;
   };
 
+  // Partner trail completion is all-time; the bonus is attributed to the day
+  // the final partner booth was visited.
+  const partnerVisitsByKey = new Map<string, { checkpointIds: Set<string>; latest: string }>();
   visits.forEach(v => {
-    const row = ensure(keyFor(v.visitor_id), v.visitor_id);
-    if (!row.stamps.has(v.checkpoint_id)) {
-      row.stamps.add(v.checkpoint_id);
-      row.rating_sum += v.rating || 0;
+    if (typeOf(v.checkpoint_id) !== 'partner') return;
+    const key = keyFor(v.visitor_id);
+    let trail = partnerVisitsByKey.get(key);
+    if (!trail) {
+      trail = { checkpointIds: new Set(), latest: v.visited_at };
+      partnerVisitsByKey.set(key, trail);
+    }
+    trail.checkpointIds.add(v.checkpoint_id);
+    if (new Date(v.visited_at).getTime() > new Date(trail.latest).getTime()) {
+      trail.latest = v.visited_at;
     }
   });
-  votes.forEach(v => {
-    ensure(keyFor(v.visitor_id), v.visitor_id).votes += 1;
-  });
+
+  visits
+    .filter(v => isWithinRange(v.visited_at, range))
+    .forEach(v => {
+      const row = ensure(keyFor(v.visitor_id), v.visitor_id);
+      const type = typeOf(v.checkpoint_id);
+      if (type === 'partner') {
+        if (!row.partnerStamps.has(v.checkpoint_id)) {
+          row.partnerStamps.add(v.checkpoint_id);
+          row.rating_sum += v.rating || 0;
+        }
+      } else if (!row.requiredStamps.has(v.checkpoint_id)) {
+        row.requiredStamps.add(v.checkpoint_id);
+        row.rating_sum += v.rating || 0;
+      }
+      row.quiz_points += v.quiz_points || 0;
+    });
+
+  votes
+    .filter(v => isWithinRange(v.created_at, range))
+    .forEach(v => {
+      ensure(keyFor(v.visitor_id), v.visitor_id).votes += 1;
+    });
 
   const rows: RawRankRow[] = [];
-  byVisitor.forEach(row => {
+  byVisitor.forEach((row, key) => {
     const groupVisitors = [...row.visitor_ids]
       .map(id => visitorMap.get(id))
       .filter((v): v is VisitorRow => Boolean(v));
     const showOk = groupVisitors.length > 0 && groupVisitors.every(v => v.show_on_leaderboard !== false);
     const rawName = groupVisitors.find(v => v.display_name)?.display_name || 'Visitor';
+    const username = groupVisitors.find(v => v.username)?.username || null;
+    const trail = partnerVisitsByKey.get(key);
+    const partnerTrailComplete =
+      partnerIds.size > 0 &&
+      Boolean(trail) &&
+      [...partnerIds].every(id => trail!.checkpointIds.has(id));
+
     rows.push({
       visitor_id: row.sampleVisitorId,
       visitor_ids: [...row.visitor_ids],
-      stamps: row.stamps.size,
+      required_stamps: row.requiredStamps.size,
+      partner_stamps: row.partnerStamps.size,
+      quiz_points: row.quiz_points,
+      partner_trail_complete: partnerTrailComplete,
+      partner_completion_at: partnerTrailComplete && trail ? trail.latest : null,
       rating_sum: row.rating_sum,
       votes: row.votes,
       name: showOk ? rawName : '',
+      username: showOk ? username : null,
     });
   });
   return rows;
 }
 
-function scoreRow(row: RawRankRow, metric: RankingMetric): number {
-  if (metric === 'points') return row.stamps * POINTS_PER_STAMP + row.votes * POINTS_PER_VOTE;
-  return row.stamps;
+function scoreRow(row: RawRankRow, metric: RankingMetric, day: LeaderboardDay): number {
+  if (metric === 'points') {
+    const range = getLeaderboardDayRange(day);
+    const trailBonus =
+      row.partner_trail_complete && isWithinRange(row.partner_completion_at, range)
+        ? 1
+        : 0;
+    return getLeaderboardScore({
+      requiredStamps: row.required_stamps,
+      partnerStamps: row.partner_stamps,
+      quizPoints: row.quiz_points,
+      votes: row.votes,
+      partnerTrailComplete: Boolean(trailBonus),
+    });
+  }
+  return row.required_stamps + row.partner_stamps;
+}
+
+function compareRows(a: RawRankRow, b: RawRankRow, metric: RankingMetric, day: LeaderboardDay): number {
+  const avg = (r: RawRankRow) => {
+    const totalStamps = r.required_stamps + r.partner_stamps;
+    return totalStamps > 0 ? r.rating_sum / totalStamps : 0;
+  };
+  const scoreDiff = scoreRow(b, metric, day) - scoreRow(a, metric, day);
+  if (scoreDiff) return scoreDiff;
+  const requiredDiff = b.required_stamps - a.required_stamps;
+  if (requiredDiff) return requiredDiff;
+  return avg(b) - avg(a);
+}
+
+function toEntry(
+  row: RawRankRow,
+  rank: number,
+  metric: RankingMetric,
+  day: LeaderboardDay,
+  myVisitorId?: string
+): LeaderboardEntry {
+  const totalStamps = row.required_stamps + row.partner_stamps;
+  return {
+    rank,
+    visitor_id: row.visitor_id,
+    name: row.name ? (row.username || maskName(row.name)) : 'Anonymous',
+    username: row.username,
+    stamps: totalStamps,
+    required_stamps: row.required_stamps,
+    partner_stamps: row.partner_stamps,
+    quiz_points: row.quiz_points,
+    partner_trail_complete: row.partner_trail_complete,
+    avg_rating: Number((totalStamps > 0 ? row.rating_sum / totalStamps : 0).toFixed(2)),
+    votes: row.votes,
+    points: scoreRow(row, metric, day),
+    is_you: myVisitorId ? row.visitor_ids.includes(myVisitorId) : false,
+  };
 }
 
 export async function getLeaderboard(
   limit = 10,
-  metric: RankingMetric = 'stamps',
-  myVisitorId?: string
+  metric: RankingMetric = 'points',
+  myVisitorId?: string,
+  day: LeaderboardDay = 'all'
 ): Promise<LeaderboardEntry[]> {
-  const rows = await buildRankingRows();
-  const avg = (r: RawRankRow) => (r.stamps > 0 ? r.rating_sum / r.stamps : 0);
-
-  const sorted = rows
-    .filter(r => r.stamps > 0)
-    .sort((a, b) => {
-      if (metric === 'stamps_rating') {
-        return b.stamps - a.stamps || avg(b) - avg(a);
-      }
-      return scoreRow(b, metric) - scoreRow(a, metric) || b.stamps - a.stamps || avg(b) - avg(a);
-    });
-
-  return sorted.slice(0, limit).map((r, i) => ({
-    rank: i + 1,
-    visitor_id: r.visitor_id,
-    name: r.name ? maskName(r.name) : 'Anonymous',
-    stamps: r.stamps,
-    avg_rating: Number(avg(r).toFixed(2)),
-    votes: r.votes,
-    points: scoreRow(r, metric),
-    is_you: myVisitorId ? r.visitor_ids.includes(myVisitorId) : false,
-  }));
+  const rows = await buildRankingRows(day);
+  return rows
+    .filter(r => r.required_stamps + r.partner_stamps > 0)
+    .sort((a, b) => compareRows(a, b, metric, day))
+    .slice(0, limit)
+    .map((r, i) => toEntry(r, i + 1, metric, day, myVisitorId));
 }
 
 export async function getVisitorRank(
   visitorId: string,
-  metric: RankingMetric = 'stamps'
+  metric: RankingMetric = 'points',
+  day: LeaderboardDay = 'all'
 ): Promise<{ rank: number; total: number; entry: LeaderboardEntry | null }> {
-  const rows = await buildRankingRows();
-  const avg = (r: RawRankRow) => (r.stamps > 0 ? r.rating_sum / r.stamps : 0);
-
-  const active = rows.filter(r => r.stamps > 0);
-  const sorted = active.sort((a, b) => {
-    if (metric === 'stamps_rating') return b.stamps - a.stamps || avg(b) - avg(a);
-    return scoreRow(b, metric) - scoreRow(a, metric) || b.stamps - a.stamps || avg(b) - avg(a);
-  });
+  const rows = await buildRankingRows(day);
+  const sorted = rows
+    .filter(r => r.required_stamps + r.partner_stamps > 0)
+    .sort((a, b) => compareRows(a, b, metric, day));
 
   const idx = sorted.findIndex(r => r.visitor_ids.includes(visitorId));
   if (idx === -1) return { rank: 0, total: sorted.length, entry: null };
-  const r = sorted[idx];
   return {
     rank: idx + 1,
     total: sorted.length,
-    entry: {
-      rank: idx + 1,
-      visitor_id: r.visitor_id,
-      name: r.name ? maskName(r.name) : 'Anonymous',
-      stamps: r.stamps,
-      avg_rating: Number(avg(r).toFixed(2)),
-      votes: r.votes,
-      points: scoreRow(r, metric),
-      is_you: true,
-    },
+    entry: toEntry(sorted[idx], idx + 1, metric, day, visitorId),
   };
 }
 
@@ -644,20 +900,22 @@ export async function getAdminAnalytics() {
   let visits = getLocalData<BoothVisit[]>(STORAGE_KEYS.VISITS, []);
   let speakerVotes = getLocalData<SpeakerVote[]>(STORAGE_KEYS.VOTES, []);
   let rewards = getLocalData<VisitorReward[]>(STORAGE_KEYS.REWARDS, []);
-  let registeredVisitors = 0;
+  let visitorIdentities: AdminAnalyticsVisitor[] = [];
 
   if (supabase) {
     const [visitsRes, votesRes, rewardsRes, visitorsRes] = await Promise.all([
       supabase.from('booth_visits').select('*'),
       supabase.from('speaker_votes').select('*'),
       supabase.from('visitor_rewards').select('*'),
-      supabase.from('visitors').select('id'),
+      supabase.from('visitors').select('id, display_name, username, student_id, faculty').order('created_at', { ascending: false }),
     ]);
     if (!visitsRes.error && visitsRes.data) visits = visitsRes.data as BoothVisit[];
     if (!votesRes.error && votesRes.data) speakerVotes = votesRes.data as SpeakerVote[];
     if (!rewardsRes.error && rewardsRes.data) rewards = rewardsRes.data as VisitorReward[];
-    if (!visitorsRes.error && visitorsRes.data) registeredVisitors = visitorsRes.data.length;
+    if (!visitorsRes.error && visitorsRes.data) visitorIdentities = visitorsRes.data as AdminAnalyticsVisitor[];
   }
+
+  const registeredVisitors = visitorIdentities.length;
 
   // Aggregate booth performance, ranked by footfall then average rating
   const boothAnalytics: BoothAnalytics[] = checkpoints
@@ -665,12 +923,17 @@ export async function getAdminAnalytics() {
       const boothVisits = visits.filter(v => v.checkpoint_id === c.id);
       const count = boothVisits.length;
       const avg = count > 0 ? boothVisits.reduce((acc, curr) => acc + curr.rating, 0) / count : 0;
+      const quizCompletions = boothVisits.filter(v => v.quiz_completed_at).length;
+      const quizPoints = boothVisits.reduce((acc, curr) => acc + (curr.quiz_points || 0), 0);
       return {
         id: c.id,
         name: c.name,
         faculty: c.faculty,
         category: c.category,
+        booth_type: c.booth_type || 'required',
         total_visits: count,
+        quiz_completions: quizCompletions,
+        quiz_points: quizPoints,
         avg_rating: Number(avg.toFixed(2))
       };
     })
@@ -684,6 +947,8 @@ export async function getAdminAnalytics() {
   const totalVotes = speakerVotes.length;
   const rewardsUnlocked = rewards.length;
   const rewardsClaimed = rewards.filter(r => r.status === 'claimed').length;
+  const totalQuizCompletions = boothAnalytics.reduce((acc, booth) => acc + booth.quiz_completions, 0);
+  const totalQuizPoints = boothAnalytics.reduce((acc, booth) => acc + booth.quiz_points, 0);
 
   return {
     totalVisitors,
@@ -692,10 +957,13 @@ export async function getAdminAnalytics() {
     totalVotes,
     rewardsUnlocked,
     rewardsClaimed,
+    totalQuizCompletions,
+    totalQuizPoints,
     boothAnalytics,
     visits,
     speakers,
-    speakerVotes
+    speakerVotes,
+    visitorIdentities
   };
 }
 

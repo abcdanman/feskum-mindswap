@@ -17,6 +17,7 @@ export default function ExhibitionPage() {
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedBooth, setSelectedBooth] = useState<Checkpoint | null>(null);
   const [view, setView] = useState<'list' | 'map'>('list');
+  const [typeFilter, setTypeFilter] = useState<'all' | 'required' | 'partner'>('all');
 
   useEffect(() => {
     async function loadData() {
@@ -45,7 +46,8 @@ export default function ExhibitionPage() {
       booth.faculty.toLowerCase().includes(searchQuery.toLowerCase()) ||
       booth.location.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory === 'All' || booth.category === selectedCategory;
-    return matchesSearch && matchesCategory;
+    const matchesType = typeFilter === 'all' || (booth.booth_type || 'required') === typeFilter;
+    return matchesSearch && matchesCategory && matchesType;
   });
 
   return (
@@ -99,6 +101,26 @@ export default function ExhibitionPage() {
         </button>
       </div>
 
+      <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border-2 border-ink shadow-brut text-xs font-bold w-fit">
+        {[
+          { key: 'all' as const, label: 'All booths' },
+          { key: 'required' as const, label: 'Required' },
+          { key: 'partner' as const, label: 'Partner' },
+        ].map(item => (
+          <button
+            key={item.key}
+            type="button"
+            onClick={() => setTypeFilter(item.key)}
+            aria-pressed={typeFilter === item.key}
+            className={`px-3 py-1.5 rounded-xl transition-colors ${
+              typeFilter === item.key ? 'bg-brand-500 text-white' : 'text-slate-500 hover:text-ink'
+            }`}
+          >
+            {item.label}
+          </button>
+        ))}
+      </div>
+
       {/* CATEGORY FILTER PILLS */}
       <div className="flex items-center gap-2 overflow-x-auto pb-1">
         {categories.map(cat => (
@@ -138,8 +160,12 @@ export default function ExhibitionPage() {
                   {/* Photo banner */}
                   <div className="relative h-32 border-b-2 border-ink overflow-hidden">
                     <BoothThumb src={booth.image_url} alt={booth.name} iconClassName="w-10 h-10" className="group-hover:scale-105 transition-transform duration-300" />
-                    <span className="absolute top-2 left-2 sticker bg-ink text-cream-50 text-[9px] max-w-[68%] truncate">
-                      {booth.category}
+                    <span
+                      className={`absolute top-2 left-2 sticker text-[9px] max-w-[68%] truncate ${
+                        booth.booth_type === 'partner' ? 'bg-gold-400 text-ink' : 'bg-ink text-cream-50'
+                      }`}
+                    >
+                      {booth.booth_type === 'partner' ? 'Partner · ' : ''}{booth.category}
                     </span>
                     {isVisited && (
                       <span className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full border-2 border-ink">
@@ -152,7 +178,10 @@ export default function ExhibitionPage() {
                     <h3 className="font-extrabold text-ink text-sm leading-tight line-clamp-2 group-hover:text-brand-600 transition-colors">
                       {booth.name}
                     </h3>
-                    <p className="text-xs text-brand-600 font-bold mt-0.5">{booth.faculty}</p>
+                    <p className="text-xs text-brand-600 font-bold mt-0.5">
+                      {booth.faculty}
+                      {booth.booth_type === 'partner' && <span className="text-slate-500 font-semibold"> · bonus +5</span>}
+                    </p>
 
                     <span className="inline-flex items-center gap-1 text-[10px] font-semibold text-slate-600 bg-cream-100 border-2 border-ink/10 rounded-full px-2 py-0.5 mt-2 self-start max-w-full">
                       <MapPin className="w-3 h-3 text-slate-400 shrink-0" aria-hidden="true" />
@@ -202,7 +231,13 @@ export default function ExhibitionPage() {
           <div className="p-6">
             <div className="w-full h-40 rounded-2xl overflow-hidden mb-4 border-2 border-ink relative">
               <BoothThumb src={selectedBooth.image_url} alt={selectedBooth.name} iconClassName="w-12 h-12" />
-              <span className="absolute top-2 left-2 sticker bg-ink text-cream-50 text-[9px]">{selectedBooth.category}</span>
+              <span
+                className={`absolute top-2 left-2 sticker text-[9px] ${
+                  selectedBooth.booth_type === 'partner' ? 'bg-gold-400 text-ink' : 'bg-ink text-cream-50'
+                }`}
+              >
+                {selectedBooth.booth_type === 'partner' ? 'Partner booth' : 'Required booth'} · {selectedBooth.category}
+              </span>
             </div>
 
             <h3 id="booth-detail-title" className="display text-2xl text-ink leading-tight mb-1">
@@ -215,15 +250,22 @@ export default function ExhibitionPage() {
               <span>{selectedBooth.location}</span>
             </div>
 
-            <p className="text-sm text-slate-600 leading-relaxed mb-6">
+            <p className="text-sm text-slate-600 leading-relaxed mb-3">
               {selectedBooth.description}
             </p>
+
+            {selectedBooth.booth_type === 'partner' && (
+              <p className="text-[11px] text-slate-500 mb-4 p-2.5 rounded-xl bg-amber-50 border-2 border-ink/10">
+                Optional partner booth · +5 leaderboard points. Does not count toward the 8-stamp souvenir.
+              </p>
+            )}
 
             <Link
               href="/scan"
               className="btn w-full py-3 bg-brand-500 text-white text-sm flex items-center justify-center gap-2"
             >
-              <QrCode className="w-4 h-4" aria-hidden="true" /> Scan booth QR to collect stamp
+              <QrCode className="w-4 h-4" aria-hidden="true" />
+              {selectedBooth.booth_type === 'partner' ? ' Scan partner QR for bonus stamp' : ' Scan booth QR to collect stamp'}
             </Link>
           </div>
         </Modal>

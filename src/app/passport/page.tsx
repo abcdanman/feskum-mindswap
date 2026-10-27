@@ -34,7 +34,8 @@ export default function PassportPage() {
       setRewardSetting(rSetting);
 
       const threshold = rSetting?.stamp_threshold || 8;
-      if (vList.length >= threshold) {
+      const requiredCount = vList.filter(v => v.checkpoint?.booth_type !== 'partner').length;
+      if (requiredCount >= threshold) {
         let rewardStatus = await getVisitorRewardStatus(id);
         if (!rewardStatus) {
           rewardStatus = await unlockVisitorReward(id);
@@ -46,11 +47,18 @@ export default function PassportPage() {
     loadPassportData();
   }, []);
 
-  const completedCount = visits.length;
   const threshold = rewardSetting?.stamp_threshold || 8;
-  const totalBooths = checkpoints.length;
-  const isUnlocked = completedCount >= threshold;
-  const progressPercent = Math.min(Math.round((completedCount / threshold) * 100), 100);
+  const checkpointMap = new Map(checkpoints.map(c => [c.id, c]));
+  const requiredVisits = visits.filter(
+    v => (checkpointMap.get(v.checkpoint_id)?.booth_type ?? 'required') !== 'partner'
+  );
+  const partnerCheckpoints = checkpoints.filter(c => c.booth_type === 'partner');
+  const completedRequired = requiredVisits.length;
+  const completedPartner = visits.length - completedRequired;
+  const partnerTrailComplete =
+    partnerCheckpoints.length > 0 && completedPartner >= partnerCheckpoints.length;
+  const isUnlocked = completedRequired >= threshold;
+  const progressPercent = Math.min(Math.round((completedRequired / threshold) * 100), 100);
 
   const visitsMap = new Map<string, BoothVisit>();
   visits.forEach(v => visitsMap.set(v.checkpoint_id, v));
@@ -64,8 +72,8 @@ export default function PassportPage() {
 
   const filters: { key: typeof filter; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: checkpoints.length },
-    { key: 'completed', label: 'Collected', count: completedCount },
-    { key: 'pending', label: 'Pending', count: checkpoints.length - completedCount },
+    { key: 'completed', label: 'Collected', count: visits.length },
+    { key: 'pending', label: 'Pending', count: checkpoints.length - visits.length },
   ];
 
   return (
@@ -84,10 +92,15 @@ export default function PassportPage() {
           </div>
 
           <div className="text-right">
-            <span className="eyebrow text-slate-500 block">Stamps</span>
+            <span className="eyebrow text-slate-500 block">Required stamps</span>
             <span className="mono text-xl font-bold text-brand-600">
-              {completedCount} <span className="text-slate-400 font-normal text-sm">/ {totalBooths}</span>
+              {completedRequired} <span className="text-slate-400 font-normal text-sm">/ {threshold}</span>
             </span>
+            {partnerCheckpoints.length > 0 && (
+              <span className="block text-[10px] text-slate-500 font-semibold">
+                +{completedPartner} partner
+              </span>
+            )}
           </div>
         </div>
 
@@ -100,7 +113,7 @@ export default function PassportPage() {
             />
           </div>
           <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold px-0.5">
-            <span>{completedCount} of {threshold} required for reward</span>
+            <span>{completedRequired} of {threshold} required for reward</span>
             <span className="mono tnum">{progressPercent}%</span>
           </div>
         </div>
@@ -108,7 +121,7 @@ export default function PassportPage() {
         {/* Stamp slots meter */}
         <div className="flex flex-wrap gap-1.5 pt-1">
           {Array.from({ length: threshold }).map((_, i) => {
-            const filled = i < completedCount;
+            const filled = i < completedRequired;
             return (
               <span
                 key={i}
@@ -145,6 +158,27 @@ export default function PassportPage() {
           </div>
         )}
       </div>
+
+      {partnerCheckpoints.length > 0 && (
+        <div className="card p-4 space-y-2">
+          <div className="flex items-center justify-between">
+            <span className="eyebrow text-slate-500">Partner trail</span>
+            <span className="mono text-sm font-bold text-brand-600">
+              {completedPartner} / {partnerCheckpoints.length}
+            </span>
+          </div>
+          <div className="w-full bg-cream-200 h-3 rounded-full overflow-hidden border-2 border-ink">
+            <div
+              className="bg-gold-400 h-full transition-all duration-700"
+              style={{ width: `${partnerCheckpoints.length ? Math.round((completedPartner / partnerCheckpoints.length) * 100) : 0}%` }}
+            />
+          </div>
+          <p className="text-[11px] text-slate-500">
+            Optional bonus stops · +5 points each
+            {partnerTrailComplete ? ' · trail complete +10!' : ''}
+          </p>
+        </div>
+      )}
 
       {/* FILTER TABS */}
       <div className="flex items-center justify-between gap-2">

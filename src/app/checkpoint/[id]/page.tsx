@@ -4,9 +4,10 @@ import React, { useEffect, useState, use } from 'react';
 import Link from 'next/link';
 import confetti from 'canvas-confetti';
 import { getOrInitVisitorId } from '@/lib/visitor';
-import { getCheckpointByQrToken, getVisitorVisits, submitBoothRating, getRewardSetting } from '@/lib/supabase';
+import { getCheckpointByQrToken, getVisitorVisits, submitBoothRating, submitBoothQuiz, getRewardSetting } from '@/lib/supabase';
 import { Checkpoint, BoothVisit, RewardSetting } from '@/lib/types';
-import { Star, CheckCircle2, Ticket, ArrowLeft, MapPin, Sparkles, AlertCircle, Send, QrCode } from 'lucide-react';
+import { QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
+import { Star, CheckCircle2, Ticket, ArrowLeft, MapPin, Sparkles, AlertCircle, Send, QrCode, HelpCircle } from 'lucide-react';
 import BoothThumb from '@/components/BoothThumb';
 
 export default function CheckpointPage({ params }: { params: Promise<{ id: string }> }) {
@@ -26,7 +27,11 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
   const [errorMsg, setErrorMsg] = useState<string>('');
   const [successStamp, setSuccessStamp] = useState<BoothVisit | null>(null);
   const [rewardSetting, setRewardSetting] = useState<RewardSetting | null>(null);
-  const [totalVisitsCount, setTotalVisitsCount] = useState<number>(0);
+  const [requiredVisitsCount, setRequiredVisitsCount] = useState<number>(0);
+  const [quizAnswers, setQuizAnswers] = useState<Array<number | null>>([]);
+  const [quizSubmitting, setQuizSubmitting] = useState(false);
+  const [quizError, setQuizError] = useState('');
+  const [quizMessage, setQuizMessage] = useState('');
 
   useEffect(() => {
     async function loadCheckpoint() {
@@ -42,7 +47,8 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
 
       setCheckpoint(cp);
       setRewardSetting(rSetting);
-      setTotalVisitsCount(visits.length);
+      setRequiredVisitsCount(visits.filter(v => v.checkpoint?.booth_type !== 'partner').length);
+      setQuizAnswers(Array(Math.min(cp?.quiz?.length || 0, QUIZ_MAX_QUESTIONS)).fill(null));
 
       if (cp) {
         const found = visits.find(v => v.checkpoint_id === cp.id);
@@ -68,13 +74,40 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
     if (res.success && res.visit) {
       setSuccessStamp(res.visit);
       setExistingVisit(res.visit);
-      setTotalVisitsCount(prev => prev + 1);
+      if (checkpoint.booth_type !== 'partner') {
+        setRequiredVisitsCount(prev => prev + 1);
+      }
 
       confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
     } else {
       setErrorMsg(res.message || 'Failed to submit rating. Please try again.');
     }
     setIsSubmitting(false);
+  };
+
+  const handleQuizSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!checkpoint || quizSubmitting) return;
+    const questions = (checkpoint.quiz || []).slice(0, QUIZ_MAX_QUESTIONS);
+    if (quizAnswers.length !== questions.length || quizAnswers.some(answer => answer === null)) {
+      setQuizError('Answer every question to submit.');
+      return;
+    }
+
+    setQuizSubmitting(true);
+    setQuizError('');
+    const res = await submitBoothQuiz(visitorId, checkpoint.id, questions, quizAnswers);
+    if (res.success && res.visit) {
+      setExistingVisit(res.visit);
+      if (successStamp) setSuccessStamp(res.visit);
+      setQuizMessage(`${res.correct}/${res.total} correct · +${res.points} pts`);
+      if (res.correct > 0) {
+        confetti({ particleCount: 60, spread: 60, origin: { y: 0.65 } });
+      }
+    } else {
+      setQuizError(res.message || 'Could not save your quiz. Try again.');
+    }
+    setQuizSubmitting(false);
   };
 
   if (loading) {
@@ -105,6 +138,8 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
 
   const isCompleted = Boolean(existingVisit || successStamp);
   const activeVisit = successStamp || existingVisit;
+  const isPartner = checkpoint.booth_type === 'partner';
+  const quizQuestions = (checkpoint.quiz || []).slice(0, QUIZ_MAX_QUESTIONS);
 
   return (
     <div className="space-y-4 animate-fadeIn">
@@ -150,6 +185,9 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
           <BoothThumb src={checkpoint.image_url} alt={checkpoint.name} iconClassName="w-12 h-12" />
           <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
           <span className="absolute top-3 left-3 sticker bg-ink text-cream-50 text-[9px]">{checkpoint.category}</span>
+          <span className={`absolute top-3 right-3 sticker text-[9px] ${isPartner ? 'bg-gold-400 text-ink' : 'bg-emerald-500 text-white'}`}>
+            {isPartner ? 'Partner · +5' : 'Required · +10'}
+          </span>
         </div>
 
         <div>
@@ -173,12 +211,20 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
           </div>
 
           <div>
-            <span className="sticker bg-emerald-400 text-ink text-[10px]">Stamp collected</span>
+            <span className="sticker bg-emerald-400 text-ink text-[10px]">
+              {isPartner ? 'Partner stamp collected' : 'Stamp collected'}
+            </span>
             <h3 className="display text-2xl text-ink mt-2">
-              {successStamp ? 'Congratulations!' : "You've already visited"}
+              {isPartner
+                ? (successStamp ? 'Partner stamp collected!' : 'Partner stamp already collected')
+                : (successStamp ? 'Congratulations!' : "You've already visited")}
             </h3>
             <p className="text-xs text-slate-600 mt-1">
-              Your stamp for <span className="text-brand-600 font-bold">{checkpoint.faculty}</span> has been logged in your passport.
+              {isPartner ? (
+                <>This optional bonus stop is logged in your passport. Your souvenir still needs {rewardSetting?.stamp_threshold || 8} required faculty stamps.</>
+              ) : (
+                <>Your stamp for <span className="text-brand-600 font-bold">{checkpoint.faculty}</span> has been logged in your passport.</>
+              )}
             </p>
           </div>
 
@@ -199,9 +245,92 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
           </div>
 
           <div className="p-3 rounded-xl bg-brand-50 border-2 border-ink flex items-center justify-between text-xs font-bold">
-            <span className="text-ink">Passport progress</span>
-            <span className="text-brand-700 mono">{totalVisitsCount} / {rewardSetting?.stamp_threshold || 8} stamps</span>
+            <span className="text-ink">Required stamps</span>
+            <span className="text-brand-700 mono">{requiredVisitsCount} / {rewardSetting?.stamp_threshold || 8}</span>
           </div>
+
+          {isPartner && (
+            <p className="text-[11px] text-slate-500">
+              Partner bonus: +5 points per stamp. This booth does not count toward the 8-stamp souvenir.
+            </p>
+          )}
+
+          {isPartner && quizQuestions.length > 0 && (
+            <div className="p-4 rounded-xl bg-white border-2 border-ink text-left space-y-3">
+              <div className="flex items-center gap-2">
+                <HelpCircle className="w-5 h-5 text-brand-600 shrink-0" aria-hidden="true" />
+                <div>
+                  <span className="eyebrow text-slate-500 block">Bonus quiz</span>
+                  <p className="text-[11px] text-slate-500">Optional · +5 points per correct answer, max {QUIZ_MAX_QUESTIONS} questions.</p>
+                </div>
+              </div>
+
+              {activeVisit?.quiz_completed_at ? (
+                <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink/10">
+                  <p className="text-xs font-bold text-ink">
+                    Quiz complete · {activeVisit.quiz_correct || 0}/{activeVisit.quiz_total || quizQuestions.length} correct
+                  </p>
+                  <p className="text-[11px] text-slate-500">
+                    +{activeVisit.quiz_points || 0} leaderboard points
+                  </p>
+                  {quizMessage && <p className="text-[11px] text-emerald-700 font-bold mt-1">{quizMessage}</p>}
+                </div>
+              ) : (
+                <form onSubmit={handleQuizSubmit} className="space-y-4">
+                  {quizQuestions.map((question, questionIndex) => (
+                    <fieldset key={question.id || questionIndex} className="space-y-2">
+                      <legend className="text-xs font-bold text-ink">
+                        {questionIndex + 1}. {question.question}
+                      </legend>
+                      <div className="space-y-1.5">
+                        {question.options.map((option, optionIndex) => (
+                          <label
+                            key={optionIndex}
+                            className={`flex items-center gap-2 p-2.5 rounded-xl border-2 cursor-pointer text-xs ${
+                              quizAnswers[questionIndex] === optionIndex
+                                ? 'bg-brand-50 border-brand-500'
+                                : 'bg-cream-50 border-ink/10'
+                            }`}
+                          >
+                            <input
+                              type="radio"
+                              name={`quiz-${questionIndex}`}
+                              checked={quizAnswers[questionIndex] === optionIndex}
+                              onChange={() => {
+                                setQuizAnswers(prev => {
+                                  const next = [...prev];
+                                  next[questionIndex] = optionIndex;
+                                  return next;
+                                });
+                              }}
+                              className="accent-brand-500"
+                            />
+                            <span>{option}</span>
+                          </label>
+                        ))}
+                      </div>
+                    </fieldset>
+                  ))}
+
+                  {quizError && (
+                    <p role="alert" className="text-xs font-bold text-brand-700">{quizError}</p>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={quizSubmitting}
+                    className="btn w-full py-2.5 bg-ink text-cream-50 text-xs flex items-center justify-center gap-2"
+                  >
+                    {quizSubmitting ? (
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                    ) : (
+                      <><HelpCircle className="w-4 h-4" /> Submit quiz</>
+                    )}
+                  </button>
+                </form>
+              )}
+            </div>
+          )}
 
           <Link href="/passport" className="btn w-full py-3 bg-brand-500 text-white text-sm flex items-center justify-center gap-2">
             <Ticket className="w-4 h-4" /> View passport & claim rewards
@@ -213,8 +342,14 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
           <div className="flex items-center gap-2 border-b-2 border-ink/10 pb-3">
             <Sparkles className="w-5 h-5 text-gold-500" />
             <div>
-              <h3 className="display text-xl text-ink leading-none">Rate to collect stamp</h3>
-              <p className="text-[11px] text-slate-500">Your feedback helps crown the Best Faculty Booth!</p>
+              <h3 className="display text-xl text-ink leading-none">
+                {isPartner ? 'Rate to collect partner stamp' : 'Rate to collect stamp'}
+              </h3>
+              <p className="text-[11px] text-slate-500">
+                {isPartner
+                  ? 'Optional bonus stop · +5 leaderboard points. Souvenir needs 8 required faculty stamps.'
+                  : 'Your feedback helps crown the Best Faculty Booth!'}
+              </p>
             </div>
           </div>
 

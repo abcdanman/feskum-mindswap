@@ -21,9 +21,9 @@ that make it work on the day.
 | Event | MindSwap @ FESKUM 2026 · 13–14 Nov 2026 |
 | Venue | Marquee Tent, High Impact Research Building, Universiti Malaya |
 | Expected load | 300–400 attendees per session |
-| Login | **None for students** — name + faculty on first open |
+| Login | **None for students** — full name + unique @username + faculty on first open |
 | Admin | Hidden entrance, passcode-protected |
-| Reward threshold | 8 stamps (configurable in Admin → Helpdesk) |
+| Reward threshold | 8 required stamps (configurable in Admin → Helpdesk) |
 
 > **Critical:** the public URL is baked into every printed QR code. **Buy and
 > connect the final domain BEFORE printing any QR signage.** If the domain
@@ -60,7 +60,7 @@ Admin sections:
 | Overview | KPIs, DB write health, Best Booth standings, People’s Choice live tally |
 | Booths | Add/edit booths, upload photos, show/download QR per booth |
 | Speakers | Manage the 16 UM Talk speakers |
-| Helpdesk | Verify a Visitor ID and mark a prize **claimed** |
+| Helpdesk | Verify by @username or Visitor ID and mark a prize **claimed** |
 | Export | Download booth-visit and speaker-vote CSV files |
 
 ---
@@ -206,12 +206,26 @@ The app supports a real floor plan and a generated schematic.
 
 ---
 
+## 7b. Partner booths & quizzes
+
+- Partner booths are optional bonus stops. A partner stamp is worth **+5 points**
+  and does **not** count toward the 8 required stamps or Best Booth.
+- Visiting every active partner booth awards a one-time **+10 partner trail** bonus.
+- Each partner booth may have up to **2 quiz questions**; correct answers are
+  **+5 points each**. Visitors get one attempt per booth, and the quiz never
+  blocks the stamp.
+- Create partner booths in **Admin → Booths**; set type **Partner** and add quiz
+  options. Freeze the partner list before doors open so the trail is stable.
+- Prize eligibility is always based on the **8 required stamps**, not points.
+
+---
+
 ## 8. Helpdesk redemption runbook
 
-1. Attendee opens **Passport** → **Show badge** (appears after 8 stamps).
-2. Staff reads the **Visitor ID** on the badge (or the attendee pastes it).
-3. Admin → **Helpdesk** → paste Visitor ID → **Verify**.
-4. Confirm status **READY** and stamp count ≥ threshold.
+1. Attendee opens **Passport** → **Show badge** (appears after 8 required stamps).
+2. Staff asks for the **@username** or reads the **Visitor ID** on the badge.
+3. Admin → **Helpdesk** → paste @username or Visitor ID → **Verify**.
+4. Confirm full name + @username, status **READY**, and required-stamp count ≥ threshold.
 5. Enter staff name/ID → **Mark prize claimed**.
 6. Hand over the souvenir.
 
@@ -246,7 +260,7 @@ The app supports a real floor plan and a generated schematic.
 ### Closing
 
 - [ ] Close voting.
-- [ ] Export **Booth Visits CSV** and **Speaker Votes CSV**.
+- [ ] Export **Booth Visits & Quiz CSV**, **Visitor Identities CSV**, and **Speaker Votes CSV**.
 - [ ] Screenshot the final standings.
 - [ ] Save exports to two locations (laptop + cloud drive).
 - [ ] Note any incidents in a short handover log.
@@ -262,17 +276,18 @@ The app supports a real floor plan and a generated schematic.
 | Wi-Fi down | Mobile data / hotspot; paper tally at helpdesk |
 | App won’t load | Check Supabase status; use paper tally; retry |
 | Duplicate vote complaint | One vote per device is enforced; verify in admin |
-| Prize badge won’t open | Staff verifies Visitor ID directly in Helpdesk |
+| Prize badge won’t open | Staff verifies by @username or Visitor ID directly in Helpdesk |
 
 ---
 
 ## 11. Privacy & data
 
-- Students enter **name + optional matric + faculty**; no password/email.
+- Students enter **full name + unique @username + optional matric + faculty**; no password/email.
 - Identity is stored on the device (`localStorage`).
-- Public leaderboard shows a **masked name** (e.g. “Danish A.”) and can be
+- Full names stay private; the public leaderboard shows **@username** and can be
   opted out from the profile.
-- Export CSVs contain Visitor IDs and reviews — treat as internal event data.
+- Partner booths award bonus points but do not count toward the 8 required stamps.
+- Export CSVs contain full names, usernames, Visitor IDs, quiz results, and reviews — treat as internal event data.
 - Delete test visits and test votes before the event opens.
 
 ---

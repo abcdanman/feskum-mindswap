@@ -2,12 +2,14 @@
 
 const VISITOR_ID_KEY = 'mindswap_visitor_id';
 const VISITOR_NAME_KEY = 'mindswap_visitor_name';
+const VISITOR_USERNAME_KEY = 'mindswap_visitor_username';
 const VISITOR_MATRIC_KEY = 'mindswap_visitor_matric';
 const VISITOR_FACULTY_KEY = 'mindswap_visitor_faculty';
 const VISITOR_SHOW_KEY = 'mindswap_visitor_show';
 
 export interface VisitorIdentity {
   name: string;
+  username: string;
   matric: string;
   faculty: string;
   showOnLeaderboard: boolean;
@@ -43,30 +45,34 @@ export function setVisitorId(visitorId: string): void {
 
 export function getVisitorIdentity(): VisitorIdentity {
   if (typeof window === 'undefined') {
-    return { name: '', matric: '', faculty: '', showOnLeaderboard: true, complete: false };
+    return { name: '', username: '', matric: '', faculty: '', showOnLeaderboard: true, complete: false };
   }
   const name = localStorage.getItem(VISITOR_NAME_KEY) || '';
+  const username = localStorage.getItem(VISITOR_USERNAME_KEY) || '';
   const matric = localStorage.getItem(VISITOR_MATRIC_KEY) || '';
   const faculty = localStorage.getItem(VISITOR_FACULTY_KEY) || '';
   const showRaw = localStorage.getItem(VISITOR_SHOW_KEY);
   const showOnLeaderboard = showRaw === null ? true : showRaw === 'true';
   return {
     name,
+    username,
     matric,
     faculty,
     showOnLeaderboard,
-    complete: Boolean(name && faculty),
+    complete: Boolean(name && faculty && username),
   };
 }
 
 export function setVisitorIdentity(identity: {
   name: string;
+  username: string;
   matric: string;
   faculty: string;
   showOnLeaderboard?: boolean;
 }): void {
   if (typeof window === 'undefined') return;
   localStorage.setItem(VISITOR_NAME_KEY, identity.name.trim());
+  localStorage.setItem(VISITOR_USERNAME_KEY, identity.username.trim().toLowerCase());
   localStorage.setItem(VISITOR_MATRIC_KEY, identity.matric.trim());
   localStorage.setItem(VISITOR_FACULTY_KEY, identity.faculty.trim());
   localStorage.setItem(VISITOR_SHOW_KEY, String(identity.showOnLeaderboard ?? true));
@@ -87,9 +93,27 @@ export function setVisitorName(name: string): void {
   localStorage.setItem(VISITOR_NAME_KEY, name.trim());
 }
 
+export function getVisitorUsername(): string {
+  if (typeof window === 'undefined') return '';
+  return getVisitorIdentity().username;
+}
+
+export function setVisitorUsername(username: string): void {
+  if (typeof window === 'undefined') return;
+  localStorage.setItem(VISITOR_USERNAME_KEY, username.trim().toLowerCase());
+}
+
+export function getPublicDisplayName(displayName: string, username?: string | null): string {
+  return username ? `@${username}` : maskName(displayName || 'Visitor');
+}
+
 export function maskName(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return 'Visitor';
-  if (parts.length === 1) return parts[0];
+  if (parts.length === 1) {
+    const name = parts[0];
+    if (name.length <= 2) return `${name.charAt(0)}*`;
+    return `${name.charAt(0)}${'*'.repeat(Math.max(1, name.length - 2))}${name.charAt(name.length - 1)}`;
+  }
   return `${parts[0]} ${parts[parts.length - 1].charAt(0).toUpperCase()}.`;
 }

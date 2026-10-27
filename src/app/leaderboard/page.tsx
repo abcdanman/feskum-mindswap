@@ -1,11 +1,12 @@
 'use client';
 
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Trophy, Medal, Crown, Ticket, ArrowRight } from 'lucide-react';
+import { Trophy, Medal, Crown, Ticket, ArrowRight, LocateFixed } from 'lucide-react';
 import { getOrInitVisitorId } from '@/lib/visitor';
 import { getLeaderboard, getVisitorRank, getRewardSetting } from '@/lib/supabase';
-import { LeaderboardEntry, RankingMetric } from '@/lib/types';
+import { LeaderboardEntry, LeaderboardDay, RankingMetric } from '@/lib/types';
+import { EVENT_DAYS, getDefaultLeaderboardDay, getLeaderboardDayLabel } from '@/lib/event';
 
 const METRIC_LABEL: Record<RankingMetric, string> = {
   stamps: 'Booth Stamps',
@@ -13,28 +14,51 @@ const METRIC_LABEL: Record<RankingMetric, string> = {
   stamps_rating: 'Stamps · Rating',
 };
 
+const DAY_TABS: { key: LeaderboardDay; label: string }[] = [
+  { key: 'all', label: 'All days' },
+  ...EVENT_DAYS.map(day => ({ key: day.key, label: day.shortLabel })),
+];
+
+function publicName(entry: LeaderboardEntry): string {
+  return entry.username ? `@${entry.username}` : entry.name;
+}
+
 export default function LeaderboardPage() {
   const [entries, setEntries] = useState<LeaderboardEntry[]>([]);
   const [me, setMe] = useState<{ rank: number; total: number; entry: LeaderboardEntry | null } | null>(null);
-  const [metric, setMetric] = useState<RankingMetric>('stamps');
+  const [metric, setMetric] = useState<RankingMetric>('points');
+  const [day, setDay] = useState<LeaderboardDay>('all');
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    async function load() {
-      const visitorId = getOrInitVisitorId();
-      const setting = await getRewardSetting();
-      const m = (setting.ranking_metric || 'stamps') as RankingMetric;
-      setMetric(m);
-      const [board, rank] = await Promise.all([
-        getLeaderboard(10, m, visitorId),
-        getVisitorRank(visitorId, m),
-      ]);
-      setEntries(board);
-      setMe(rank);
-      setLoading(false);
-    }
-    load();
+    const initialDay = getDefaultLeaderboardDay();
+    if (initialDay !== 'all') setDay(initialDay);
   }, []);
+
+  const load = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true);
+    const visitorId = getOrInitVisitorId();
+    const setting = await getRewardSetting();
+    const m = (setting.ranking_metric || 'points') as RankingMetric;
+    setMetric(m);
+    const [board, rank] = await Promise.all([
+      getLeaderboard(400, m, visitorId, day),
+      getVisitorRank(visitorId, m, day),
+    ]);
+    setEntries(board);
+    setMe(rank);
+    setLoading(false);
+  }, [day]);
+
+  useEffect(() => {
+    load();
+    const timer = window.setInterval(() => load(true), 20000);
+    return () => window.clearInterval(timer);
+  }, [load]);
+
+  const top3 = entries.slice(0, 3);
+  const ranks4to50 = entries.slice(3, 50);
+  const ranks51plus = entries.slice(50);
 
   const medal = (rank: number) => {
     if (rank === 1) return <Crown className="w-5 h-5 text-gold-500" />;
@@ -42,6 +66,46 @@ export default function LeaderboardPage() {
     if (rank === 3) return <Medal className="w-5 h-5 text-amber-700" />;
     return null;
   };
+
+  const jumpToMe = () => {
+    document.getElementById('leaderboard-me')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  };
+
+  const renderRow = (entry: LeaderboardEntry) => (
+    <div
+      key={entry.visitor_id}
+      id={entry.is_you ? 'leaderboard-me' : undefined}
+      className={`card p-3 flex items-center gap-3 ${
+        entry.is_you ? 'bg-brand-50 border-brand-500' : 'bg-white'
+      }`}
+    >
+      <span className="display text-2xl text-slate-300 w-8 text-center shrink-0">
+        {entry.rank}
+      </span>
+      <div className="flex-1 min-w-0">
+        <div className="flex items-center gap-1.5">
+          {medal(entry.rank)}
+          <span className="font-extrabold text-ink text-sm truncate">
+            {publicName(entry)}
+            {entry.is_you && <span className="text-brand-600"> (you)</span>}
+          </span>
+        </div>
+        <p className="text-[11px] text-slate-500 mono">
+          {entry.stamps} stamps · {entry.points} pts
+          {entry.votes > 0 ? ` · ${entry.votes} votes` : ''}
+          {entry.quiz_points > 0 ? ` · ${entry.quiz_points} quiz` : ''}
+        </p>
+      </div>
+      <div className="text-right shrink-0">
+        <span className="display text-2xl text-brand-600">
+          {metric === 'points' ? entry.points : entry.stamps}
+        </span>
+        <span className="block text-[9px] uppercase tracking-wide font-bold text-slate-400">
+          {metric === 'points' ? 'pts' : 'stamps'}
+        </span>
+      </div>
+    </div>
+  );
 
   return (
     <div className="space-y-4 animate-fadeIn">
@@ -56,10 +120,31 @@ export default function LeaderboardPage() {
         Leader<br />board
       </h1>
 
+      <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border-2 border-ink shadow-brut text-xs font-bold">
+        {DAY_TABS.map(tab => (
+          <button
+            key={tab.key}
+            type="button"
+            onClick={() => setDay(tab.key)}
+            aria-pressed={day === tab.key}
+            className={`flex-1 px-2 py-1.5 rounded-xl transition-colors ${
+              day === tab.key ? 'bg-ink text-cream-50' : 'text-slate-500 hover:text-ink'
+            }`}
+          >
+            {tab.label}
+          </button>
+        ))}
+      </div>
+
+      <div className="flex items-center justify-between text-[10px] mono font-bold text-slate-400 uppercase">
+        <span>{getLeaderboardDayLabel(day)}</span>
+        <span>Auto-refresh · 20s</span>
+      </div>
+
       {/* Personal rank card */}
       {me && me.entry ? (
         <div className="card p-4 bg-ink text-cream-50 border-ink tnum">
-          <div className="flex items-center justify-between">
+          <div className="flex items-center justify-between gap-3">
             <div>
               <span className="eyebrow text-cream-200/70">Your rank</span>
               <div className="flex items-baseline gap-2 mt-1">
@@ -68,10 +153,26 @@ export default function LeaderboardPage() {
               </div>
             </div>
             <div className="text-right">
-              <span className="eyebrow text-cream-200/70">Stamps</span>
-              <p className="display text-4xl text-cream-50">{me.entry.stamps}</p>
+              <span className="eyebrow text-cream-200/70">
+                {metric === 'points' ? 'Points' : 'Stamps'}
+              </span>
+              <p className="display text-4xl text-cream-50">
+                {metric === 'points' ? me.entry.points : me.entry.stamps}
+              </p>
+              <p className="text-[10px] text-cream-200/60 mt-0.5">
+                {me.entry.stamps} stamps · {me.entry.points} pts
+              </p>
             </div>
           </div>
+          {me.rank > 50 && (
+            <button
+              type="button"
+              onClick={jumpToMe}
+              className="mt-3 w-full flex items-center justify-center gap-1.5 rounded-xl bg-cream-50/10 border-2 border-cream-50/20 px-3 py-2 text-xs font-bold text-cream-50 hover:bg-cream-50/20"
+            >
+              <LocateFixed className="w-3.5 h-3.5" aria-hidden="true" /> Jump to my rank
+            </button>
+          )}
         </div>
       ) : (
         !loading && (
@@ -84,11 +185,11 @@ export default function LeaderboardPage() {
       )}
 
       {/* PODIUM: top 3 */}
-      {!loading && entries.length > 0 && (
+      {!loading && top3.length > 0 && (
         <div className="card p-4">
           <span className="eyebrow text-slate-400 block mb-3 text-center">// podium</span>
           <div className="flex items-end justify-center gap-2">
-            {[entries[1], entries[0], entries[2]].map((entry, col) => {
+            {[top3[1], top3[0], top3[2]].map((entry, col) => {
               const heightClass = ['h-14', 'h-24', 'h-10'][col];
               const colorClass = ['bg-slate-300', 'bg-gold-400', 'bg-amber-700'][col];
               const place = [2, 1, 3][col];
@@ -98,12 +199,13 @@ export default function LeaderboardPage() {
                     <>
                       <div className="w-10 h-10 rounded-xl border-2 border-ink bg-ink flex items-center justify-center shrink-0">
                         <span className="display text-lg text-cream-50 leading-none">
-                          {entry.name.trim().charAt(0) || '?'}
+                          {publicName(entry).replace('@', '').charAt(0).toUpperCase() || '?'}
                         </span>
                       </div>
                       <span className="text-[10px] font-extrabold text-ink text-center line-clamp-1 w-full">
-                        {entry.name}
+                        {publicName(entry)}
                       </span>
+                      <span className="text-[9px] mono text-slate-500 -mt-1">{entry.points} pts</span>
                     </>
                   ) : (
                     <div className="w-10 h-10" />
@@ -120,7 +222,7 @@ export default function LeaderboardPage() {
         </div>
       )}
 
-      {/* Top 10 list */}
+      {/* Ranks 4–50 */}
       <div className="space-y-2 tnum">
         {loading ? (
           Array.from({ length: 5 }).map((_, i) => (
@@ -140,36 +242,24 @@ export default function LeaderboardPage() {
             <p className="text-xs text-slate-500">Be the first to collect a stamp and claim the top spot.</p>
           </div>
         ) : (
-          entries.map(entry => (
-            <div
-              key={entry.visitor_id}
-              className={`card p-3 flex items-center gap-3 ${
-                entry.is_you ? 'bg-brand-50 border-brand-500' : 'bg-white'
-              }`}
-            >
-              <span className="display text-2xl text-slate-300 w-8 text-center shrink-0">
-                {entry.rank}
-              </span>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
-                  {medal(entry.rank)}
-                  <span className="font-extrabold text-ink text-sm truncate">
-                    {entry.name}
-                    {entry.is_you && <span className="text-brand-600"> (you)</span>}
-                  </span>
+          <>
+            {ranks4to50.length > 0 && (
+              <div className="flex items-center justify-between pt-1">
+                <span className="eyebrow text-slate-400">Ranks 4–50</span>
+                <span className="text-[10px] mono text-slate-400">{entries.length} ranked</span>
+              </div>
+            )}
+            {ranks4to50.map(renderRow)}
+            {ranks51plus.length > 0 && (
+              <>
+                <div className="flex items-center justify-between pt-3">
+                  <span className="eyebrow text-slate-400">Full list · 51+</span>
+                  <span className="text-[10px] mono text-slate-400">{entries.length} ranked</span>
                 </div>
-                <p className="text-[11px] text-slate-500 mono">
-                  {entry.stamps} stamps{entry.votes > 0 ? ` · ${entry.votes} votes` : ''}
-                  {metric !== 'stamps' ? ` · ${entry.points} pts` : ''}
-                </p>
-              </div>
-              <div className="text-right shrink-0">
-                <span className="display text-2xl text-brand-600">
-                  {metric === 'points' ? entry.points : entry.stamps}
-                </span>
-              </div>
-            </div>
-          ))
+                {ranks51plus.map(renderRow)}
+              </>
+            )}
+          </>
         )}
       </div>
 

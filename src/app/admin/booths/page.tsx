@@ -4,7 +4,8 @@ import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
 import { getCheckpoints, saveCheckpoint, deleteCheckpoint, uploadImage } from '@/lib/supabase';
-import { Checkpoint } from '@/lib/types';
+import { Checkpoint, QuizQuestion } from '@/lib/types';
+import { QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
 import {
   QrCode,
   Plus,
@@ -70,7 +71,13 @@ export default function AdminBoothsPage() {
   };
 
   const openNew = () => {
-    setEditingBooth({ is_active: true, category: 'Exhibition', location: 'Marquee Tent, High Impact Research Building' });
+    setEditingBooth({
+      is_active: true,
+      booth_type: 'required',
+      quiz: [],
+      category: 'Exhibition',
+      location: 'Marquee Tent, High Impact Research Building',
+    });
     setError('');
     setShowModal(true);
   };
@@ -79,6 +86,46 @@ export default function AdminBoothsPage() {
     setEditingBooth({ ...booth });
     setError('');
     setShowModal(true);
+  };
+
+  const quiz = editingBooth.quiz || [];
+
+  const updateQuizQuestion = (index: number, patch: Partial<QuizQuestion>) => {
+    setEditingBooth(prev => {
+      const current = prev.quiz || [];
+      return {
+        ...prev,
+        quiz: current.map((question, questionIndex) =>
+          questionIndex === index ? { ...question, ...patch } : question
+        ),
+      };
+    });
+  };
+
+  const addQuizQuestion = () => {
+    setEditingBooth(prev => {
+      const current = prev.quiz || [];
+      if (current.length >= QUIZ_MAX_QUESTIONS) return prev;
+      return {
+        ...prev,
+        quiz: [
+          ...current,
+          {
+            id: `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            question: '',
+            options: ['', '', '', ''],
+            correctIndex: 0,
+          },
+        ],
+      };
+    });
+  };
+
+  const removeQuizQuestion = (index: number) => {
+    setEditingBooth(prev => ({
+      ...prev,
+      quiz: (prev.quiz || []).filter((_, questionIndex) => questionIndex !== index),
+    }));
   };
 
   const handleImageFile = async (file: File | null) => {
@@ -101,6 +148,11 @@ export default function AdminBoothsPage() {
       setError('Please fill in name, faculty, category and location.');
       return;
     }
+    const boothQuiz = editingBooth.booth_type === 'partner' ? editingBooth.quiz || [] : [];
+    if (boothQuiz.some(q => !q.question.trim() || q.options.some(option => !option.trim()))) {
+      setError('Fill in every quiz question and all four options, or remove the empty question.');
+      return;
+    }
     setSaving(true);
 
     const payload: Partial<Checkpoint> = {
@@ -108,6 +160,8 @@ export default function AdminBoothsPage() {
       description: editingBooth.description || 'Interactive showcase at the Laluan Aspirasi exhibition.',
       qr_token: editingBooth.qr_token || genToken(editingBooth.name),
       is_active: editingBooth.is_active ?? true,
+      booth_type: editingBooth.booth_type || 'required',
+      quiz: boothQuiz,
     };
 
     const { data, error: saveError } = await saveCheckpoint(payload);
@@ -181,6 +235,11 @@ export default function AdminBoothsPage() {
               <div className="min-w-0 flex-1">
                 <div className="flex items-center gap-1.5">
                   <span className="eyebrow text-brand-600 truncate">{booth.category}</span>
+                  {booth.booth_type === 'partner' && (
+                    <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-gold-400 text-ink">
+                      Partner
+                    </span>
+                  )}
                   {booth.is_active === false && (
                     <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-slate-200 text-slate-600">
                       Inactive
@@ -328,6 +387,108 @@ export default function AdminBoothsPage() {
                   placeholder="What will visitors see at this booth?"
                 />
               </div>
+
+              <div>
+                <label className="eyebrow text-slate-500 block mb-1">Booth type</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setEditingBooth({ ...editingBooth, booth_type: 'required', quiz: [] })}
+                    className={`px-3 py-2 rounded-xl border-2 border-ink text-xs font-bold ${
+                      (editingBooth.booth_type || 'required') === 'required'
+                        ? 'bg-brand-500 text-white'
+                        : 'bg-white text-ink'
+                    }`}
+                  >
+                    Required
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setEditingBooth({ ...editingBooth, booth_type: 'partner' })}
+                    className={`px-3 py-2 rounded-xl border-2 border-ink text-xs font-bold ${
+                      editingBooth.booth_type === 'partner'
+                        ? 'bg-gold-400 text-ink'
+                        : 'bg-white text-ink'
+                    }`}
+                  >
+                    Partner
+                  </button>
+                </div>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  Partner booths give +5 points and never block the 8-stamp souvenir.
+                </p>
+              </div>
+
+              {editingBooth.booth_type === 'partner' && (
+                <div className="space-y-2 p-3 rounded-xl bg-amber-50 border-2 border-ink/10">
+                  <div className="flex items-center justify-between">
+                    <span className="eyebrow text-slate-500">Bonus quiz (optional)</span>
+                    <span className="text-[10px] mono text-slate-500">{quiz.length}/{QUIZ_MAX_QUESTIONS}</span>
+                  </div>
+
+                  {quiz.map((question, questionIndex) => (
+                    <div key={question.id} className="space-y-2 p-3 rounded-xl bg-white border-2 border-ink/10">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
+                          Question {questionIndex + 1}
+                        </span>
+                        <button
+                          type="button"
+                          onClick={() => removeQuizQuestion(questionIndex)}
+                          className="p-1 rounded-lg text-rose-600 hover:bg-rose-50"
+                          aria-label={`Remove question ${questionIndex + 1}`}
+                        >
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <input
+                        type="text"
+                        placeholder="Question text"
+                        value={question.question}
+                        onChange={e => updateQuizQuestion(questionIndex, { question: e.target.value })}
+                        className={inputCls}
+                      />
+                      <div className="space-y-1.5">
+                        {[0, 1, 2, 3].map(optionIndex => (
+                          <div key={optionIndex} className="flex items-center gap-2">
+                            <input
+                              type="radio"
+                              name={`correct-answer-${questionIndex}`}
+                              checked={question.correctIndex === optionIndex}
+                              onChange={() => updateQuizQuestion(questionIndex, { correctIndex: optionIndex })}
+                              aria-label={`Mark option ${optionIndex + 1} correct`}
+                              className="accent-brand-500 shrink-0"
+                            />
+                            <input
+                              type="text"
+                              placeholder={`Option ${optionIndex + 1}`}
+                              value={question.options[optionIndex] || ''}
+                              onChange={e => {
+                                const options = [0, 1, 2, 3].map(i =>
+                                  i === optionIndex ? e.target.value : question.options[i] || ''
+                                );
+                                updateQuizQuestion(questionIndex, { options });
+                              }}
+                              className={`${inputCls} !py-2`}
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-slate-500">Select the radio button next to the correct answer.</p>
+                    </div>
+                  ))}
+
+                  {quiz.length < QUIZ_MAX_QUESTIONS && (
+                    <button
+                      type="button"
+                      onClick={addQuizQuestion}
+                      className="btn w-full py-2 bg-white text-ink text-xs flex items-center justify-center gap-1.5"
+                    >
+                      <Plus className="w-3.5 h-3.5" /> Add question
+                    </button>
+                  )}
+                </div>
+              )}
 
               {/* Image */}
               <div>
