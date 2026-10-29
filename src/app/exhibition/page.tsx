@@ -73,7 +73,7 @@ export default function ExhibitionPage() {
           placeholder="Search booth, faculty or location…"
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
-          className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border-2 border-ink text-ink placeholder-slate-400 text-base focus:outline-none shadow-brut"
+          className="w-full pl-10 pr-4 py-3 rounded-2xl bg-white border-2 border-ink text-ink placeholder-slate-400 text-base shadow-brut"
         />
       </div>
 
@@ -122,7 +122,7 @@ export default function ExhibitionPage() {
       </div>
 
       {/* CATEGORY FILTER PILLS */}
-      <div className="flex items-center gap-2 overflow-x-auto pb-1">
+      <div className="flex items-center gap-2 overflow-x-auto pb-1 lg:flex-wrap lg:overflow-visible">
         {categories.map(cat => (
           <button
             key={cat}
@@ -146,7 +146,7 @@ export default function ExhibitionPage() {
           onSelect={setSelectedBooth}
         />
       ) : (
-        <div className="grid grid-cols-1 gap-3">
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
           {filteredBooths.map(booth => {
             const isVisited = visitedSet.has(booth.id);
             return (

@@ -220,7 +220,7 @@ export default function ScanPage() {
           placeholder="Booth token, e.g. qr-eng-robotics"
           value={manual}
           onChange={e => setManual(e.target.value)}
-          className="w-full px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-base mono placeholder-slate-400 focus:outline-none focus:bg-white"
+          className="w-full px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-base mono placeholder-slate-400 focus:bg-white"
         />
         <div className="flex gap-2">
           <input
@@ -229,7 +229,7 @@ export default function ScanPage() {
             placeholder="Override code"
             value={manualCode}
             onChange={e => setManualCode(e.target.value)}
-            className="flex-1 px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-base placeholder-slate-400 focus:outline-none focus:bg-white"
+            className="flex-1 px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-base placeholder-slate-400 focus:bg-white"
           />
           <button type="submit" className="btn px-4 bg-ink text-white flex items-center gap-1 text-xs">
             Go <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />

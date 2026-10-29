@@ -5,6 +5,7 @@ import Link from 'next/link';
 import QRCode from 'qrcode';
 import { getCheckpoints, saveCheckpoint, deleteCheckpoint, uploadImage } from '@/lib/supabase';
 import { Checkpoint, QuizQuestion } from '@/lib/types';
+import Modal from '@/components/Modal';
 import { QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
 import {
   QrCode,
@@ -36,7 +37,7 @@ function genToken(name: string): string {
 }
 
 const inputCls =
-  'w-full p-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-sm focus:outline-none focus:bg-white';
+  'w-full p-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-sm focus:bg-white';
 
 export default function AdminBoothsPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
@@ -48,11 +49,21 @@ export default function AdminBoothsPage() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
+  const [initialBooth, setInitialBooth] = useState('');
+  const [quizScrollTarget, setQuizScrollTarget] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadBooths();
   }, []);
+
+  useEffect(() => {
+    if (!quizScrollTarget) return;
+    const target = document.getElementById(quizScrollTarget);
+    target?.scrollIntoView({ block: 'center', behavior: 'smooth' });
+    target?.querySelector<HTMLInputElement>('input[type="text"]')?.focus();
+    setQuizScrollTarget(null);
+  }, [quizScrollTarget]);
 
   async function loadBooths() {
     const list = await getCheckpoints(true);
@@ -71,21 +82,33 @@ export default function AdminBoothsPage() {
   };
 
   const openNew = () => {
-    setEditingBooth({
+    const next: Partial<Checkpoint> = {
       is_active: true,
       booth_type: 'required',
       quiz: [],
       category: 'Exhibition',
       location: 'Marquee Tent, High Impact Research Building',
-    });
+    };
+    setEditingBooth(next);
+    setInitialBooth(JSON.stringify(next));
     setError('');
     setShowModal(true);
   };
 
   const openEdit = (booth: Checkpoint) => {
-    setEditingBooth({ ...booth });
+    const next = { ...booth };
+    setEditingBooth(next);
+    setInitialBooth(JSON.stringify(next));
     setError('');
     setShowModal(true);
+  };
+
+  const isDirty = () => JSON.stringify(editingBooth) !== initialBooth;
+
+  const requestClose = (afterClose?: () => void) => {
+    if (isDirty() && !window.confirm('Discard unsaved booth changes?')) return;
+    setShowModal(false);
+    afterClose?.();
   };
 
   const quiz = editingBooth.quiz || [];
@@ -103,6 +126,7 @@ export default function AdminBoothsPage() {
   };
 
   const addQuizQuestion = () => {
+    const id = `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     setEditingBooth(prev => {
       const current = prev.quiz || [];
       if (current.length >= QUIZ_MAX_QUESTIONS) return prev;
@@ -111,7 +135,7 @@ export default function AdminBoothsPage() {
         quiz: [
           ...current,
           {
-            id: `quiz-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`,
+            id,
             question: '',
             options: ['', '', '', ''],
             correctIndex: 0,
@@ -119,6 +143,7 @@ export default function AdminBoothsPage() {
         ],
       };
     });
+    setQuizScrollTarget(id);
   };
 
   const removeQuizQuestion = (index: number) => {
@@ -171,6 +196,7 @@ export default function AdminBoothsPage() {
       return;
     }
     const isNew = !editingBooth.id;
+    setInitialBooth(JSON.stringify(payload));
     setShowModal(false);
     loadBooths();
     if (isNew && data) {
@@ -194,8 +220,13 @@ export default function AdminBoothsPage() {
       {/* HEADER */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
-          <Link href="/admin" className="p-2 rounded-xl bg-white text-ink border-2 border-ink shadow-brut">
-            <ArrowLeft className="w-4 h-4" />
+          <Link
+            href="/admin"
+            className="p-2 rounded-xl bg-white text-ink border-2 border-ink shadow-brut"
+            aria-label="Back to admin overview"
+            title="Back to admin overview"
+          >
+            <ArrowLeft className="w-4 h-4" aria-hidden="true" />
           </Link>
           <div>
             <h1 className="display text-2xl text-ink leading-none">Booths & QR</h1>
@@ -218,9 +249,9 @@ export default function AdminBoothsPage() {
       </div>
 
       {/* BOOTHS LIST */}
-      <div className="grid grid-cols-1 gap-3">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {checkpoints.map(booth => (
-          <div key={booth.id} className="card p-4 flex items-center justify-between gap-3">
+          <div key={booth.id} className="card p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
             <div className="flex items-center gap-3 min-w-0 flex-1">
               <div className="w-14 h-14 rounded-xl overflow-hidden bg-cream-100 shrink-0 border-2 border-ink">
                 {booth.image_url ? (
@@ -246,33 +277,33 @@ export default function AdminBoothsPage() {
                     </span>
                   )}
                 </div>
-                <h3 className="font-extrabold text-ink text-sm leading-snug line-clamp-1">{booth.name}</h3>
+                <h3 className="font-extrabold text-ink text-sm leading-snug line-clamp-2">{booth.name}</h3>
                 <p className="text-[11px] text-slate-500 truncate">{booth.faculty} • {booth.location}</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
+            <div className="flex items-center justify-end gap-1.5 shrink-0">
               <button
                 onClick={() => handleSelectBooth(booth)}
-                className="btn px-2.5 py-1.5 bg-white text-ink text-xs flex items-center gap-1"
+                className="btn w-10 h-10 bg-white text-ink flex items-center justify-center"
                 aria-label={`Show QR code for ${booth.name}`}
                 title="View QR"
               >
-                <QrCode className="w-3.5 h-3.5" aria-hidden="true" />
+                <QrCode className="w-4 h-4" aria-hidden="true" />
               </button>
               <button
                 onClick={() => openEdit(booth)}
-                className="btn p-1.5 bg-white text-ink"
+                className="btn w-10 h-10 bg-white text-ink flex items-center justify-center"
                 aria-label={`Edit ${booth.name}`}
-                title="Edit"
+                title="Edit booth"
               >
                 <Edit3 className="w-4 h-4" aria-hidden="true" />
               </button>
               <button
                 onClick={() => handleDelete(booth)}
-                className="btn p-1.5 bg-rose-50 text-rose-600"
+                className="btn w-10 h-10 bg-rose-50 text-rose-600 flex items-center justify-center"
                 aria-label={`Delete ${booth.name}`}
-                title="Delete"
+                title="Delete booth"
               >
                 <Trash2 className="w-4 h-4" aria-hidden="true" />
               </button>
@@ -283,60 +314,94 @@ export default function AdminBoothsPage() {
 
       {/* QR MODAL */}
       {selectedBooth && qrDataUrl && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-ink/70 backdrop-blur-sm animate-fadeIn">
-          <div className="w-full max-w-sm card p-6 text-center space-y-4 relative">
-            <button
-              onClick={() => setSelectedBooth(null)}
-              className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-ink hover:bg-slate-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
+        <Modal
+          onClose={() => setSelectedBooth(null)}
+          labelledBy="booth-qr-title"
+          closeLabel="Close QR code"
+          panelClassName="!max-w-md p-6"
+        >
+          <div className="text-center space-y-4">
             <div>
               <span className="sticker bg-brand-500 text-white text-[9px]">Booth QR signage</span>
-              <h3 className="display text-2xl text-ink mt-3 leading-none">{selectedBooth.name}</h3>
+              <h3 id="booth-qr-title" className="display text-2xl text-ink mt-3 leading-none pr-8">
+                {selectedBooth.name}
+              </h3>
               <p className="text-xs text-brand-600 font-bold mt-1">{selectedBooth.faculty}</p>
             </div>
 
             <div className="w-56 h-56 mx-auto p-3 bg-white rounded-2xl border-2 border-ink flex items-center justify-center">
-              <img src={qrDataUrl} alt={`QR code for ${selectedBooth.name}`} width={224} height={224} className="w-full h-full object-contain" />
+              <img
+                src={qrDataUrl}
+                alt={`QR code for ${selectedBooth.name}`}
+                width={224}
+                height={224}
+                className="w-full h-full object-contain"
+              />
             </div>
 
-            <p className="text-[11px] text-slate-500 mono">/checkpoint/{selectedBooth.qr_token}</p>
+            <p className="text-[11px] text-slate-500 mono break-all">/checkpoint/{selectedBooth.qr_token}</p>
 
-            <a
-              href={qrDataUrl}
-              download={`QR_${selectedBooth.qr_token}.png`}
-              className="btn w-full py-3 bg-ink text-cream-50 flex items-center justify-center gap-2 text-sm"
-            >
-              <Download className="w-4 h-4" /> Download PNG
-            </a>
+            <div className="grid grid-cols-1 gap-2">
+              <a
+                href={qrDataUrl}
+                download={`QR_${selectedBooth.qr_token}.png`}
+                className="btn w-full py-3 bg-ink text-cream-50 flex items-center justify-center gap-2 text-sm"
+              >
+                <Download className="w-4 h-4" aria-hidden="true" /> Download PNG
+              </a>
+              <button
+                type="button"
+                onClick={() => {
+                  setSelectedBooth(null);
+                  openEdit(selectedBooth);
+                }}
+                className="btn w-full py-2.5 bg-white text-ink text-xs flex items-center justify-center gap-2"
+              >
+                <Edit3 className="w-4 h-4" aria-hidden="true" /> Edit this booth
+              </button>
+            </div>
           </div>
-        </div>
+        </Modal>
       )}
 
       {/* EDIT/ADD MODAL */}
       {showModal && (
-        <div className="fixed inset-0 z-50 bg-ink/70 backdrop-blur-sm animate-fadeIn overflow-y-auto">
-          <div className="flex min-h-full items-center justify-center p-4">
-            <div className="w-full max-w-sm card p-6 space-y-4 relative max-h-[90vh] overflow-y-auto">
-            <button
-              onClick={() => setShowModal(false)}
-              className="absolute top-4 right-4 p-1 rounded-lg text-slate-400 hover:text-ink hover:bg-slate-100"
-            >
-              <X className="w-5 h-5" />
-            </button>
+        <Modal
+          onClose={() => requestClose()}
+          labelledBy="booth-form-title"
+          closeLabel="Close booth editor"
+          initialFocus="#booth-name"
+          panelClassName="!max-w-3xl p-0 overflow-hidden"
+        >
+          <form onSubmit={handleSave} className="flex max-h-[90dvh] flex-col text-xs">
+            <div className="shrink-0 border-b-2 border-ink/10 px-5 py-4 pr-14">
+              <div className="flex flex-wrap items-center gap-2">
+                <h3 id="booth-form-title" className="display text-2xl text-ink leading-none">
+                  {editingBooth.id ? 'Edit booth' : 'New booth'}
+                </h3>
+                {editingBooth.booth_type === 'partner' && (
+                  <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-gold-400 text-ink">
+                    Partner
+                  </span>
+                )}
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1">
+                {editingBooth.id
+                  ? 'Update booth details, quiz content and visitor visibility.'
+                  : 'Create a required or partner booth. The QR token is generated on save.'}
+              </p>
+            </div>
 
-            <h3 className="display text-2xl text-ink leading-none">
-              {editingBooth.id ? 'Edit booth' : 'New booth'}
-            </h3>
-
-            <form onSubmit={handleSave} className="space-y-3 text-xs">
+            <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-5 py-4 space-y-4">
               <div>
-                <label className="eyebrow text-slate-500 block mb-1">Booth Name</label>
+                <label htmlFor="booth-name" className="eyebrow text-slate-500 block mb-1">Booth Name</label>
                 <input
+                  id="booth-name"
+                  name="name"
                   type="text"
                   required
+                  autoComplete="off"
+                  placeholder="e.g. Robotics & Automation Lab"
                   value={editingBooth.name || ''}
                   onChange={e => setEditingBooth({ ...editingBooth, name: e.target.value })}
                   className={inputCls}
@@ -344,32 +409,44 @@ export default function AdminBoothsPage() {
               </div>
 
               <div>
-                <label className="eyebrow text-slate-500 block mb-1">Faculty / Organisation</label>
+                <label htmlFor="booth-faculty" className="eyebrow text-slate-500 block mb-1">Faculty / Organisation</label>
                 <input
+                  id="booth-faculty"
+                  name="faculty"
                   type="text"
                   required
+                  autoComplete="organization"
+                  placeholder="e.g. Faculty of Engineering"
                   value={editingBooth.faculty || ''}
                   onChange={e => setEditingBooth({ ...editingBooth, faculty: e.target.value })}
                   className={inputCls}
                 />
               </div>
 
-              <div className="grid grid-cols-2 gap-2">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div>
-                  <label className="eyebrow text-slate-500 block mb-1">Category</label>
+                  <label htmlFor="booth-category" className="eyebrow text-slate-500 block mb-1">Category</label>
                   <input
+                    id="booth-category"
+                    name="category"
                     type="text"
                     required
+                    autoComplete="off"
+                    placeholder="e.g. Exhibition"
                     value={editingBooth.category || ''}
                     onChange={e => setEditingBooth({ ...editingBooth, category: e.target.value })}
                     className={inputCls}
                   />
                 </div>
                 <div>
-                  <label className="eyebrow text-slate-500 block mb-1">Location</label>
+                  <label htmlFor="booth-location" className="eyebrow text-slate-500 block mb-1">Location</label>
                   <input
+                    id="booth-location"
+                    name="location"
                     type="text"
                     required
+                    autoComplete="off"
+                    placeholder="e.g. Marquee Tent, HIR Building"
                     value={editingBooth.location || ''}
                     onChange={e => setEditingBooth({ ...editingBooth, location: e.target.value })}
                     className={inputCls}
@@ -378,23 +455,27 @@ export default function AdminBoothsPage() {
               </div>
 
               <div>
-                <label className="eyebrow text-slate-500 block mb-1">Description</label>
+                <label htmlFor="booth-description" className="eyebrow text-slate-500 block mb-1">Description</label>
                 <textarea
-                  rows={2}
+                  id="booth-description"
+                  name="description"
+                  rows={3}
+                  autoComplete="off"
                   value={editingBooth.description || ''}
                   onChange={e => setEditingBooth({ ...editingBooth, description: e.target.value })}
-                  className={`${inputCls} resize-none`}
+                  className={`${inputCls} resize-y`}
                   placeholder="What will visitors see at this booth?"
                 />
               </div>
 
               <div>
-                <label className="eyebrow text-slate-500 block mb-1">Booth type</label>
+                <span className="eyebrow text-slate-500 block mb-1">Booth Type</span>
                 <div className="grid grid-cols-2 gap-2">
                   <button
                     type="button"
+                    aria-pressed={(editingBooth.booth_type || 'required') === 'required'}
                     onClick={() => setEditingBooth({ ...editingBooth, booth_type: 'required', quiz: [] })}
-                    className={`px-3 py-2 rounded-xl border-2 border-ink text-xs font-bold ${
+                    className={`px-3 py-2.5 rounded-xl border-2 border-ink text-xs font-bold ${
                       (editingBooth.booth_type || 'required') === 'required'
                         ? 'bg-brand-500 text-white'
                         : 'bg-white text-ink'
@@ -404,8 +485,9 @@ export default function AdminBoothsPage() {
                   </button>
                   <button
                     type="button"
+                    aria-pressed={editingBooth.booth_type === 'partner'}
                     onClick={() => setEditingBooth({ ...editingBooth, booth_type: 'partner' })}
-                    className={`px-3 py-2 rounded-xl border-2 border-ink text-xs font-bold ${
+                    className={`px-3 py-2.5 rounded-xl border-2 border-ink text-xs font-bold ${
                       editingBooth.booth_type === 'partner'
                         ? 'bg-gold-400 text-ink'
                         : 'bg-white text-ink'
@@ -414,20 +496,20 @@ export default function AdminBoothsPage() {
                     Partner
                   </button>
                 </div>
-                <p className="text-[10px] text-slate-500 mt-1">
+                <p className="text-[10px] text-slate-500 mt-1.5">
                   Partner booths give +5 points and never block the 8-stamp souvenir.
                 </p>
               </div>
 
               {editingBooth.booth_type === 'partner' && (
-                <div className="space-y-2 p-3 rounded-xl bg-amber-50 border-2 border-ink/10">
+                <div className="space-y-3 p-3 rounded-xl bg-amber-50 border-2 border-ink/10">
                   <div className="flex items-center justify-between">
-                    <span className="eyebrow text-slate-500">Bonus quiz (optional)</span>
+                    <span className="eyebrow text-slate-500">Bonus Quiz (Optional)</span>
                     <span className="text-[10px] mono text-slate-500">{quiz.length}/{QUIZ_MAX_QUESTIONS}</span>
                   </div>
 
                   {quiz.map((question, questionIndex) => (
-                    <div key={question.id} className="space-y-2 p-3 rounded-xl bg-white border-2 border-ink/10">
+                    <div key={question.id} id={question.id} className="space-y-2.5 p-3 rounded-xl bg-white border-2 border-ink/10">
                       <div className="flex items-center justify-between">
                         <span className="text-[10px] font-bold uppercase tracking-wide text-slate-500">
                           Question {questionIndex + 1}
@@ -435,14 +517,15 @@ export default function AdminBoothsPage() {
                         <button
                           type="button"
                           onClick={() => removeQuizQuestion(questionIndex)}
-                          className="p-1 rounded-lg text-rose-600 hover:bg-rose-50"
+                          className="p-1.5 rounded-lg text-rose-600 hover:bg-rose-50"
                           aria-label={`Remove question ${questionIndex + 1}`}
                         >
-                          <X className="w-3.5 h-3.5" />
+                          <X className="w-3.5 h-3.5" aria-hidden="true" />
                         </button>
                       </div>
                       <input
                         type="text"
+                        aria-label={`Question ${questionIndex + 1} text`}
                         placeholder="Question text"
                         value={question.question}
                         onChange={e => updateQuizQuestion(questionIndex, { question: e.target.value })}
@@ -461,6 +544,7 @@ export default function AdminBoothsPage() {
                             />
                             <input
                               type="text"
+                              aria-label={`Option ${optionIndex + 1}`}
                               placeholder={`Option ${optionIndex + 1}`}
                               value={question.options[optionIndex] || ''}
                               onChange={e => {
@@ -484,40 +568,54 @@ export default function AdminBoothsPage() {
                       onClick={addQuizQuestion}
                       className="btn w-full py-2 bg-white text-ink text-xs flex items-center justify-center gap-1.5"
                     >
-                      <Plus className="w-3.5 h-3.5" /> Add question
+                      <Plus className="w-3.5 h-3.5" aria-hidden="true" /> Add question
                     </button>
                   )}
                 </div>
               )}
 
-              {/* Image */}
               <div>
-                <label className="eyebrow text-slate-500 block mb-1">Booth Photo</label>
-                <div className="flex items-center gap-3">
-                  <div className="w-16 h-16 rounded-xl overflow-hidden bg-cream-100 shrink-0 border-2 border-ink">
+                <span className="eyebrow text-slate-500 block mb-1">Booth Photo</span>
+                <div className="flex items-start gap-3">
+                  <div className="w-20 h-20 rounded-xl overflow-hidden bg-cream-100 shrink-0 border-2 border-ink">
                     {editingBooth.image_url ? (
-                      <img src={editingBooth.image_url} alt="preview" className="w-full h-full object-cover" />
+                      <img src={editingBooth.image_url} alt="" className="w-full h-full object-cover" />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center text-slate-400">
-                        <ImageIcon className="w-5 h-5" />
+                        <ImageIcon className="w-6 h-6" aria-hidden="true" />
                       </div>
                     )}
                   </div>
-                  <div className="flex-1 space-y-1.5">
-                    <button
-                      type="button"
-                      onClick={() => fileRef.current?.click()}
-                      disabled={uploading}
-                      className="btn w-full py-2 bg-white text-ink text-xs flex items-center justify-center gap-1.5"
-                    >
-                      {uploading ? (
-                        <span className="w-4 h-4 border-2 border-ink border-t-transparent rounded-full animate-spin" />
-                      ) : (
-                        <>
-                          <UploadCloud className="w-4 h-4" /> Upload photo
-                        </>
+                  <div className="flex-1 min-w-0 space-y-1.5">
+                    <div className="flex gap-1.5">
+                      <button
+                        type="button"
+                        onClick={() => fileRef.current?.click()}
+                        disabled={uploading}
+                        className="btn flex-1 py-2 bg-white text-ink text-xs flex items-center justify-center gap-1.5"
+                      >
+                        {uploading ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-ink border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+                            Uploading…
+                          </>
+                        ) : (
+                          <>
+                            <UploadCloud className="w-4 h-4" aria-hidden="true" /> Upload photo
+                          </>
+                        )}
+                      </button>
+                      {editingBooth.image_url && (
+                        <button
+                          type="button"
+                          onClick={() => setEditingBooth({ ...editingBooth, image_url: '' })}
+                          className="btn px-2.5 py-2 bg-rose-50 text-rose-600 text-xs"
+                          aria-label="Remove booth photo"
+                        >
+                          <Trash2 className="w-4 h-4" aria-hidden="true" />
+                        </button>
                       )}
-                    </button>
+                    </div>
                     <input
                       ref={fileRef}
                       type="file"
@@ -527,6 +625,9 @@ export default function AdminBoothsPage() {
                     />
                     <input
                       type="url"
+                      name="image_url"
+                      autoComplete="off"
+                      spellCheck={false}
                       placeholder="…or paste an image URL"
                       value={editingBooth.image_url || ''}
                       onChange={e => setEditingBooth({ ...editingBooth, image_url: e.target.value })}
@@ -536,64 +637,81 @@ export default function AdminBoothsPage() {
                 </div>
               </div>
 
-              {/* Active toggle */}
-              <label className="flex items-center justify-between p-3 rounded-xl bg-cream-100 border-2 border-ink cursor-pointer">
+              <label htmlFor="booth-active" className="flex items-center justify-between p-3 rounded-xl bg-cream-100 border-2 border-ink cursor-pointer">
                 <span className="text-xs font-bold text-ink">Active (visible to visitors)</span>
                 <input
+                  id="booth-active"
+                  name="is_active"
                   type="checkbox"
                   checked={editingBooth.is_active ?? true}
                   onChange={e => setEditingBooth({ ...editingBooth, is_active: e.target.checked })}
-                  className="w-4 h-4 accent-brand-500"
+                  className="w-5 h-5 accent-brand-500"
                 />
               </label>
 
               {editingBooth.qr_token && (
-                <div className="space-y-1.5">
-                  <p className="text-[10px] mono text-slate-500">
+                <div className="space-y-1.5 rounded-xl bg-cream-100 border-2 border-ink/10 p-3">
+                  <p className="text-[10px] mono text-slate-500 break-all">
                     QR token: <span className="text-ink font-bold">{editingBooth.qr_token}</span>
                   </p>
                   {editingBooth.id && (
                     <button
                       type="button"
                       onClick={() => {
+                        if (isDirty() && !window.confirm('Discard unsaved booth changes and view the saved QR?')) return;
                         setShowModal(false);
                         handleSelectBooth(editingBooth as Checkpoint);
                       }}
                       className="btn w-full py-2 bg-white text-ink text-xs flex items-center justify-center gap-1.5"
                     >
-                      <QrCode className="w-3.5 h-3.5" /> View QR / download PNG
+                      <QrCode className="w-3.5 h-3.5" aria-hidden="true" /> View QR / download PNG
                     </button>
                   )}
                 </div>
               )}
+            </div>
 
+            <div className="shrink-0 border-t-2 border-ink/10 bg-cream-50 px-5 py-3 space-y-2">
               {error && (
-                <p className="text-[11px] font-bold text-brand-700 bg-brand-50 border-2 border-brand-500 rounded-xl px-3 py-2 flex items-start gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" /> {error}
+                <p
+                  role="alert"
+                  aria-live="polite"
+                  className="text-[11px] font-bold text-rose-700 bg-rose-50 border-2 border-rose-300 rounded-xl px-3 py-2 flex items-start gap-1.5"
+                >
+                  <AlertTriangle className="w-3.5 h-3.5 shrink-0 mt-0.5" aria-hidden="true" /> {error}
                 </p>
               )}
-
-              <button
-                type="submit"
-                disabled={saving}
-                className="btn w-full py-3 bg-brand-500 hover:bg-brand-600 text-white text-sm flex items-center justify-center gap-2 uppercase"
-              >
-                {saving ? (
-                  <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
-                ) : (
-                  <>
-                    <Save className="w-4 h-4" /> Save booth
-                  </>
-                )}
-              </button>
-
-              <p className="text-[10px] text-slate-500 text-center">
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => requestClose()}
+                  className="btn flex-1 py-3 bg-white text-ink text-sm uppercase"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={saving || uploading}
+                  className="btn flex-[1.4] py-3 bg-brand-500 hover:bg-brand-600 disabled:opacity-60 text-white text-sm flex items-center justify-center gap-2 uppercase"
+                >
+                  {saving ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+                      Saving…
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4" aria-hidden="true" /> Save booth
+                    </>
+                  )}
+                </button>
+              </div>
+              <p className="hidden sm:block text-[10px] text-slate-500 text-center">
                 A unique QR token is generated automatically — no technical input needed.
               </p>
-            </form>
             </div>
-          </div>
-        </div>
+          </form>
+        </Modal>
       )}
     </div>
   );

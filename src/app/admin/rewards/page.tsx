@@ -14,7 +14,7 @@ import { RewardSetting, VisitorReward, RankingMetric, AdminAnalyticsVisitor } fr
 import { Gift, ShieldCheck, CheckCircle2, ArrowLeft, Save, Search, UserCheck, AlertTriangle, Trophy } from 'lucide-react';
 
 const inputCls =
-  'w-full p-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-sm focus:outline-none focus:bg-white';
+  'w-full p-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-sm focus:bg-white';
 
 export default function AdminRewardsPage() {
   const [rewardSetting, setRewardSetting] = useState<RewardSetting | null>(null);

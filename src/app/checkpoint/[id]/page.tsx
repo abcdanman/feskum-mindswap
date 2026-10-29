@@ -369,7 +369,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
                     onMouseLeave={() => setHoverRating(0)}
                     aria-label={`Rate ${star} star${star > 1 ? 's' : ''}`}
                     aria-pressed={rating === star}
-                    className="p-1 text-slate-300 hover:scale-125 transition-transform focus:outline-none"
+                    className="p-1 text-slate-300 hover:scale-125 transition-transform"
                   >
                     <Star
                       aria-hidden="true"
@@ -396,7 +396,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
                 placeholder="What impressed you about this booth?"
                 value={review}
                 onChange={e => setReview(e.target.value)}
-                className="w-full p-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base focus:outline-none focus:bg-white resize-none"
+                className="w-full p-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base focus:bg-white resize-none"
                 maxLength={200}
               />
             </div>

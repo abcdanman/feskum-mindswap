@@ -112,7 +112,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
 
   // Admin portal is gated by its own passcode, not the attendee identity.
   if (pathname?.startsWith('/admin')) {
-    return <main id="main-content" className="relative z-10 flex-1 max-w-md w-full mx-auto px-4 py-4">{children}</main>;
+    return <main id="main-content" className="relative z-10 flex-1 w-full max-w-md lg:max-w-5xl mx-auto px-4 py-4">{children}</main>;
   }
 
   if (!complete) {
@@ -150,7 +150,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
                 value={name}
                 onChange={e => setName(e.target.value)}
                 maxLength={60}
-                className="w-full px-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base font-semibold focus:outline-none focus:bg-white"
+                className="w-full px-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base font-semibold focus:bg-white"
               />
             </div>
 
@@ -178,7 +178,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
                   maxLength={20}
                   aria-describedby="identity-username-help"
                   aria-invalid={Boolean(usernameError)}
-                  className="w-full pl-8 pr-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base font-semibold mono focus:outline-none focus:bg-white"
+                  className="w-full pl-8 pr-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base font-semibold mono focus:bg-white"
                 />
               </div>
               <p id="identity-username-help" className="text-[11px] text-slate-500 mt-1.5">
@@ -203,7 +203,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
                 value={matric}
                 onChange={e => setMatric(e.target.value)}
                 maxLength={40}
-                className="w-full px-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base font-semibold mono focus:outline-none focus:bg-white"
+                className="w-full px-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base font-semibold mono focus:bg-white"
               />
               <p className="text-[11px] text-slate-500 mt-1.5">
                 Used to reunite your stamps if you switch devices.
@@ -219,7 +219,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
                 name="faculty"
                 value={faculty}
                 onChange={e => setFaculty(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink text-base font-semibold focus:outline-none focus:bg-white"
+                className="w-full px-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink text-base font-semibold focus:bg-white"
               >
                 <option value="" disabled>
                   Select your faculty…
@@ -270,7 +270,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
   return (
     <>
       <Header />
-      <main id="main-content" className="relative z-10 flex-1 max-w-md w-full mx-auto px-4 py-4">{children}</main>
+      <main id="main-content" className="relative z-10 flex-1 w-full max-w-md lg:max-w-5xl mx-auto px-4 py-4">{children}</main>
       <Navbar />
     </>
   );

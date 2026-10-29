@@ -80,7 +80,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 placeholder="default: admin2026"
                 value={passcode}
                 onChange={e => setPasscode(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base focus:outline-none focus:bg-white"
+                className="w-full px-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base focus:bg-white"
               />
             </div>
 

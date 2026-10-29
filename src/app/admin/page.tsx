@@ -46,7 +46,7 @@ export default function AdminOverviewPage() {
     <div className="space-y-5">
       {/* KPI ANALYTICS GRID */}
       {analytics && (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-3 xl:grid-cols-6 gap-3">
           {kpis.map(kpi => {
             const Icon = kpi.icon;
             return (

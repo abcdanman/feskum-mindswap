@@ -112,7 +112,7 @@ export default function Header() {
     <>
       <header className="sticky top-0 z-40 w-full">
         <div className="bg-cream-50/95 backdrop-blur-md border-b-2 border-ink px-4 py-2.5">
-          <div className="max-w-md mx-auto flex items-center justify-between">
+          <div className="max-w-md lg:max-w-5xl mx-auto flex items-center justify-between">
             <Link href="/" onClick={handleLogoTap} className="flex items-center gap-2.5 group">
               <div className="flex items-baseline gap-1.5">
                 <span className="display text-2xl text-ink leading-none">MindSwap</span>
@@ -148,7 +148,7 @@ export default function Header() {
 
       {/* Profile Modal */}
       {isEditing && (
-        <Modal onClose={() => setIsEditing(false)} labelledBy="profile-title">
+        <Modal onClose={() => setIsEditing(false)} labelledBy="profile-title" initialFocus="#profile-name">
           <div className="p-6">
             <div className="flex items-center gap-3 mb-4">
               <div className="w-12 h-12 rounded-xl bg-brand-500 border-2 border-ink flex items-center justify-center text-white">
@@ -170,7 +170,7 @@ export default function Header() {
                   autoComplete="name"
                   value={tempName}
                   onChange={e => setTempName(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 focus:outline-none focus:bg-white text-base"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 focus:bg-white text-base"
                   maxLength={60}
                 />
               </div>
@@ -190,7 +190,7 @@ export default function Header() {
                     spellCheck={false}
                     value={tempUsername}
                     onChange={e => setTempUsername(e.target.value)}
-                    className="w-full pl-7 pr-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 mono focus:outline-none focus:bg-white text-base"
+                    className="w-full pl-7 pr-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 mono focus:bg-white text-base"
                     maxLength={20}
                   />
                 </div>
@@ -208,7 +208,7 @@ export default function Header() {
                   spellCheck={false}
                   value={tempMatric}
                   onChange={e => setTempMatric(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 mono focus:outline-none focus:bg-white text-base"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 mono focus:bg-white text-base"
                   maxLength={40}
                 />
               </div>
@@ -219,7 +219,7 @@ export default function Header() {
                   name="faculty"
                   value={tempFaculty}
                   onChange={e => setTempFaculty(e.target.value)}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink focus:outline-none focus:bg-white text-base"
+                  className="w-full px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink focus:bg-white text-base"
                 >
                   <option value="" disabled>Select your faculty…</option>
                   {FACULTIES.map(f => (
