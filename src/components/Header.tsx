@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { User, Check, Pencil, Trophy } from 'lucide-react';
@@ -113,7 +114,20 @@ export default function Header() {
       <header className="sticky top-0 z-40 w-full">
         <div className="bg-cream-50/95 backdrop-blur-md border-b-2 border-ink px-4 py-2.5">
           <div className="max-w-md lg:max-w-5xl mx-auto flex items-center justify-between">
-            <Link href="/" onClick={handleLogoTap} className="flex items-center gap-2.5 group">
+            <Link
+              href="/"
+              onClick={handleLogoTap}
+              className="flex items-center gap-2 group"
+              aria-label="MindSwap 2026 home"
+            >
+              <Image
+                src="/mindswap-logo.png"
+                alt=""
+                width={1024}
+                height={1042}
+                priority
+                className="h-10 w-auto"
+              />
               <div className="flex items-baseline gap-1.5">
                 <span className="display text-2xl text-ink leading-none">MindSwap</span>
                 <span className="sticker bg-brand-500 text-white text-[9px] px-1.5 py-0.5">2026</span>

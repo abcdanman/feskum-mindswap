@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState, useRef } from 'react';
+import Image from 'next/image';
 import { usePathname, useRouter } from 'next/navigation';
 import { Sparkles, ArrowRight, BadgeCheck } from 'lucide-react';
 import Header from '@/components/Header';
@@ -131,15 +132,25 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
     return (
       <div className="flex-1 flex flex-col">
         <main id="main-content" className="flex-1 max-w-md w-full mx-auto px-5 py-8 space-y-5">
-          <div className="space-y-2">
+          <div className="flex items-center justify-between gap-3">
+            <Image
+              src="/mindswap-logo.png"
+              alt="MindSwap @ FESKUM 2026"
+              width={1024}
+              height={1042}
+              priority
+              className="h-24 w-auto"
+            />
             <button
               type="button"
               onClick={handleHiddenAdminTap}
-              className="eyebrow text-brand-600"
+              className="eyebrow text-brand-600 text-right"
               aria-label="Laluan Aspirasi"
             >
               // Laluan Aspirasi
             </button>
+          </div>
+          <div className="space-y-2">
             <h1 className="display text-5xl text-ink">
               Start your<br />passport
             </h1>
