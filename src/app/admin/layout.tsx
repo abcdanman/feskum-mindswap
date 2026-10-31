@@ -4,9 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { ShieldCheck, Lock, Home } from 'lucide-react';
-
-const ADMIN_PASSCODE = process.env.NEXT_PUBLIC_ADMIN_PASSCODE || 'admin2026';
-const AUTH_KEY = 'mindswap_admin_authed';
+import { adminLogin, adminLogout, getAdminSession } from '@/lib/supabase';
 
 const ADMIN_TABS = [
   { label: 'Overview', href: '/admin' },
@@ -21,29 +19,35 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const [ready, setReady] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passcode, setPasscode] = useState('');
-  const [passError, setPassError] = useState(false);
+  const [passError, setPassError] = useState('');
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
-    setIsAuthenticated(sessionStorage.getItem(AUTH_KEY) === 'true');
-    setReady(true);
+    getAdminSession().then(authenticated => {
+      setIsAuthenticated(authenticated);
+      setReady(true);
+    });
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (passcode === ADMIN_PASSCODE || passcode === 'admin') {
+    setSubmitting(true);
+    setPassError('');
+    const result = await adminLogin(passcode);
+    setSubmitting(false);
+    if (result.ok) {
       setIsAuthenticated(true);
-      sessionStorage.setItem(AUTH_KEY, 'true');
-      setPassError(false);
-    } else {
-      setPassError(true);
+      setPasscode('');
+      return;
     }
+    setPassError(result.error || 'Invalid passcode. Try again.');
   };
 
-  const handleSignOut = () => {
-    sessionStorage.removeItem(AUTH_KEY);
+  const handleSignOut = async () => {
+    await adminLogout();
     setIsAuthenticated(false);
     setPasscode('');
-    setPassError(false);
+    setPassError('');
   };
 
   if (!ready) {
@@ -77,7 +81,6 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
                 type="password"
                 autoComplete="current-password"
                 autoFocus
-                placeholder="default: admin2026"
                 value={passcode}
                 onChange={e => setPasscode(e.target.value)}
                 className="w-full px-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink placeholder-slate-400 text-base focus:bg-white"
@@ -86,15 +89,16 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
             {passError && (
               <p role="alert" aria-live="polite" className="text-xs text-brand-700 font-bold text-center bg-brand-50 border-2 border-brand-500 rounded-xl py-2">
-                Invalid passcode. Try again.
+                {passError}
               </p>
             )}
 
             <button
               type="submit"
-              className="btn w-full py-3 bg-brand-500 hover:bg-brand-600 text-white text-sm uppercase"
+              disabled={submitting}
+              className="btn w-full py-3 bg-brand-500 hover:bg-brand-600 text-white text-sm uppercase disabled:opacity-60"
             >
-              Sign in
+              {submitting ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
         </div>

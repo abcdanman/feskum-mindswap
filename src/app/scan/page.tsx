@@ -7,7 +7,6 @@ import { ScanLine, Camera, CameraOff, AlertTriangle, ArrowRight, RotateCcw, Lock
 import { getCheckpointByQrToken } from '@/lib/supabase';
 
 const READER_ID = 'ms-qr-reader';
-const SCAN_BYPASS_CODE = process.env.NEXT_PUBLIC_SCAN_BYPASS_CODE || 'admin2026';
 
 function extractToken(text: string): string {
   const raw = text.trim();
@@ -29,6 +28,7 @@ export default function ScanPage() {
   const [manual, setManual] = useState('');
   const [manualCode, setManualCode] = useState('');
   const [manualError, setManualError] = useState('');
+  const [verifyingCode, setVerifyingCode] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
 
   const stopScanner = async () => {
@@ -196,15 +196,28 @@ export default function ScanPage() {
 
       {/* Staff override — password protected */}
       <form
-        onSubmit={e => {
+        onSubmit={async e => {
           e.preventDefault();
           if (!manual.trim()) return;
-          if (manualCode !== SCAN_BYPASS_CODE && manualCode !== 'admin') {
-            setManualError('Incorrect override code.');
-            return;
-          }
+          setVerifyingCode(true);
           setManualError('');
-          goToToken(manual);
+          try {
+            const response = await fetch('/api/scan', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ code: manualCode }),
+            });
+            if (!response.ok) {
+              const result = (await response.json().catch(() => ({}))) as { error?: string };
+              setManualError(result.error || 'Incorrect override code.');
+              return;
+            }
+            await goToToken(manual);
+          } catch {
+            setManualError('Could not verify the override code. Try again.');
+          } finally {
+            setVerifyingCode(false);
+          }
         }}
         className="card p-4 space-y-2"
       >
@@ -231,8 +244,12 @@ export default function ScanPage() {
             onChange={e => setManualCode(e.target.value)}
             className="flex-1 px-3.5 py-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-base placeholder-slate-400 focus:bg-white"
           />
-          <button type="submit" className="btn px-4 bg-ink text-white flex items-center gap-1 text-xs">
-            Go <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
+          <button
+            type="submit"
+            disabled={verifyingCode}
+            className="btn px-4 bg-ink text-white flex items-center gap-1 text-xs disabled:opacity-60"
+          >
+            {verifyingCode ? 'Checking…' : 'Go'} <ArrowRight className="w-3.5 h-3.5" aria-hidden="true" />
           </button>
         </div>
         {manualError && (

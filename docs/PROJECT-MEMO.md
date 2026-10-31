@@ -1,8 +1,8 @@
 # Project Memo — MindSwap @ FESKUM 2026
 
-**Last updated:** 27 Oct 2026
+**Last updated:** 31 Oct 2026
 **Event:** 13–14 Nov 2026 · Marquee Tent, High Impact Research Building, Universiti Malaya
-**Status:** Live in production; username/partner/quiz release deployed 27 Oct 2026
+**Status:** Live in production; responsive UI polish and server-side security hardening deployed 31 Oct 2026
 **Live URL:** https://feskum-mindswap.vercel.app
 
 This memo is the working memory for the project: what is finished, what is risky, what to improve next, why decisions were made, and what still needs an answer.
@@ -13,14 +13,14 @@ This memo is the working memory for the project: what is finished, what is risky
 
 | Item | Current state |
 | --- | --- |
-| Hosting | Vercel (Hobby), static Next.js build |
+| Hosting | Vercel (Hobby), Next.js pages + server route handlers |
 | Database | Supabase Postgres + Storage (`booth-images`) |
 | Live booths | 8 required (test booth removed); 0 partner booths configured yet; partner booths optional via admin |
 | Speakers | 16 UM Talk speakers |
 | Tables | `visitors`, `checkpoints`, `booth_visits`, `reward_settings`, `visitor_rewards`, `speakers`, `voting_events`, `speaker_votes` |
 | New columns | `visitors.username`; `checkpoints.booth_type`, `checkpoints.quiz`; `booth_visits.quiz_*` |
-| Student auth | None — full name + unique @username + faculty (matric optional), stored in `localStorage` |
-| Admin | Hidden entry + shared passcode (default `admin2026`) |
+| Student auth | Signed HttpOnly visitor cookie; full name + unique @username + faculty (matric optional), with localStorage display cache |
+| Admin | Hidden entry + server-only shared passcode + signed 12-hour HttpOnly cookie |
 | Reward | 8 required stamps |
 | Domain | **Not final** — still `*.vercel.app` |
 | Budget | RM200 for hosting/domain (see `BUDGET.md`) |
@@ -94,8 +94,9 @@ This memo is the working memory for the project: what is finished, what is risky
 - [x] `docs/PROJECT-MEMO.md` — this file.
 
 ### Infrastructure
-- [x] Static-capable build (no API routes, middleware, server actions, or `next/image`).
-- [x] Leaderboard aggregated client-side; public leaderboard polls every 20s; admin tally every 30s.
+- [x] Server route handlers for visitor sessions, admin auth, data, uploads, and staff scan override.
+- [x] Browser clients cannot access Supabase tables or storage directly; RLS is locked down.
+- [x] Leaderboard aggregated server-side; public leaderboard polls every 20s; admin tally every 30s.
 - [x] Favicon/icon set (SVG, PNG, maskable, apple-touch, ICO) + web manifest.
 - [x] Production deploy verified; routes and new bundles confirmed live.
 
@@ -105,8 +106,8 @@ This memo is the working memory for the project: what is finished, what is risky
 
 | Risk | Impact | Current mitigation | Priority |
 | --- | --- | --- | --- |
-| Admin passcode is `NEXT_PUBLIC_*` and visible in the JS bundle | Anyone who reads the bundle can open admin | Change passcode before event; share only with leads; monitor data | High |
-| RLS is fully open (`USING (true)`) with a public anon key | Anyone can read/write/delete rows | No sensitive data; take backups; consider server-side writes later | High |
+| Account recovery relies on matching @username + matric | Someone who knows both could reclaim a passport on a new device | Keep usernames/matric private; helpdesk can verify identity; no full-name exposure | Medium |
+| Admin/staff codes are shared secrets | Cannot trace which staff member made a change | Share only with leads; rotate after the event; export before/after changes | Medium |
 | Duplicate control is per-device (`localStorage`) only | Clearing storage creates a “new” student | Low-stakes event; spot-check at helpdesk; unique DB constraints still apply per identity | Medium |
 | Supabase Free pauses after ~7 days of inactivity | App fails on first use if dormant | Keep-alive ping; or 1 month of Pro (recommended) | High |
 | No automated backups on Supabase Free | Data loss if something goes wrong | Daily CSV exports; Pro gives daily backups | High |
@@ -119,8 +120,7 @@ This memo is the working memory for the project: what is finished, what is risky
 | No error monitoring or analytics | Problems found only by attendees | UptimeRobot; add Sentry later | Low |
 | `next lint` has no ESLint config | Lint command prompts instead of running | Build + `tsc --noEmit` are the gate | Low |
 | 8 required booths are live; planned count may be 12 | Missing booths cannot be scanned | Confirm final booth list; add required booths before printing | High |
-| Username moderation is client-side | A direct API write can bypass the denylist | Unique DB index still applies; monitor; move to RPC for hardening | Medium |
-| Quiz answers and points are client-side | A determined visitor can tamper with scores | Low-stakes event; monitor leaderboard; RPC hardening later | Medium |
+| Rate limits are in-memory | Limits reset when a serverless instance recycles | Strong secrets + unique DB constraints; monitor during event | Low |
 | Partner trail bonus depends on active partner list | Adding a partner later can require another visit for completion | Freeze partner list before doors open | Medium |
 
 ---
@@ -129,8 +129,10 @@ This memo is the working memory for the project: what is finished, what is risky
 
 ### P0 — before the event (do these first)
 - [ ] **Buy and connect the final domain.** Then regenerate and test the QR sheet. Do not print before this.
-- [ ] Rotate `NEXT_PUBLIC_ADMIN_PASSCODE` and `NEXT_PUBLIC_SCAN_BYPASS_CODE` in Vercel; redeploy; test on a phone.
-- [x] Applied `supabase/migrations/20261026_partner_booths_quiz_username.sql` on 27 Oct 2026; migration history marked applied.
+- [x] Set server-only `ADMIN_PASSCODE`, `STAFF_SCAN_CODE`, `SESSION_SECRET`, and `SUPABASE_SERVICE_ROLE_KEY` in Vercel.
+- [ ] Confirm the new admin passcode and staff override code work on a phone; share only with leads.
+- [x] Applied `supabase/migrations/20261026_partner_booths_quiz_username.sql` on 27 Oct 2026.
+- [x] Applied `supabase/migrations/20261031_harden_server_access.sql` on 31 Oct 2026; anon table/storage access revoked.
 - [ ] Confirm the final required booth list (8 live vs 12 planned); add missing booths with unique `qr_token`s and images.
 - [ ] Create partner booths + quiz content via Admin → Booths; freeze the partner list before doors open.
 - [ ] Walk the venue: test campus Wi-Fi + mobile data, QR scanning under venue light, and load time on a mid-range phone.
@@ -143,9 +145,9 @@ This memo is the working memory for the project: what is finished, what is risky
 - [ ] Print `docs/DDAY-PRINT.md` materials (matte laminate, not gloss).
 
 ### P1 — high value, can ship before or shortly after
-- [ ] Move admin auth server-side (Supabase Edge Function + signed cookie) so the passcode is not in the bundle.
-- [ ] Move username moderation and quiz scoring into RPC/Edge Functions; tighten RLS.
-- [ ] Tighten RLS and route writes through an Edge Function with rate limiting.
+- [x] Moved admin auth, visitor sessions, data access, quiz scoring, uploads, and scan override server-side.
+- [x] Locked down RLS and storage; added server-side username moderation and quiz answer stripping.
+- [ ] Move in-memory rate limits to a shared store if abuse appears during the event.
 - [ ] Add a service worker / offline fallback page (PWA install already supported by the manifest).
 - [ ] Replace polling with Supabase Realtime for the leaderboard and People’s Choice.
 - [ ] Automate Google Sheets export (scheduled CSV or Apps Script) for the secretariat.

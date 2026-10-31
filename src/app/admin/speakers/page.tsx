@@ -25,7 +25,7 @@ export default function AdminSpeakersPage() {
   }, []);
 
   async function loadSpeakers() {
-    const list = await getSpeakers();
+    const list = await getSpeakers(true);
     setSpeakers(list);
   }
 

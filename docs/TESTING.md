@@ -3,8 +3,8 @@
 End-to-end test plan for **MindSwap @ FESKUM 2026**. Run this against the deployed site before printing QR codes or opening the event.
 
 - **Production URL:** https://feskum-mindswap.vercel.app
-- **Admin passcode:** `admin2026` (override in `NEXT_PUBLIC_ADMIN_PASSCODE`)
-- **Staff scan override code:** `admin2026` (override in `NEXT_PUBLIC_SCAN_BYPASS_CODE`)
+- **Admin passcode:** configured in the server-only `ADMIN_PASSCODE` secret
+- **Staff scan override code:** configured in the server-only `STAFF_SCAN_CODE` secret
 - **Live booths:** 8 active required booths (test booth removed)
 - **Reward threshold:** 8 required stamps
 - **Ranking metric:** points (required ×10, partner ×5, trail +10, quiz +5/correct, votes ×25)
@@ -24,7 +24,7 @@ End-to-end test plan for **MindSwap @ FESKUM 2026**. Run this against the deploy
 | Network | Production HTTPS (camera + QR need it) |
 | Tools | Supabase SQL editor, phone camera, printed QR sample (optional) |
 
-**Reset a visitor browser:** DevTools → Application → Local Storage → delete keys starting with `mindswap_`, then reload. This creates a brand-new visitor.
+**Reset a visitor browser:** DevTools → Application → Storage → **Clear site data** (cookies + local storage), then reload. Clearing local storage alone does not reset the signed HttpOnly visitor cookie.
 
 **Live booth tokens** (for staff override testing):
 
@@ -46,7 +46,7 @@ End-to-end test plan for **MindSwap @ FESKUM 2026**. Run this against the deploy
 ### A1 — Hidden entry + login
 1. On a fresh visitor browser, open `/`.
 2. Tap `// Laluan Aspirasi` **5 times** (or open `/` as a returning visitor and tap the **MindSwap** logo 5 times within ~2 seconds).
-3. Enter passcode `admin2026` → **Sign in**.
+3. Enter the configured `ADMIN_PASSCODE` → **Sign in**.
 
 **Pass:** “Control room” loads with tabs **Overview, Booths, Speakers, Helpdesk, Export**; Overview shows six KPIs including Partner and Quizzes.
 **Fail:** wrong passcode shows “Invalid passcode. Try again.”; admin route should never expose data before login.
@@ -199,7 +199,7 @@ End-to-end test plan for **MindSwap @ FESKUM 2026**. Run this against the deploy
 2. Enter `qr-eng-robotics` + wrong code → **Go**.
 
 **Pass:** “Incorrect override code.”
-3. Retry with `admin2026`.
+3. Retry with the configured `STAFF_SCAN_CODE`.
 
 **Pass:** routes to the Robotics checkpoint.
 
@@ -467,7 +467,7 @@ where display_name ilike 'TEST %' or student_id like 'TEST-%';
 Also:
 1. **Restore reward threshold to `8`** and ranking metric to **Points**.
 2. Delete any `TEST Booth` / `TEST Speaker` records.
-3. Clear `mindswap_*` localStorage in test browsers.
+3. Clear site data (cookies + localStorage) in test browsers.
 4. Re-check Admin → Overview KPIs against the DB.
 
 ---
@@ -476,7 +476,7 @@ Also:
 
 | Symptom | Likely cause | Fix |
 | --- | --- | --- |
-| Admin shows “Database write access” red | RLS/policies missing or env key wrong | Re-run `supabase/schema.sql`; verify `NEXT_PUBLIC_SUPABASE_*` in Vercel |
+| Admin shows “Database write access” red | RLS/policies missing or server env key wrong | Verify `SUPABASE_URL` and `SUPABASE_SERVICE_ROLE_KEY` in Vercel; re-run the security migration |
 | No booths anywhere | Empty `checkpoints` or wrong project | Seed via SQL; confirm project ref |
 | QR opens `localhost` | Sheet generated on dev server | Regenerate on https://feskum-mindswap.vercel.app |
 | Camera blocked | HTTP, permission denied, in-app browser | Use HTTPS, allow camera, or staff override |

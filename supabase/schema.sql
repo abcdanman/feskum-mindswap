@@ -112,27 +112,29 @@ ALTER TABLE public.speakers ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.voting_events ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.speaker_votes ENABLE ROW LEVEL SECURITY;
 
--- POLICIES (Allow public access for anonymous visitors + anon API key)
-CREATE POLICY "Public visitors can register/view visitors" ON public.visitors FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public visitors can view active checkpoints" ON public.checkpoints FOR SELECT USING (true);
-CREATE POLICY "Public visitors can CRUD booth_visits" ON public.booth_visits FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public visitors can view reward settings" ON public.reward_settings FOR SELECT USING (true);
-CREATE POLICY "Public visitors can CRUD visitor rewards" ON public.visitor_rewards FOR ALL USING (true) WITH CHECK (true);
-CREATE POLICY "Public visitors can view speakers" ON public.speakers FOR SELECT USING (true);
-CREATE POLICY "Public visitors can view voting events" ON public.voting_events FOR SELECT USING (true);
-CREATE POLICY "Public visitors can vote for speakers" ON public.speaker_votes FOR ALL USING (true) WITH CHECK (true);
-
--- POLICIES: Admin writes (anon key powers the client-side passcode admin portal)
--- The admin portal authenticates with a client-side passcode, so it writes with
--- the anon key too. These tables therefore need FOR ALL policies.
+-- POLICIES: server-only access
+-- The browser never talks to Postgres directly. Visitor and admin requests go
+-- through Next.js route handlers using the service-role key.
+DROP POLICY IF EXISTS "Public visitors can register/view visitors" ON public.visitors;
+DROP POLICY IF EXISTS "Public visitors can view active checkpoints" ON public.checkpoints;
+DROP POLICY IF EXISTS "Public visitors can CRUD booth_visits" ON public.booth_visits;
+DROP POLICY IF EXISTS "Public visitors can view reward settings" ON public.reward_settings;
+DROP POLICY IF EXISTS "Public visitors can CRUD visitor rewards" ON public.visitor_rewards;
+DROP POLICY IF EXISTS "Public visitors can view speakers" ON public.speakers;
+DROP POLICY IF EXISTS "Public visitors can view voting events" ON public.voting_events;
+DROP POLICY IF EXISTS "Public visitors can vote for speakers" ON public.speaker_votes;
 DROP POLICY IF EXISTS "Public CRUD checkpoints" ON public.checkpoints;
-CREATE POLICY "Public CRUD checkpoints" ON public.checkpoints FOR ALL USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public CRUD speakers" ON public.speakers;
-CREATE POLICY "Public CRUD speakers" ON public.speakers FOR ALL USING (true) WITH CHECK (true);
-
 DROP POLICY IF EXISTS "Public CRUD reward settings" ON public.reward_settings;
-CREATE POLICY "Public CRUD reward settings" ON public.reward_settings FOR ALL USING (true) WITH CHECK (true);
+
+REVOKE ALL ON TABLE public.visitors FROM anon, authenticated;
+REVOKE ALL ON TABLE public.checkpoints FROM anon, authenticated;
+REVOKE ALL ON TABLE public.booth_visits FROM anon, authenticated;
+REVOKE ALL ON TABLE public.reward_settings FROM anon, authenticated;
+REVOKE ALL ON TABLE public.visitor_rewards FROM anon, authenticated;
+REVOKE ALL ON TABLE public.speakers FROM anon, authenticated;
+REVOKE ALL ON TABLE public.voting_events FROM anon, authenticated;
+REVOKE ALL ON TABLE public.speaker_votes FROM anon, authenticated;
 
 -- SEED DATA (DEFAULT REWARD THRESHOLD & VOTING EVENT)
 INSERT INTO public.reward_settings (id, title, stamp_threshold, description, is_active)
@@ -224,16 +226,11 @@ INSERT INTO storage.buckets (id, name, public)
 VALUES ('booth-images', 'booth-images', true)
 ON CONFLICT (id) DO NOTHING;
 
+-- Public bucket files remain readable by URL, but anon cannot list, upload,
+-- update, or delete objects. Admin uploads use the service-role key.
 DROP POLICY IF EXISTS "Public read booth-images" ON storage.objects;
 DROP POLICY IF EXISTS "Public upload booth-images" ON storage.objects;
 DROP POLICY IF EXISTS "Public update booth-images" ON storage.objects;
-
-CREATE POLICY "Public read booth-images"
-  ON storage.objects FOR SELECT TO anon USING (bucket_id = 'booth-images');
-CREATE POLICY "Public upload booth-images"
-  ON storage.objects FOR INSERT TO anon WITH CHECK (bucket_id = 'booth-images');
-CREATE POLICY "Public update booth-images"
-  ON storage.objects FOR UPDATE TO anon USING (bucket_id = 'booth-images');
 
 -- Reload PostgREST schema cache so new columns are visible immediately
 NOTIFY pgrst, 'reload schema';

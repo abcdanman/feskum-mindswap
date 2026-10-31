@@ -41,15 +41,15 @@ There is no visible admin button for students.
    - On the first-open screen (before signup) tap the small **“// Laluan
      Aspirasi”** label 5 times instead.
 2. You land on `/admin`.
-3. Enter the passcode (default: `admin2026`).
+3. Enter the organiser passcode configured in `ADMIN_PASSCODE`.
 
 **Fallback:** go directly to `<public-url>/admin` in the browser. The route is
 not linked anywhere, so it stays hidden from attendees.
 
 **Before the event:**
 
-- [ ] Change `NEXT_PUBLIC_ADMIN_PASSCODE` in the deployment environment.
-- [ ] Change `NEXT_PUBLIC_SCAN_BYPASS_CODE` (defaults to the same value).
+- [ ] Set a strong server-only `ADMIN_PASSCODE` in the deployment environment.
+- [ ] Set a different server-only `STAFF_SCAN_CODE` for camera-failure overrides.
 - [ ] Confirm the new passcode works on a phone.
 - [ ] Share the passcode with **only** the helpdesk lead and event director.
 
@@ -78,8 +78,9 @@ Admin sections:
    steps “Scan booth QR → Rate → Collect stamps → Redeem prize”.
 3. **Stage / UM Talk poster** — QR to open the app, plus “Vote for People’s
    Choice in the app”.
-4. **Helpdesk card** — printed with the admin URL, passcode, and redemption
-   steps (do **not** post this publicly).
+4. **Helpdesk card** — printed with the admin URL and redemption steps. Do
+   **not** print the passcode or override code on the card; share those only
+   through a password manager or a private channel with named leads.
 
 ### 3.2 Placement
 

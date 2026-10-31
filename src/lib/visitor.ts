@@ -82,6 +82,58 @@ export function isIdentityComplete(): boolean {
   return getVisitorIdentity().complete;
 }
 
+export interface VisitorSessionBootstrap {
+  authenticated: boolean;
+  visitorId?: string;
+  identity?: VisitorIdentity;
+}
+
+export async function ensureVisitorSession(): Promise<VisitorSessionBootstrap> {
+  if (typeof window === 'undefined') return { authenticated: false };
+  const localIdentity = getVisitorIdentity();
+  const localId = getOrInitVisitorId();
+  try {
+    const response = await fetch('/api/data', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      credentials: 'same-origin',
+      body: JSON.stringify({
+        action: 'visitor.session',
+        payload: {
+          legacyId: localId,
+          username: localIdentity.username,
+          matric: localIdentity.matric,
+        },
+      }),
+    });
+    if (!response.ok) return { authenticated: false };
+    const result = (await response.json()) as {
+      authenticated?: boolean;
+      visitorId?: string;
+      identity?: {
+        name: string;
+        username: string;
+        matric: string;
+        faculty: string;
+        showOnLeaderboard: boolean;
+      };
+    };
+    if (!result.authenticated || !result.visitorId) return { authenticated: false };
+    if (result.visitorId !== localId) setVisitorId(result.visitorId);
+    if (result.identity) {
+      setVisitorIdentity(result.identity);
+      return {
+        authenticated: true,
+        visitorId: result.visitorId,
+        identity: { ...result.identity, complete: Boolean(result.identity.name && result.identity.faculty && result.identity.username) },
+      };
+    }
+    return { authenticated: true, visitorId: result.visitorId };
+  } catch {
+    return { authenticated: false };
+  }
+}
+
 // ---- Back-compat helpers (used by Header) ----
 export function getVisitorName(): string {
   if (typeof window === 'undefined') return '';

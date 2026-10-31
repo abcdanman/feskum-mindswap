@@ -40,7 +40,7 @@ export default function PassportPage() {
         if (!rewardStatus) {
           rewardStatus = await unlockVisitorReward(id);
         }
-        setVisitorReward(rewardStatus);
+        if (rewardStatus) setVisitorReward(rewardStatus);
       }
     }
 

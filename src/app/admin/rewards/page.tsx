@@ -5,9 +5,9 @@ import Link from 'next/link';
 import {
   getRewardSetting,
   saveRewardSetting,
-  getVisitorRewardStatus,
+  getAdminVisitorReward,
   claimVisitorReward,
-  getVisitorVisits,
+  getAdminVisitorVisits,
   findVisitorByUsername,
 } from '@/lib/supabase';
 import { RewardSetting, VisitorReward, RankingMetric, AdminAnalyticsVisitor } from '@/lib/types';
@@ -71,8 +71,8 @@ export default function AdminRewardsPage() {
     const found = await findVisitorByUsername(query);
     const visitorId = found?.id || query;
     const [reward, visits] = await Promise.all([
-      getVisitorRewardStatus(visitorId),
-      getVisitorVisits(visitorId),
+      getAdminVisitorReward(visitorId),
+      getAdminVisitorVisits(visitorId),
     ]);
     const requiredCount = visits.filter(v => v.checkpoint?.booth_type !== 'partner').length;
 

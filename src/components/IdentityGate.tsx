@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation';
 import { Sparkles, ArrowRight, BadgeCheck } from 'lucide-react';
 import Header from '@/components/Header';
 import Navbar from '@/components/Navbar';
-import { getOrInitVisitorId, setVisitorId, setVisitorIdentity, getVisitorIdentity } from '@/lib/visitor';
+import { getOrInitVisitorId, setVisitorId, setVisitorIdentity, getVisitorIdentity, ensureVisitorSession } from '@/lib/visitor';
 import { registerVisitorIdentity, isUsernameAvailable } from '@/lib/supabase';
 import { validateUsername, USERNAME_RULES } from '@/lib/username';
 import { FACULTIES } from '@/lib/faculties';
@@ -39,14 +39,26 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
   const [reclaimed, setReclaimed] = useState(false);
 
   useEffect(() => {
-    const identity = getVisitorIdentity();
-    setName(identity.name);
-    setUsername(identity.username);
-    setMatric(identity.matric);
-    setFaculty(identity.faculty);
-    setComplete(identity.complete);
-    setReady(true);
-  }, []);
+    if (pathname?.startsWith('/admin')) {
+      setReady(true);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const session = await ensureVisitorSession();
+      if (cancelled) return;
+      const identity = getVisitorIdentity();
+      setName(identity.name);
+      setUsername(identity.username);
+      setMatric(identity.matric);
+      setFaculty(identity.faculty);
+      setComplete(Boolean(session.authenticated && identity.complete));
+      setReady(true);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [pathname]);
 
   const handleUsernameBlur = async () => {
     if (!username.trim()) return;

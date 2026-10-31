@@ -19,7 +19,7 @@ Digital passport, exhibition guide, and People's Choice voting for **MindSwap @ 
 | Admin | Hidden, passcode-protected dashboard: booths, speakers, helpdesk, exports, live tallies. |
 | Print | Printable booth QR sheet for laminating and mounting. |
 
-No student login, no password, no email. Identity lives in `localStorage` on the device.
+No student login, no password, no email. Identity is kept in a signed, HttpOnly session cookie, with local storage used only for display continuity.
 
 ---
 
@@ -27,9 +27,9 @@ No student login, no password, no email. Identity lives in `localStorage` on the
 
 - **Next.js 15** (App Router) + **React 19** + **TypeScript**
 - **Tailwind CSS 3**
-- **Supabase** (Postgres + Storage) via `@supabase/supabase-js`
+- **Supabase** (Postgres + Storage) accessed through server-only route handlers with the service-role key
 - `html5-qrcode` (scanning), `qrcode` (print sheet), `canvas-confetti` (rewards)
-- **Vercel** hosting; static-capable build (no API routes, no server actions)
+- **Vercel** hosting; Next.js route handlers for visitor sessions, admin auth, data, and uploads
 
 ---
 
@@ -60,13 +60,13 @@ pnpm dev:mobile              # binds 0.0.0.0
 
 | Variable | Required | Notes |
 | --- | --- | --- |
-| `NEXT_PUBLIC_SUPABASE_URL` | yes | Supabase project URL. |
-| `NEXT_PUBLIC_SUPABASE_ANON_KEY` | yes | Supabase anon/public key. |
-| `NEXT_PUBLIC_ADMIN_PASSCODE` | no | Defaults to `admin2026`. **Public** (baked into the client bundle). |
-| `NEXT_PUBLIC_SCAN_BYPASS_CODE` | no | Manual-override code. Defaults to the admin passcode. **Public.** |
-| `VERCEL_OIDC_TOKEN` | no | Added automatically by Vercel tooling; not used by the app. |
+| `SUPABASE_URL` | yes | Supabase project URL (server only). |
+| `SUPABASE_SERVICE_ROLE_KEY` | yes | Service-role key. **Server only — never prefix with `NEXT_PUBLIC_`.** |
+| `SESSION_SECRET` | yes | At least 32 random bytes for signing visitor/admin cookies. |
+| `ADMIN_PASSCODE` | yes | Shared organiser passcode. Server only. |
+| `STAFF_SCAN_CODE` | yes | Separate camera-failure override code. Server only. |
 
-> `NEXT_PUBLIC_*` values are shipped to the browser. Do **not** put real secrets there. The current admin passcode is a deterrent, not strong authentication — see `docs/PROJECT-MEMO.md`.
+> The browser never receives the service-role key. Visitor and admin sessions are signed HttpOnly cookies. Do not put any of the server secrets in `NEXT_PUBLIC_*` variables.
 
 ---
 
@@ -96,9 +96,9 @@ The admin entry is intentionally hidden.
 
 1. Tap the **MindSwap logo 5×** (or, on the first-open screen, tap `// Laluan Aspirasi` 5×).
 2. Or open `/admin` directly.
-3. Enter the passcode (default `admin2026`).
+3. Enter the organiser passcode configured in the Vercel `ADMIN_PASSCODE` secret.
 
-Change the passcode via the Vercel environment variables before the event, then redeploy.
+The passcode and staff override code are server-only. Ask the event lead for the current values; never put them in the repository or public chat.
 
 ---
 
@@ -109,13 +109,16 @@ src/
   app/                 App Router pages (home, exhibition, passport, scan, talks, admin…)
   components/          IdentityGate, Modal, FloorPlanMap, Header, Navbar, cards…
   lib/
-    supabase.ts        Data layer (booths, visits, votes, analytics, rankings)
-    visitor.ts         localStorage identity
+    supabase.ts        Client API wrapper (fetch to server route handlers)
+    server/            Server-only DB, sessions, and service-role client
+    visitor.ts         Visitor identity + session bootstrap
     floorplan.ts       Floor-plan config + schematic layout
     faculties.ts       Student faculty list
     types.ts           Shared TypeScript types
+  app/api/             Visitor/admin data, auth, upload, and scan routes
 supabase/
-  schema.sql           Tables, indexes, RLS, and seed data
+  schema.sql           Tables, indexes, seed data
+  migrations/          Security-definer server access policies
 public/                Icons and optional floor-plan image
 docs/                  Operations, memo, budget, and print guides
 ```
@@ -128,7 +131,7 @@ Run `supabase/schema.sql` in the Supabase SQL editor for a fresh project. It cre
 
 `visitors`, `checkpoints` (booths), `booth_visits`, `reward_settings`, `visitor_rewards`, `speakers`, `voting_events`, `speaker_votes`, plus indexes, RLS policies, and the `booth-images` storage bucket.
 
-**Important:** RLS is currently open (`USING (true)`) because there is no student auth. The anon key is public by design. See the risk notes in `docs/PROJECT-MEMO.md`.
+**Important:** RLS is locked down. Browser clients cannot read or write tables or storage directly. All access goes through server route handlers using the service-role key, with visitor/admin sessions enforced by signed HttpOnly cookies. Apply `supabase/migrations/20261031_harden_server_access.sql` to an existing project.
 
 ---
 
@@ -150,7 +153,7 @@ Run `supabase/schema.sql` in the Supabase SQL editor for a fresh project. It cre
 pnpm dlx vercel@latest deploy --prod
 ```
 
-Set the two Supabase variables (and optional passcode overrides) in **Vercel → Project → Settings → Environment Variables**, then redeploy.
+Set `SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `SESSION_SECRET`, `ADMIN_PASSCODE`, and `STAFF_SCAN_CODE` in **Vercel → Project → Settings → Environment Variables**, then redeploy. All five must be available to the production deployment.
 
 Before printing any QR code, connect the **final domain** — QR URLs are built from `window.location.origin`, so a domain change invalidates every printed code.
 
