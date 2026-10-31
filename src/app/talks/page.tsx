@@ -59,7 +59,7 @@ export default function TalksPage() {
   return (
     <div className="space-y-4 animate-fadeIn">
       {/* HEADER BANNER */}
-      <div className="card p-5 space-y-3 bg-purple-500 border-ink text-white">
+      <div className="card p-5 space-y-3 bg-brand-500 border-ink text-white">
         <div className="flex items-center gap-2">
           <div className="w-10 h-10 rounded-xl bg-white/15 border-2 border-white/30 flex items-center justify-center">
             <Mic className="w-5 h-5" />
@@ -113,7 +113,7 @@ export default function TalksPage() {
             key={day.value}
             onClick={() => setSelectedDate(day.value)}
             className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-bold transition-colors border-2 border-ink ${
-              selectedDate === day.value ? 'bg-purple-500 text-white' : 'bg-white text-slate-600'
+              selectedDate === day.value ? 'bg-brand-500 text-white' : 'bg-white text-slate-600'
             }`}
           >
             <Calendar className="w-3.5 h-3.5 inline mr-1" /> {day.label}
@@ -134,7 +134,7 @@ export default function TalksPage() {
             <p className="text-xs text-slate-500">Check the other day or come back closer to the event.</p>
             <button
               onClick={() => setSelectedDate(days.find(d => d.value !== selectedDate)?.value || selectedDate)}
-              className="btn inline-flex items-center gap-1.5 mt-2 px-3.5 py-2 bg-purple-500 text-white text-xs"
+              className="btn inline-flex items-center gap-1.5 mt-2 px-3.5 py-2 bg-brand-500 text-white text-xs"
             >
               <Calendar className="w-3.5 h-3.5" /> See the other day
             </button>

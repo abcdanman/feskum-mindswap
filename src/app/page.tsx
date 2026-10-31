@@ -54,7 +54,7 @@ export default function HomePage() {
       label: 'Booths',
       sub: `${requiredBoothCount} required${partnerBoothCount > 0 ? ` · ${partnerBoothCount} partner` : ''}`,
       icon: Compass,
-      accent: 'bg-blue-500',
+      accent: 'bg-brand-500',
     },
     { href: '/leaderboard', label: 'Leaderboard', sub: 'Live standings', icon: Trophy, accent: 'bg-gold-500' },
   ];

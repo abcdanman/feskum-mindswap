@@ -117,7 +117,7 @@ export default function Header() {
             <Link
               href="/"
               onClick={handleLogoTap}
-              className="flex items-center gap-2 group"
+              className="flex items-center gap-2 group shrink-0"
               aria-label="MindSwap 2026 home"
             >
               <Image
@@ -129,15 +129,15 @@ export default function Header() {
                 className="h-10 w-auto"
               />
               <div className="flex items-baseline gap-1.5">
-                <span className="display text-2xl text-ink leading-none">MindSwap</span>
-                <span className="sticker bg-brand-500 text-white text-[9px] px-1.5 py-0.5">2026</span>
+                <span className="hidden min-[390px]:inline display text-2xl text-ink leading-none">MindSwap</span>
+                <span className="sticker bg-gold-400 text-ink text-[9px] px-1.5 py-0.5">2026</span>
               </div>
             </Link>
 
-            <div className="flex items-center gap-1.5">
+            <div className="flex items-center gap-1.5 shrink-0">
               <Link
                 href="/leaderboard"
-                className="p-1.5 rounded-xl bg-white border-2 border-ink hover:bg-cream-100 active:translate-y-px"
+                className="hidden min-[420px]:flex p-1.5 rounded-xl bg-white border-2 border-ink hover:bg-cream-100 active:translate-y-px"
                 aria-label="View leaderboard"
               >
                 <Trophy className="w-4 h-4 text-gold-500" aria-hidden="true" />
@@ -150,7 +150,7 @@ export default function Header() {
                 <span className="w-5 h-5 rounded-md bg-brand-500 flex items-center justify-center text-white">
                   <User className="w-3 h-3" aria-hidden="true" />
                 </span>
-                <span className="max-w-[76px] truncate text-xs font-bold text-ink">
+                <span className="max-w-[72px] min-[480px]:max-w-[76px] truncate text-xs font-bold text-ink">
                   {username ? `@${username}` : name || 'Visitor'}
                 </span>
                 <Pencil className="w-3 h-3 text-slate-400" aria-hidden="true" />
@@ -261,7 +261,7 @@ export default function Header() {
               </div>
 
               {profileError && (
-                <p role="alert" className="text-xs font-bold text-brand-700 bg-brand-50 border-2 border-brand-500 rounded-xl px-3 py-2">
+                <p role="alert" className="text-xs font-bold text-rose-700 bg-rose-50 border-2 border-rose-500 rounded-xl px-3 py-2">
                   {profileError}
                 </p>
               )}

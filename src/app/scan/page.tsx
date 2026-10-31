@@ -253,7 +253,7 @@ export default function ScanPage() {
           </button>
         </div>
         {manualError && (
-          <p role="alert" aria-live="polite" className="text-[11px] font-bold text-brand-700 bg-brand-50 border-2 border-brand-500 rounded-xl px-3 py-2">
+          <p role="alert" aria-live="polite" className="text-[11px] font-bold text-rose-700 bg-rose-50 border-2 border-rose-500 rounded-xl px-3 py-2">
             {manualError}
           </p>
         )}

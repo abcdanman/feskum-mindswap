@@ -13,17 +13,17 @@ module.exports = {
         foreground: 'var(--foreground)',
         ink: '#0f172a',
         brand: {
-          50: '#fff1f2',
-          100: '#ffe4e6',
-          200: '#fecdd3',
-          300: '#fda4af',
-          400: '#fb7185',
-          500: '#e63946',
-          600: '#d9232e',
-          700: '#b91c1c',
-          800: '#991b1b',
-          900: '#7f1d1d',
-          950: '#450a0a',
+          50: '#EEF1FF',
+          100: '#E0E5FF',
+          200: '#C5CEFF',
+          300: '#9FAEF7',
+          400: '#7486E8',
+          500: '#293B9D',
+          600: '#222F80',
+          700: '#1C276B',
+          800: '#182157',
+          900: '#151C46',
+          950: '#0C102D',
         },
         cream: {
           50: '#FAF8F5',
@@ -47,7 +47,7 @@ module.exports = {
       boxShadow: {
         brut: '3px 3px 0 0 #0f172a',
         'brut-lg': '5px 5px 0 0 #0f172a',
-        'brut-red': '3px 3px 0 0 #e63946',
+        'brut-brand': '3px 3px 0 0 #293B9D',
         'brut-gold': '3px 3px 0 0 #f59e0b',
       },
       borderRadius: {
@@ -64,8 +64,8 @@ module.exports = {
       },
       keyframes: {
         pulseGlow: {
-          '0%, 100%': { opacity: '0.8', filter: 'drop-shadow(0 0 8px rgba(230, 57, 70, 0.2))' },
-          '50%': { opacity: '1', filter: 'drop-shadow(0 0 16px rgba(230, 57, 70, 0.4))' },
+          '0%, 100%': { opacity: '0.8', filter: 'drop-shadow(0 0 8px rgba(41, 59, 157, 0.2))' },
+          '50%': { opacity: '1', filter: 'drop-shadow(0 0 16px rgba(41, 59, 157, 0.4))' },
         },
         float: {
           '0%, 100%': { transform: 'translateY(0px)' },

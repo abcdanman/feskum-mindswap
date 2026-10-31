@@ -208,7 +208,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
                 Public on the leaderboard instead of your full name. {USERNAME_RULES}
               </p>
               {usernameError && (
-                <p role="alert" className="text-[11px] font-bold text-brand-700 mt-1.5">{usernameError}</p>
+                <p role="alert" className="text-[11px] font-bold text-rose-700 mt-1.5">{usernameError}</p>
               )}
             </div>
 
@@ -256,7 +256,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
             </div>
 
             {error && (
-              <p role="alert" aria-live="polite" className="text-xs font-bold text-brand-700 bg-brand-50 border-2 border-brand-500 rounded-xl px-3 py-2">
+              <p role="alert" aria-live="polite" className="text-xs font-bold text-rose-700 bg-rose-50 border-2 border-rose-500 rounded-xl px-3 py-2">
                 {error}
               </p>
             )}

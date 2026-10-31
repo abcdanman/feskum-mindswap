@@ -38,7 +38,7 @@ export default function AdminOverviewPage() {
         { label: 'Partner', value: partnerVisits, sub: 'Bonus stamps', icon: Handshake, color: 'text-amber-600' },
         { label: 'Quizzes', value: analytics.totalQuizCompletions, sub: `${analytics.totalQuizPoints} bonus pts`, icon: HelpCircle, color: 'text-brand-600' },
         { label: 'Avg Rating', value: `${analytics.avgOverallRating}`, sub: 'Overall satisfaction', icon: Star, color: 'text-gold-500' },
-        { label: 'Claimed', value: `${analytics.rewardsClaimed}/${analytics.rewardsUnlocked}`, sub: 'Helpdesk redemptions', icon: Gift, color: 'text-purple-600' },
+        { label: 'Claimed', value: `${analytics.rewardsClaimed}/${analytics.rewardsUnlocked}`, sub: 'Helpdesk redemptions', icon: Gift, color: 'text-gold-700' },
       ]
     : [];
 
@@ -109,7 +109,7 @@ export default function AdminOverviewPage() {
         <div className="card p-5 space-y-3">
           <div className="flex items-center justify-between border-b-2 border-ink/10 pb-3">
             <div className="flex items-center gap-2">
-              <Award className="w-5 h-5 text-purple-600" aria-hidden="true" />
+              <Award className="w-5 h-5 text-gold-700" aria-hidden="true" />
               <div>
                 <h3 className="display text-xl text-ink leading-none">People&apos;s Choice</h3>
                 <p className="text-[11px] text-slate-500">
@@ -136,7 +136,7 @@ export default function AdminOverviewPage() {
                       <p className="text-[10px] text-slate-500 truncate">{speaker.organisation}</p>
                     </div>
                   </div>
-                  <span className="mono font-bold text-purple-700 shrink-0">{speaker.vote_count || 0}</span>
+                  <span className="mono font-bold text-brand-700 shrink-0">{speaker.vote_count || 0}</span>
                 </div>
               ))}
           </div>

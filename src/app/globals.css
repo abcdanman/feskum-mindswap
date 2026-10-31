@@ -41,7 +41,7 @@
 
   /* Keyboard focus ring — accessibility requirement */
   :focus-visible {
-    outline: 3px solid #e63946;
+    outline: 3px solid #293b9d;
     outline-offset: 2px;
     border-radius: 6px;
   }
@@ -274,12 +274,12 @@
 
 /* Gradient text kept for accent usages */
 .text-gradient {
-  background: linear-gradient(135deg, #e63946 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #293b9d 0%, #0f172a 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
-.text-gradient-red {
-  background: linear-gradient(135deg, #e63946 0%, #b91c1c 100%);
+.text-gradient-brand {
+  background: linear-gradient(135deg, #293b9d 0%, #1c276b 100%);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
@@ -307,7 +307,7 @@
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #e63946;
+  background: #293b9d;
 }
 
 @keyframes marquee {

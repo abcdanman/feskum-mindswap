@@ -143,7 +143,7 @@ export default function AdminExportPage() {
               <h4 className="font-bold text-ink text-xs">UM Talk Speaker Votes CSV</h4>
               <p className="text-[11px] text-slate-500">People Choice vote counts per speaker</p>
             </div>
-            <Download className="w-4 h-4 text-purple-600 shrink-0" />
+            <Download className="w-4 h-4 text-brand-600 shrink-0" />
           </button>
         </div>
       </div>

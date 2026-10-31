@@ -78,7 +78,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
         setRequiredVisitsCount(prev => prev + 1);
       }
 
-      confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 } });
+      confetti({ particleCount: 100, spread: 80, origin: { y: 0.6 }, colors: ['#293B9D', '#F59E0B', '#F8F6F0'] });
     } else {
       setErrorMsg(res.message || 'Failed to submit rating. Please try again.');
     }
@@ -102,7 +102,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
       if (successStamp) setSuccessStamp(res.visit);
       setQuizMessage(`${res.correct}/${res.total} correct · +${res.points} pts`);
       if (res.correct > 0) {
-        confetti({ particleCount: 60, spread: 60, origin: { y: 0.65 } });
+        confetti({ particleCount: 60, spread: 60, origin: { y: 0.65 }, colors: ['#293B9D', '#F59E0B', '#F8F6F0'] });
       }
     } else {
       setQuizError(res.message || 'Could not save your quiz. Try again.');
@@ -313,7 +313,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
                   ))}
 
                   {quizError && (
-                    <p role="alert" className="text-xs font-bold text-brand-700">{quizError}</p>
+                    <p role="alert" className="text-xs font-bold text-rose-700">{quizError}</p>
                   )}
 
                   <button

@@ -88,7 +88,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             </div>
 
             {passError && (
-              <p role="alert" aria-live="polite" className="text-xs text-brand-700 font-bold text-center bg-brand-50 border-2 border-brand-500 rounded-xl py-2">
+              <p role="alert" aria-live="polite" className="text-xs text-rose-700 font-bold text-center bg-rose-50 border-2 border-rose-500 rounded-xl py-2">
                 {passError}
               </p>
             )}
