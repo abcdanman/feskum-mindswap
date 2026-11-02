@@ -36,8 +36,24 @@ function db() {
 const LEADERBOARD_CACHE_MS = 8_000;
 const CHECKPOINT_CACHE_MS = 15_000;
 
+// Single-flight: when the cache is cold and many requests land at once (a
+// leaderboard-open rush, a booth-scan rush), only the first one should hit
+// the DB — the rest await that same in-flight promise instead of each
+// firing their own query. Without this, an 8s TTL does nothing for a
+// synchronized cold-start burst, since every request races past the empty
+// cache before any of them have a result to populate it with.
+function singleFlight<T>(inFlight: Map<string, Promise<T>>, key: string, fetcher: () => Promise<T>): Promise<T> {
+  const existing = inFlight.get(key);
+  if (existing) return existing;
+  const promise = fetcher().finally(() => inFlight.delete(key));
+  inFlight.set(key, promise);
+  return promise;
+}
+
 const rankingRowsCache = new Map<LeaderboardDay, { expiresAt: number; rows: RawRankRow[] }>();
+const rankingRowsInFlight = new Map<string, Promise<RawRankRow[]>>();
 let checkpointCache: { expiresAt: number; byId: Map<string, Checkpoint> } | null = null;
+let checkpointCacheInFlight: Promise<Checkpoint[]> | null = null;
 
 function invalidateCheckpointCache() {
   checkpointCache = null;
@@ -46,8 +62,13 @@ function invalidateCheckpointCache() {
 async function getCheckpointCached(id: string): Promise<Checkpoint | null> {
   const now = Date.now();
   if (!checkpointCache || checkpointCache.expiresAt < now) {
-    const all = await listCheckpoints(true, false);
-    checkpointCache = { expiresAt: now + CHECKPOINT_CACHE_MS, byId: new Map(all.map(c => [c.id, c])) };
+    if (!checkpointCacheInFlight) {
+      checkpointCacheInFlight = listCheckpoints(true, false).finally(() => {
+        checkpointCacheInFlight = null;
+      });
+    }
+    const all = await checkpointCacheInFlight;
+    checkpointCache = { expiresAt: Date.now() + CHECKPOINT_CACHE_MS, byId: new Map(all.map(c => [c.id, c])) };
   }
   return checkpointCache.byId.get(id) || null;
 }
@@ -600,11 +621,12 @@ function isWithinRange(timestamp: string | null | undefined, range: { start: str
 async function buildRankingRows(day: LeaderboardDay = 'all'): Promise<RawRankRow[]> {
   if (!hasServerSupabase()) return [];
   const cached = rankingRowsCache.get(day);
-  const now = Date.now();
-  if (cached && cached.expiresAt > now) return cached.rows;
-  const rows = await buildRankingRowsUncached(day);
-  rankingRowsCache.set(day, { expiresAt: now + LEADERBOARD_CACHE_MS, rows });
-  return rows;
+  if (cached && cached.expiresAt > Date.now()) return cached.rows;
+  return singleFlight(rankingRowsInFlight, day, async () => {
+    const rows = await buildRankingRowsUncached(day);
+    rankingRowsCache.set(day, { expiresAt: Date.now() + LEADERBOARD_CACHE_MS, rows });
+    return rows;
+  });
 }
 
 async function buildRankingRowsUncached(day: LeaderboardDay = 'all'): Promise<RawRankRow[]> {
