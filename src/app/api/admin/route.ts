@@ -10,6 +10,7 @@ import {
   listCheckpoints,
   listSpeakers,
   listVisitorVisits,
+  manualGrantBoothVisit,
   saveCheckpoint,
   saveRewardSetting,
   saveSpeaker,
@@ -71,6 +72,15 @@ export async function POST(request: NextRequest) {
 
       case 'visitor.visits':
         return json({ visits: await listVisitorVisits(String(payload.visitorId || '')) });
+
+      case 'visits.manualGrant':
+        return json(
+          await manualGrantBoothVisit(
+            String(payload.visitorId || ''),
+            String(payload.checkpointId || ''),
+            typeof payload.staffName === 'string' ? payload.staffName : 'Staff Helpdesk'
+          )
+        );
 
       case 'visitor.reward.claim':
         return json({

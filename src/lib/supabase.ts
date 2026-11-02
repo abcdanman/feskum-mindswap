@@ -163,6 +163,20 @@ export async function submitBoothQuiz(
   };
 }
 
+export async function manualGrantBoothVisit(
+  visitorId: string,
+  checkpointId: string,
+  staffName: string
+): Promise<{ success: boolean; visit?: BoothVisit; message?: string }> {
+  const result = await adminRequest('visits.manualGrant', { visitorId, checkpointId, staffName });
+  if (!result) return { success: false, message: 'Could not record the stamp. Try again.' };
+  return {
+    success: Boolean(result.success),
+    visit: (result.visit as BoothVisit | undefined) || undefined,
+    message: (result.message as string | undefined) || (result.error as string | undefined),
+  };
+}
+
 export async function getRewardSetting(): Promise<RewardSetting> {
   const result = await dataRequest('reward.setting');
   return (result as RewardSetting | null) || INITIAL_REWARD_SETTING;

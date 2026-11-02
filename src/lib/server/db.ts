@@ -26,6 +26,32 @@ function db() {
   return getSupabaseAdmin();
 }
 
+// -------------------------------------------------------------
+// SHORT-LIVED IN-MEMORY CACHES
+//
+// These survive only for the life of a warm serverless instance, but during
+// the event most concurrent scans/leaderboard polls land on the same warm
+// instance, so a few seconds of sharing cuts the bulk of redundant reads.
+// -------------------------------------------------------------
+const LEADERBOARD_CACHE_MS = 8_000;
+const CHECKPOINT_CACHE_MS = 15_000;
+
+const rankingRowsCache = new Map<LeaderboardDay, { expiresAt: number; rows: RawRankRow[] }>();
+let checkpointCache: { expiresAt: number; byId: Map<string, Checkpoint> } | null = null;
+
+function invalidateCheckpointCache() {
+  checkpointCache = null;
+}
+
+async function getCheckpointCached(id: string): Promise<Checkpoint | null> {
+  const now = Date.now();
+  if (!checkpointCache || checkpointCache.expiresAt < now) {
+    const all = await listCheckpoints(true, false);
+    checkpointCache = { expiresAt: now + CHECKPOINT_CACHE_MS, byId: new Map(all.map(c => [c.id, c])) };
+  }
+  return checkpointCache.byId.get(id) || null;
+}
+
 function maskName(fullName: string): string {
   const parts = fullName.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return 'Visitor';
@@ -128,12 +154,14 @@ export async function saveCheckpoint(
   }
   const { data, error } = await db().from('checkpoints').upsert(payload).select().single();
   if (error || !data) return { data: null, error: error?.message || 'Failed to save booth.' };
+  invalidateCheckpointCache();
   return { data: data as Checkpoint, error: null };
 }
 
 export async function deleteCheckpoint(id: string): Promise<{ error: string | null }> {
   if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
   const { error } = await db().from('checkpoints').delete().eq('id', id);
+  if (!error) invalidateCheckpointCache();
   return { error: error?.message || null };
 }
 
@@ -160,16 +188,13 @@ export async function submitBoothRating(
     return { success: false, message: 'Choose a rating from 1 to 5 stars.' };
   }
   const cleanReview = typeof review === 'string' ? review.trim().slice(0, 240) : '';
-  const checkpoint = await getCheckpointById(checkpointId);
+  const checkpoint = await getCheckpointCached(checkpointId);
   if (!checkpoint || checkpoint.is_active === false) {
     return { success: false, message: 'This booth is not available.' };
   }
 
-  const existing = await listVisitorVisits(visitorId);
-  if (existing.some(visit => visit.checkpoint_id === checkpointId)) {
-    return { success: false, message: "You've already collected this stamp!" };
-  }
-
+  // Single insert — duplicate stamps are rejected by unique_visitor_checkpoint
+  // below rather than pre-checked with a read, so the happy path is one write.
   const { data, error } = await db()
     .from('booth_visits')
     .insert({
@@ -191,6 +216,40 @@ export async function submitBoothRating(
   return { success: true, visit: data as BoothVisit };
 }
 
+// Paper-fallback reconciliation: when a booth was scanned on a paper tally
+// form during an outage, staff re-enter it here afterwards so the stamp
+// counts toward the leaderboard and reward threshold like a normal scan.
+export async function manualGrantBoothVisit(
+  visitorId: string,
+  checkpointId: string,
+  staffName: string
+): Promise<{ success: boolean; visit?: BoothVisit; message?: string }> {
+  if (!hasServerSupabase()) return { success: false, message: 'Server database is not configured.' };
+  const checkpoint = await getCheckpointById(checkpointId);
+  if (!checkpoint) return { success: false, message: 'Unknown booth.' };
+
+  const note = `Paper fallback entry by ${staffName.slice(0, 80) || 'staff'}`;
+  const { data, error } = await db()
+    .from('booth_visits')
+    .insert({
+      visitor_id: visitorId,
+      checkpoint_id: checkpointId,
+      rating: 5,
+      review: note,
+    })
+    .select()
+    .single();
+
+  if (error) {
+    if (error.code === '23505') {
+      return { success: false, message: 'This visitor already has a stamp for that booth.' };
+    }
+    console.error('manualGrantBoothVisit:', error.message);
+    return { success: false, message: 'Could not record the stamp. Try again.' };
+  }
+  return { success: true, visit: data as BoothVisit };
+}
+
 export async function submitBoothQuiz(
   visitorId: string,
   checkpointId: string,
@@ -203,19 +262,10 @@ export async function submitBoothQuiz(
   points: number;
   message?: string;
 }> {
-  const checkpoint = await getCheckpointById(checkpointId);
+  const checkpoint = await getCheckpointCached(checkpointId);
   const quizQuestions = (checkpoint?.quiz || []).slice(0, QUIZ_MAX_QUESTIONS);
   if (!checkpoint || checkpoint.is_active === false || !quizQuestions.length) {
     return { success: false, correct: 0, total: 0, points: 0, message: 'This booth has no quiz.' };
-  }
-
-  const visits = await listVisitorVisits(visitorId);
-  const existing = visits.find(visit => visit.checkpoint_id === checkpointId);
-  if (!existing) {
-    return { success: false, correct: 0, total: quizQuestions.length, points: 0, message: 'Collect the stamp first.' };
-  }
-  if (existing.quiz_completed_at) {
-    return { success: false, correct: 0, total: quizQuestions.length, points: 0, message: 'You already completed this quiz.' };
   }
 
   const safeAnswers = quizQuestions.map((question, index) => {
@@ -224,6 +274,9 @@ export async function submitBoothQuiz(
   });
   const score = calculateQuizScore(quizQuestions, safeAnswers);
 
+  // Conditional update folds the "stamp collected, quiz not yet done" check
+  // into the write itself — one round trip on the happy path instead of a
+  // read to check state followed by a separate write.
   const { data, error } = await db()
     .from('booth_visits')
     .update({
@@ -234,12 +287,25 @@ export async function submitBoothQuiz(
     })
     .eq('visitor_id', visitorId)
     .eq('checkpoint_id', checkpointId)
+    .is('quiz_completed_at', null)
     .select()
-    .single();
+    .maybeSingle();
 
-  if (error || !data) {
-    console.error('submitBoothQuiz:', error?.message);
+  if (error) {
+    console.error('submitBoothQuiz:', error.message);
     return { success: false, ...score, message: 'Could not save your quiz. Check your connection and try again.' };
+  }
+  if (!data) {
+    // Rare failure path only: distinguish "no stamp yet" from "already done"
+    // with a single light read instead of paying for it on every submission.
+    const { data: visit } = await db()
+      .from('booth_visits')
+      .select('quiz_completed_at')
+      .eq('visitor_id', visitorId)
+      .eq('checkpoint_id', checkpointId)
+      .maybeSingle();
+    const message = visit ? 'You already completed this quiz.' : 'Collect the stamp first.';
+    return { success: false, correct: 0, total: quizQuestions.length, points: 0, message };
   }
   return { success: true, visit: data as BoothVisit, ...score };
 }
@@ -533,6 +599,15 @@ function isWithinRange(timestamp: string | null | undefined, range: { start: str
 
 async function buildRankingRows(day: LeaderboardDay = 'all'): Promise<RawRankRow[]> {
   if (!hasServerSupabase()) return [];
+  const cached = rankingRowsCache.get(day);
+  const now = Date.now();
+  if (cached && cached.expiresAt > now) return cached.rows;
+  const rows = await buildRankingRowsUncached(day);
+  rankingRowsCache.set(day, { expiresAt: now + LEADERBOARD_CACHE_MS, rows });
+  return rows;
+}
+
+async function buildRankingRowsUncached(day: LeaderboardDay = 'all'): Promise<RawRankRow[]> {
   const [visitsRes, votesRes, visitorsRes, checkpointsRes] = await Promise.all([
     db().from('booth_visits').select('visitor_id, checkpoint_id, rating, visited_at, quiz_points'),
     db().from('speaker_votes').select('visitor_id, created_at'),

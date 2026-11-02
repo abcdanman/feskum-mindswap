@@ -9,9 +9,11 @@ import {
   claimVisitorReward,
   getAdminVisitorVisits,
   findVisitorByUsername,
+  getCheckpoints,
+  manualGrantBoothVisit,
 } from '@/lib/supabase';
-import { RewardSetting, VisitorReward, RankingMetric, AdminAnalyticsVisitor } from '@/lib/types';
-import { Gift, ShieldCheck, CheckCircle2, ArrowLeft, Save, Search, UserCheck, AlertTriangle, Trophy } from 'lucide-react';
+import { RewardSetting, VisitorReward, RankingMetric, AdminAnalyticsVisitor, Checkpoint, BoothVisit } from '@/lib/types';
+import { Gift, ShieldCheck, CheckCircle2, ArrowLeft, Save, Search, UserCheck, AlertTriangle, Trophy, FileStack, Stamp } from 'lucide-react';
 
 const inputCls =
   'w-full p-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-sm focus:bg-white';
@@ -33,9 +35,18 @@ export default function AdminRewardsPage() {
   const [searchedVisitorId, setSearchedVisitorId] = useState<string>('');
   const [staffName, setStaffName] = useState<string>('HIR Helpdesk Staff A');
   const [claimMsg, setClaimMsg] = useState<string>('');
+  const [searchedVisits, setSearchedVisits] = useState<BoothVisit[]>([]);
+
+  // Paper fallback: manually re-enter a stamp collected on a paper tally
+  // form while the system was down.
+  const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
+  const [grantCheckpointId, setGrantCheckpointId] = useState<string>('');
+  const [grantMsg, setGrantMsg] = useState<string>('');
+  const [granting, setGranting] = useState<boolean>(false);
 
   useEffect(() => {
     loadSettings();
+    getCheckpoints(true).then(setCheckpoints);
   }, []);
 
   async function loadSettings() {
@@ -79,9 +90,11 @@ export default function AdminRewardsPage() {
     setSearchedVisitor(found);
     setSearchedVisitorId(visitorId);
     setSearchedReward(reward);
+    setSearchedVisits(visits);
     setVisitorStampCount(requiredCount);
     setSearchDone(true);
     setClaimMsg('');
+    setGrantMsg('');
   };
 
   const handleClaim = async () => {
@@ -90,6 +103,21 @@ export default function AdminRewardsPage() {
     if (updated) {
       setSearchedReward(updated);
       setClaimMsg('Souvenir marked as CLAIMED.');
+    }
+  };
+
+  const handleManualGrant = async () => {
+    if (!searchedVisitorId || !grantCheckpointId) return;
+    setGranting(true);
+    setGrantMsg('');
+    const result = await manualGrantBoothVisit(searchedVisitorId, grantCheckpointId, staffName);
+    setGranting(false);
+    setGrantMsg(result.message || (result.success ? 'Stamp recorded.' : 'Could not record the stamp.'));
+    if (result.success) {
+      const visits = await getAdminVisitorVisits(searchedVisitorId);
+      setSearchedVisits(visits);
+      setVisitorStampCount(visits.filter(v => v.checkpoint?.booth_type !== 'partner').length);
+      setGrantCheckpointId('');
     }
   };
 
@@ -147,6 +175,42 @@ export default function AdminRewardsPage() {
             <div className="flex items-center justify-between text-xs font-bold">
               <span className="text-slate-500">Required stamps collected</span>
               <span className="text-brand-600 mono text-sm">{visitorStampCount}</span>
+            </div>
+
+            {/* PAPER FALLBACK: re-enter a stamp tallied on paper during an outage */}
+            <div className="p-3 rounded-xl bg-cream-100 border-2 border-dashed border-ink/30 space-y-2">
+              <div className="flex items-center gap-1.5 text-[11px] font-bold text-slate-600">
+                <FileStack className="w-3.5 h-3.5" /> Paper fallback — grant a stamp manually
+              </div>
+              <div className="flex gap-2">
+                <select
+                  value={grantCheckpointId}
+                  onChange={e => setGrantCheckpointId(e.target.value)}
+                  className={`${inputCls} flex-1 !text-xs`}
+                >
+                  <option value="">Choose booth…</option>
+                  {checkpoints.map(cp => {
+                    const already = searchedVisits.some(v => v.checkpoint_id === cp.id);
+                    return (
+                      <option key={cp.id} value={cp.id} disabled={already}>
+                        {cp.name}
+                        {already ? ' (already stamped)' : ''}
+                      </option>
+                    );
+                  })}
+                </select>
+                <button
+                  onClick={handleManualGrant}
+                  disabled={!grantCheckpointId || granting}
+                  className="btn px-3 bg-ink text-white text-xs flex items-center gap-1 shrink-0 disabled:opacity-50"
+                >
+                  <Stamp className="w-3.5 h-3.5" /> Grant
+                </button>
+              </div>
+              <p className="text-[10px] text-slate-500">
+                Use only to re-enter stamps recorded on a paper tally form while the system was down.
+              </p>
+              {grantMsg && <p className="text-[11px] font-bold text-ink">{grantMsg}</p>}
             </div>
 
             {searchedReward ? (
