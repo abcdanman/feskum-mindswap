@@ -24,6 +24,7 @@ function extractToken(text: string): string {
 export default function ScanPage() {
   const router = useRouter();
   const scannerRef = useRef<{ stop: () => Promise<void>; clear: () => void } | null>(null);
+  const processingRef = useRef(false);
   const [status, setStatus] = useState<'idle' | 'starting' | 'scanning' | 'denied' | 'unsupported' | 'invalid'>('idle');
   const [manual, setManual] = useState('');
   const [manualCode, setManualCode] = useState('');
@@ -44,16 +45,27 @@ export default function ScanPage() {
   };
 
   const goToToken = async (token: string) => {
+    // Guards against the camera re-decoding the same frame (or a held-up
+    // QR code) multiple times before the first lookup resolves and the
+    // scanner stops — without this, an invalid code gets re-looked-up on
+    // every frame for as long as it stays in view.
+    if (processingRef.current) return;
     const clean = extractToken(token);
     if (!clean) return;
-    const cp = await getCheckpointByQrToken(clean);
-    if (!cp) {
-      setStatus('invalid');
-      setErrorMsg(`No active booth found for “${clean}”.`);
-      return;
+    processingRef.current = true;
+    try {
+      const cp = await getCheckpointByQrToken(clean);
+      if (!cp) {
+        await stopScanner();
+        setStatus('invalid');
+        setErrorMsg(`No active booth found for “${clean}”.`);
+        return;
+      }
+      await stopScanner();
+      router.push(`/checkpoint/${clean}`);
+    } finally {
+      processingRef.current = false;
     }
-    await stopScanner();
-    router.push(`/checkpoint/${clean}`);
   };
 
   const startScanner = async () => {

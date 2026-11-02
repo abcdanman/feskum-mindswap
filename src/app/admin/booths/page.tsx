@@ -6,6 +6,7 @@ import QRCode from 'qrcode';
 import { getCheckpoints, saveCheckpoint, deleteCheckpoint, uploadImage } from '@/lib/supabase';
 import { Checkpoint, QuizQuestion } from '@/lib/types';
 import Modal from '@/components/Modal';
+import ImageCropModal from '@/components/ImageCropModal';
 import { QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
 import {
   QrCode,
@@ -51,6 +52,7 @@ export default function AdminBoothsPage() {
   const [error, setError] = useState('');
   const [initialBooth, setInitialBooth] = useState('');
   const [quizScrollTarget, setQuizScrollTarget] = useState<string | null>(null);
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -153,10 +155,15 @@ export default function AdminBoothsPage() {
     }));
   };
 
-  const handleImageFile = async (file: File | null) => {
+  const handleImageFile = (file: File | null) => {
     if (!file) return;
-    setUploading(true);
     setError('');
+    setCropFile(file);
+  };
+
+  const handleCroppedImage = async (file: File) => {
+    setCropFile(null);
+    setUploading(true);
     const url = await uploadImage(file, 'booths');
     setUploading(false);
     if (!url) {
@@ -621,7 +628,10 @@ export default function AdminBoothsPage() {
                       type="file"
                       accept="image/*"
                       className="hidden"
-                      onChange={e => handleImageFile(e.target.files?.[0] || null)}
+                      onChange={e => {
+                        handleImageFile(e.target.files?.[0] || null);
+                        e.target.value = '';
+                      }}
                     />
                     <input
                       type="url"
@@ -712,6 +722,16 @@ export default function AdminBoothsPage() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {cropFile && (
+        <ImageCropModal
+          file={cropFile}
+          aspect={16 / 9}
+          title="Crop booth photo"
+          onCancel={() => setCropFile(null)}
+          onCropped={handleCroppedImage}
+        />
       )}
     </div>
   );

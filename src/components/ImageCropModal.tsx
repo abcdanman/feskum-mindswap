@@ -1,0 +1,130 @@
+'use client';
+
+import React, { useCallback, useEffect, useState } from 'react';
+import Cropper, { type Area } from 'react-easy-crop';
+import Modal from './Modal';
+import { Check, X, ZoomIn } from 'lucide-react';
+
+interface ImageCropModalProps {
+  file: File;
+  aspect: number;
+  title: string;
+  onCancel: () => void;
+  onCropped: (file: File) => void;
+}
+
+async function loadImage(url: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = reject;
+    img.src = url;
+  });
+}
+
+async function getCroppedFile(imageUrl: string, area: Area, sourceType: string): Promise<File> {
+  const image = await loadImage(imageUrl);
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(area.width);
+  canvas.height = Math.round(area.height);
+  const ctx = canvas.getContext('2d');
+  if (!ctx) throw new Error('Canvas not supported');
+  ctx.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, area.width, area.height);
+
+  const outputType = sourceType === 'image/png' ? 'image/png' : 'image/jpeg';
+  const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, outputType, 0.9));
+  if (!blob) throw new Error('Could not process image');
+  const ext = outputType === 'image/png' ? 'png' : 'jpg';
+  return new File([blob], `cropped.${ext}`, { type: outputType });
+}
+
+export default function ImageCropModal({ file, aspect, title, onCancel, onCropped }: ImageCropModalProps) {
+  const [imageUrl, setImageUrl] = useState<string | null>(null);
+  const [crop, setCrop] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(1);
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
+  const [processing, setProcessing] = useState(false);
+
+  useEffect(() => {
+    const url = URL.createObjectURL(file);
+    setImageUrl(url);
+    return () => URL.revokeObjectURL(url);
+  }, [file]);
+
+  const onCropComplete = useCallback((_croppedArea: Area, areaPixels: Area) => {
+    setCroppedAreaPixels(areaPixels);
+  }, []);
+
+  const handleConfirm = async () => {
+    if (!croppedAreaPixels || !imageUrl) return;
+    setProcessing(true);
+    try {
+      const cropped = await getCroppedFile(imageUrl, croppedAreaPixels, file.type);
+      onCropped(cropped);
+    } catch {
+      setProcessing(false);
+    }
+  };
+
+  return (
+    <Modal onClose={onCancel} labelledBy="crop-modal-title" panelClassName="max-w-md">
+      <div className="p-5 space-y-4">
+        <h3 id="crop-modal-title" className="display text-lg text-ink leading-none">
+          {title}
+        </h3>
+        <p className="text-[11px] text-slate-500">Drag to reposition, scroll or use the slider to zoom.</p>
+
+        <div className="relative w-full h-72 rounded-xl overflow-hidden border-2 border-ink bg-ink">
+          {imageUrl && (
+            <Cropper
+              image={imageUrl}
+              crop={crop}
+              zoom={zoom}
+              aspect={aspect}
+              onCropChange={setCrop}
+              onZoomChange={setZoom}
+              onCropComplete={onCropComplete}
+            />
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <ZoomIn className="w-4 h-4 text-slate-500 shrink-0" aria-hidden="true" />
+          <input
+            type="range"
+            min={1}
+            max={3}
+            step={0.01}
+            value={zoom}
+            onChange={e => setZoom(Number(e.target.value))}
+            className="w-full"
+            aria-label="Zoom"
+          />
+        </div>
+
+        <div className="flex gap-2">
+          <button
+            type="button"
+            onClick={onCancel}
+            className="btn flex-1 py-2.5 bg-white text-ink text-xs flex items-center justify-center gap-1.5"
+          >
+            <X className="w-4 h-4" aria-hidden="true" /> Cancel
+          </button>
+          <button
+            type="button"
+            onClick={handleConfirm}
+            disabled={processing || !croppedAreaPixels}
+            className="btn flex-1 py-2.5 bg-brand-500 hover:bg-brand-600 text-white text-xs flex items-center justify-center gap-1.5 disabled:opacity-60"
+          >
+            {processing ? (
+              <span className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" aria-hidden="true" />
+            ) : (
+              <Check className="w-4 h-4" aria-hidden="true" />
+            )}
+            {processing ? 'Processing…' : 'Use this crop'}
+          </button>
+        </div>
+      </div>
+    </Modal>
+  );
+}

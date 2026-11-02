@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getSpeakers, saveSpeaker, deleteSpeaker, uploadImage } from '@/lib/supabase';
 import { Speaker } from '@/lib/types';
 import Modal from '@/components/Modal';
+import ImageCropModal from '@/components/ImageCropModal';
 import { Plus, Edit3, Trash2, ArrowLeft, X, Save, ThumbsUp, User, UploadCloud, ImageIcon } from 'lucide-react';
 
 const inputCls =
@@ -18,6 +19,7 @@ export default function AdminSpeakersPage() {
   const [uploading, setUploading] = useState(false);
   const [error, setError] = useState('');
   const [initialSpeaker, setInitialSpeaker] = useState('');
+  const [cropFile, setCropFile] = useState<File | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -94,10 +96,15 @@ export default function AdminSpeakersPage() {
     loadSpeakers();
   };
 
-  const handleImageFile = async (file: File | null) => {
+  const handleImageFile = (file: File | null) => {
     if (!file) return;
-    setUploading(true);
     setError('');
+    setCropFile(file);
+  };
+
+  const handleCroppedImage = async (file: File) => {
+    setCropFile(null);
+    setUploading(true);
     const url = await uploadImage(file, 'speakers');
     setUploading(false);
     if (!url) {
@@ -250,7 +257,10 @@ export default function AdminSpeakersPage() {
                     type="file"
                     accept="image/*"
                     className="hidden"
-                    onChange={e => handleImageFile(e.target.files?.[0] || null)}
+                    onChange={e => {
+                      handleImageFile(e.target.files?.[0] || null);
+                      e.target.value = '';
+                    }}
                   />
                   <input
                     type="url"
@@ -410,6 +420,16 @@ export default function AdminSpeakersPage() {
             </div>
           </form>
         </Modal>
+      )}
+
+      {cropFile && (
+        <ImageCropModal
+          file={cropFile}
+          aspect={1}
+          title="Crop speaker photo"
+          onCancel={() => setCropFile(null)}
+          onCropped={handleCroppedImage}
+        />
       )}
     </div>
   );

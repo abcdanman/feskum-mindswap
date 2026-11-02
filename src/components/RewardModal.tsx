@@ -15,7 +15,7 @@ interface RewardModalProps {
 
 export default function RewardModal({ rewardSetting, visitorReward, visitorId, onClose }: RewardModalProps) {
   useEffect(() => {
-    confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 }, colors: ['#293B9D', '#F59E0B', '#F8F6F0'] });
+    confetti({ particleCount: 90, spread: 80, origin: { y: 0.6 }, colors: ['#293B9D', '#F59E0B', '#F8F6F0'], disableForReducedMotion: true });
   }, []);
 
   const isClaimed = visitorReward.status === 'claimed';
