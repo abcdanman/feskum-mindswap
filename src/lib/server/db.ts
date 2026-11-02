@@ -35,23 +35,16 @@ function db() {
 // -------------------------------------------------------------
 const LEADERBOARD_CACHE_MS = 8_000;
 const CHECKPOINT_CACHE_MS = 15_000;
+// If a claimed recompute never finishes writing back (e.g. the function was
+// killed mid-flight), another instance can reclaim the job after this long
+// rather than leaving the snapshot stuck stale forever.
+const SNAPSHOT_CLAIM_TIMEOUT_MS = 15_000;
 
-// Single-flight: when the cache is cold and many requests land at once (a
-// leaderboard-open rush, a booth-scan rush), only the first one should hit
-// the DB — the rest await that same in-flight promise instead of each
-// firing their own query. Without this, an 8s TTL does nothing for a
-// synchronized cold-start burst, since every request races past the empty
-// cache before any of them have a result to populate it with.
-function singleFlight<T>(inFlight: Map<string, Promise<T>>, key: string, fetcher: () => Promise<T>): Promise<T> {
-  const existing = inFlight.get(key);
-  if (existing) return existing;
-  const promise = fetcher().finally(() => inFlight.delete(key));
-  inFlight.set(key, promise);
-  return promise;
-}
-
+// Checkpoints are cheap to read and rarely change, so a per-instance cache
+// is enough. The leaderboard query is expensive and gets hit by far more
+// concurrent traffic, so it needs a cache shared across instances — see
+// getRankingRows below, backed by the leaderboard_snapshots table.
 const rankingRowsCache = new Map<LeaderboardDay, { expiresAt: number; rows: RawRankRow[] }>();
-const rankingRowsInFlight = new Map<string, Promise<RawRankRow[]>>();
 let checkpointCache: { expiresAt: number; byId: Map<string, Checkpoint> } | null = null;
 let checkpointCacheInFlight: Promise<Checkpoint[]> | null = null;
 
@@ -618,15 +611,68 @@ function isWithinRange(timestamp: string | null | undefined, range: { start: str
   return time >= new Date(range.start).getTime() && time < new Date(range.end).getTime();
 }
 
-async function buildRankingRows(day: LeaderboardDay = 'all'): Promise<RawRankRow[]> {
+// Attempts to become the one instance that recomputes this day's snapshot.
+// The UPDATE's WHERE clause only matches a row nobody else has claimed
+// recently, so under concurrent instances Postgres lets exactly one of them
+// win — the losers get zero rows back and skip straight to serving the
+// existing (possibly slightly stale) snapshot instead of recomputing.
+async function claimSnapshotRecompute(day: LeaderboardDay): Promise<boolean> {
+  const now = new Date();
+  const staleBefore = new Date(now.getTime() - SNAPSHOT_CLAIM_TIMEOUT_MS).toISOString();
+  const { data: claimed } = await db()
+    .from('leaderboard_snapshots')
+    .update({ computing_since: now.toISOString() })
+    .eq('day', day)
+    .or(`computing_since.is.null,computing_since.lt.${staleBefore}`)
+    .select('day')
+    .maybeSingle();
+  if (claimed) return true;
+
+  // Row may not exist yet for this day — the PK collision means only the
+  // first insert for a given day wins, so it doubles as a claim.
+  const { error: insertError } = await db()
+    .from('leaderboard_snapshots')
+    .insert({ day, rows: [], updated_at: new Date(0).toISOString(), computing_since: now.toISOString() });
+  return !insertError;
+}
+
+// Precomputed, shared across every serverless instance. An in-memory cache
+// (however carefully single-flighted) can't dedupe a concurrent burst that
+// Vercel fans out across many isolated function instances — this table is
+// the one place all of them can agree on "is there a fresh answer already?"
+async function getRankingRows(day: LeaderboardDay = 'all'): Promise<RawRankRow[]> {
   if (!hasServerSupabase()) return [];
-  const cached = rankingRowsCache.get(day);
-  if (cached && cached.expiresAt > Date.now()) return cached.rows;
-  return singleFlight(rankingRowsInFlight, day, async () => {
-    const rows = await buildRankingRowsUncached(day);
-    rankingRowsCache.set(day, { expiresAt: Date.now() + LEADERBOARD_CACHE_MS, rows });
-    return rows;
-  });
+
+  const local = rankingRowsCache.get(day);
+  if (local && local.expiresAt > Date.now()) return local.rows;
+
+  const { data: snapshot } = await db()
+    .from('leaderboard_snapshots')
+    .select('rows, updated_at')
+    .eq('day', day)
+    .maybeSingle();
+  const snapshotRows = (snapshot?.rows as RawRankRow[] | undefined) || [];
+  const snapshotAge = snapshot ? Date.now() - new Date(snapshot.updated_at).getTime() : Infinity;
+
+  if (snapshot && snapshotAge < LEADERBOARD_CACHE_MS) {
+    rankingRowsCache.set(day, { expiresAt: Date.now() + LEADERBOARD_CACHE_MS, rows: snapshotRows });
+    return snapshotRows;
+  }
+
+  const wonClaim = await claimSnapshotRecompute(day);
+  if (!wonClaim) {
+    // Someone else is already recomputing — serve what's there now rather
+    // than pile onto the same expensive query, and recheck again shortly.
+    rankingRowsCache.set(day, { expiresAt: Date.now() + 2_000, rows: snapshotRows });
+    return snapshotRows;
+  }
+
+  const rows = await buildRankingRowsUncached(day);
+  await db()
+    .from('leaderboard_snapshots')
+    .upsert({ day, rows, updated_at: new Date().toISOString(), computing_since: null });
+  rankingRowsCache.set(day, { expiresAt: Date.now() + LEADERBOARD_CACHE_MS, rows });
+  return rows;
 }
 
 async function buildRankingRowsUncached(day: LeaderboardDay = 'all'): Promise<RawRankRow[]> {
@@ -812,7 +858,7 @@ export async function getLeaderboard(
   myVisitorId?: string | null,
   day: LeaderboardDay = 'all'
 ): Promise<LeaderboardEntry[]> {
-  const rows = await buildRankingRows(day);
+  const rows = await getRankingRows(day);
   return rows
     .filter(row => row.required_stamps + row.partner_stamps > 0)
     .sort((a, b) => compareRows(a, b, metric, day))
@@ -825,7 +871,7 @@ export async function getVisitorRank(
   metric: RankingMetric = 'points',
   day: LeaderboardDay = 'all'
 ): Promise<{ rank: number; total: number; entry: LeaderboardEntry | null }> {
-  const rows = await buildRankingRows(day);
+  const rows = await getRankingRows(day);
   const sorted = rows
     .filter(row => row.required_stamps + row.partner_stamps > 0)
     .sort((a, b) => compareRows(a, b, metric, day));

@@ -325,4 +325,16 @@ WHERE id = 'b09ff77a-7941-4629-a052-4e9b99776a1a'
     WHERE v.checkpoint_id = 'b09ff77a-7941-4629-a052-4e9b99776a1a'
   );
 
+-- 8. PRECOMPUTED LEADERBOARD SNAPSHOT (avoids recomputing ranking on every
+-- read; see migrations/20261102_leaderboard_snapshot.sql for rationale)
+CREATE TABLE IF NOT EXISTS public.leaderboard_snapshots (
+  day TEXT PRIMARY KEY,
+  rows JSONB NOT NULL DEFAULT '[]'::jsonb,
+  updated_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+  computing_since TIMESTAMPTZ NULL
+);
+
+ALTER TABLE public.leaderboard_snapshots ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.leaderboard_snapshots FROM anon, authenticated;
+
 NOTIFY pgrst, 'reload schema';
