@@ -20,7 +20,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
   const [loading, setLoading] = useState(true);
 
   // Form State
-  const [rating, setRating] = useState<number>(5);
+  const [rating, setRating] = useState<number>(0);
   const [review, setReview] = useState<string>('');
   const [hoverRating, setHoverRating] = useState<number>(0);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -65,6 +65,10 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
   const handleSubmitRating = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!checkpoint || isSubmitting) return;
+    if (rating === 0) {
+      setErrorMsg('Tap a star to rate this booth before submitting.');
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMsg('');
@@ -382,6 +386,9 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
                   </button>
                 ))}
               </div>
+              {rating === 0 && (
+                <p className="text-[11px] text-slate-500 text-center mt-1.5">Tap a star to rate this booth.</p>
+              )}
             </div>
 
             {/* OPTIONAL REVIEW TEXT */}
@@ -409,8 +416,8 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
 
             <button
               type="submit"
-              disabled={isSubmitting}
-              className="btn w-full py-3.5 bg-brand-500 text-white text-sm flex items-center justify-center gap-2"
+              disabled={isSubmitting || rating === 0}
+              className="btn w-full py-3.5 bg-brand-500 text-white text-sm flex items-center justify-center gap-2 disabled:opacity-60"
             >
               {isSubmitting ? (
                 <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin" />
