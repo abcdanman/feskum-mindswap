@@ -18,8 +18,19 @@ export default function Navbar() {
       setStampCount(visits.length);
     }
     loadStamps();
-    const interval = setInterval(loadStamps, 4000);
-    return () => clearInterval(interval);
+    // Skip the poll while the tab is backgrounded, and catch up immediately
+    // on return instead of waiting out the rest of the interval.
+    const interval = setInterval(() => {
+      if (document.visibilityState === 'visible') loadStamps();
+    }, 4000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadStamps();
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      clearInterval(interval);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [pathname]);
 
   const leftItems = [

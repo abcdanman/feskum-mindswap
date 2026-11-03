@@ -21,9 +21,11 @@ export default function HomePage() {
   useEffect(() => {
     async function loadData() {
       const visitorId = getOrInitVisitorId();
-      const visits = await getVisitorVisits(visitorId);
-      const checkpoints = await getCheckpoints();
-      const setting = await getRewardSetting();
+      const [visits, checkpoints, setting] = await Promise.all([
+        getVisitorVisits(visitorId),
+        getCheckpoints(),
+        getRewardSetting(),
+      ]);
 
       const checkpointMap = new Map(checkpoints.map(c => [c.id, c]));
       const requiredVisits = visits.filter(

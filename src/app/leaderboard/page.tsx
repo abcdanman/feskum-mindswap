@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { Trophy, Medal, Crown, Ticket, ArrowRight, LocateFixed } from 'lucide-react';
 import { getOrInitVisitorId } from '@/lib/visitor';
@@ -19,6 +19,12 @@ const DAY_TABS: { key: LeaderboardDay; label: string }[] = [
   ...EVENT_DAYS.map(day => ({ key: day.key, label: day.shortLabel })),
 ];
 
+// Fetching and rendering every ranked visitor (previously up to 400,
+// unvirtualized) was real payload and DOM cost on every load and every
+// 20s poll. The "Your rank" card already covers anyone outside this cut
+// via a separate lightweight call that doesn't scale with list size.
+const LEADERBOARD_FETCH_LIMIT = 100;
+
 function publicName(entry: LeaderboardEntry): string {
   return entry.username ? `@${entry.username}` : entry.name;
 }
@@ -29,6 +35,10 @@ export default function LeaderboardPage() {
   const [metric, setMetric] = useState<RankingMetric>('points');
   const [day, setDay] = useState<LeaderboardDay>('all');
   const [loading, setLoading] = useState(true);
+  // Resolved once per page visit, not on every 20s poll — the ranking
+  // metric is an admin setting that essentially never changes mid-session.
+  const metricRef = useRef<RankingMetric>('points');
+  const metricLoadedRef = useRef(false);
 
   useEffect(() => {
     const initialDay = getDefaultLeaderboardDay();
@@ -38,11 +48,16 @@ export default function LeaderboardPage() {
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true);
     const visitorId = getOrInitVisitorId();
-    const setting = await getRewardSetting();
-    const m = (setting.ranking_metric || 'points') as RankingMetric;
-    setMetric(m);
+    if (!metricLoadedRef.current) {
+      const setting = await getRewardSetting();
+      const m = (setting.ranking_metric || 'points') as RankingMetric;
+      metricRef.current = m;
+      metricLoadedRef.current = true;
+      setMetric(m);
+    }
+    const m = metricRef.current;
     const [board, rank] = await Promise.all([
-      getLeaderboard(400, m, visitorId, day),
+      getLeaderboard(LEADERBOARD_FETCH_LIMIT, m, visitorId, day),
       getVisitorRank(visitorId, m, day),
     ]);
     setEntries(board);
@@ -52,8 +67,20 @@ export default function LeaderboardPage() {
 
   useEffect(() => {
     load();
-    const timer = window.setInterval(() => load(true), 20000);
-    return () => window.clearInterval(timer);
+    // Skip the poll while the tab is backgrounded — no one's watching it
+    // update — and catch up immediately the moment it's foregrounded again
+    // rather than waiting out the rest of the interval.
+    const timer = window.setInterval(() => {
+      if (document.visibilityState === 'visible') load(true);
+    }, 20000);
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') load(true);
+    };
+    document.addEventListener('visibilitychange', handleVisibility);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener('visibilitychange', handleVisibility);
+    };
   }, [load]);
 
   const top3 = entries.slice(0, 3);
@@ -70,6 +97,11 @@ export default function LeaderboardPage() {
   const jumpToMe = () => {
     document.getElementById('leaderboard-me')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
   };
+
+  // "Jump to my rank" only makes sense if that row is actually rendered —
+  // past the fetch cap, is_you never appears in entries at all.
+  const meIsRendered = entries.some(entry => entry.is_you);
+  const rankedTotal = me?.total ?? entries.length;
 
   const renderRow = (entry: LeaderboardEntry) => (
     <div
@@ -164,7 +196,7 @@ export default function LeaderboardPage() {
               </p>
             </div>
           </div>
-          {me.rank > 50 && (
+          {me.rank > 50 && meIsRendered && (
             <button
               type="button"
               onClick={jumpToMe}
@@ -246,15 +278,17 @@ export default function LeaderboardPage() {
             {ranks4to50.length > 0 && (
               <div className="flex items-center justify-between pt-1">
                 <span className="eyebrow text-slate-400">Ranks 4–50</span>
-                <span className="text-[10px] mono text-slate-400">{entries.length} ranked</span>
+                <span className="text-[10px] mono text-slate-400">{rankedTotal} ranked</span>
               </div>
             )}
             {ranks4to50.map(renderRow)}
             {ranks51plus.length > 0 && (
               <>
                 <div className="flex items-center justify-between pt-3">
-                  <span className="eyebrow text-slate-400">Full list · 51+</span>
-                  <span className="text-[10px] mono text-slate-400">{entries.length} ranked</span>
+                  <span className="eyebrow text-slate-400">
+                    Top {LEADERBOARD_FETCH_LIMIT} · 51–{entries.length}
+                  </span>
+                  <span className="text-[10px] mono text-slate-400">{rankedTotal} ranked</span>
                 </div>
                 {ranks51plus.map(renderRow)}
               </>

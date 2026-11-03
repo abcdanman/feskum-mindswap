@@ -38,9 +38,16 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
   const [error, setError] = useState('');
   const [usernameError, setUsernameError] = useState('');
   const [reclaimed, setReclaimed] = useState(false);
+  // The session is only worth re-validating with the server once per app
+  // load, not on every navigation — it doesn't change between page views.
+  const sessionCheckedRef = useRef(false);
 
   useEffect(() => {
     if (pathname?.startsWith('/admin')) {
+      setReady(true);
+      return;
+    }
+    if (sessionCheckedRef.current) {
       setReady(true);
       return;
     }
@@ -55,6 +62,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
       setFaculty(identity.faculty);
       setComplete(Boolean(session.authenticated && identity.complete));
       setReady(true);
+      sessionCheckedRef.current = true;
     })();
     return () => {
       cancelled = true;
