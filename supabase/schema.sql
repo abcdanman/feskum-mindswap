@@ -337,4 +337,9 @@ CREATE TABLE IF NOT EXISTS public.leaderboard_snapshots (
 ALTER TABLE public.leaderboard_snapshots ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.leaderboard_snapshots FROM anon, authenticated;
 
+-- 9. BOOTH MAP LABEL (which of the 17 numbered faculty positions on the
+-- venue floor plan this booth occupies; see
+-- migrations/20261103_checkpoint_map_label.sql)
+ALTER TABLE public.checkpoints ADD COLUMN IF NOT EXISTS map_label INT NULL;
+
 NOTIFY pgrst, 'reload schema';

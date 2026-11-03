@@ -49,6 +49,8 @@ export interface Checkpoint {
   quiz?: QuizQuestion[] | null;
   is_active: boolean;
   display_order: number;
+  /** Which of the 17 numbered faculty positions on the venue floor plan this booth occupies. */
+  map_label?: number | null;
   created_at?: string;
   updated_at?: string;
 }

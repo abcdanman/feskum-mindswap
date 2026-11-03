@@ -158,6 +158,7 @@ export async function saveCheckpoint(
     quiz: checkpoint.quiz ?? [],
     is_active: checkpoint.is_active ?? true,
     display_order: checkpoint.display_order ?? 0,
+    map_label: checkpoint.map_label ?? null,
   };
   if (!payload.qr_token && payload.name) {
     payload.qr_token = `qr-${crypto.randomUUID().slice(0, 8)}`;

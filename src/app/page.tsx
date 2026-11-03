@@ -2,11 +2,23 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Gift, Trophy } from 'lucide-react';
+import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Gift, Trophy, Mic } from 'lucide-react';
 import BoothThumb from '@/components/BoothThumb';
 import { getOrInitVisitorId, getVisitorIdentity } from '@/lib/visitor';
-import { getVisitorVisits, getCheckpoints, getRewardSetting } from '@/lib/supabase';
-import { Checkpoint, RewardSetting } from '@/lib/types';
+import { getVisitorVisits, getCheckpoints, getRewardSetting, getSpeakers } from '@/lib/supabase';
+import { Checkpoint, RewardSetting, Speaker } from '@/lib/types';
+
+// Fisher-Yates — used so the home page doesn't always spotlight the same
+// few booths/speaker by display order, which reads as favoritism when
+// every visitor sees the identical lineup every time.
+function shuffled<T>(items: T[]): T[] {
+  const result = [...items];
+  for (let i = result.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [result[i], result[j]] = [result[j], result[i]];
+  }
+  return result;
+}
 
 export default function HomePage() {
   const [stampCount, setStampCount] = useState<number>(0);
@@ -16,15 +28,17 @@ export default function HomePage() {
   const [partnerBoothCount, setPartnerBoothCount] = useState<number>(0);
   const [rewardSetting, setRewardSetting] = useState<RewardSetting | null>(null);
   const [featuredBooths, setFeaturedBooths] = useState<Checkpoint[]>([]);
+  const [featuredSpeaker, setFeaturedSpeaker] = useState<Speaker | null>(null);
   const [name, setName] = useState('');
 
   useEffect(() => {
     async function loadData() {
       const visitorId = getOrInitVisitorId();
-      const [visits, checkpoints, setting] = await Promise.all([
+      const [visits, checkpoints, setting, speakers] = await Promise.all([
         getVisitorVisits(visitorId),
         getCheckpoints(),
         getRewardSetting(),
+        getSpeakers(),
       ]);
 
       const checkpointMap = new Map(checkpoints.map(c => [c.id, c]));
@@ -40,7 +54,8 @@ export default function HomePage() {
       setRequiredBoothCount(requiredBooths.length);
       setPartnerBoothCount(partnerBooths.length);
       setRewardSetting(setting);
-      setFeaturedBooths((requiredBooths.length > 0 ? requiredBooths : checkpoints).slice(0, 3));
+      setFeaturedBooths(shuffled(requiredBooths.length > 0 ? requiredBooths : checkpoints).slice(0, 3));
+      setFeaturedSpeaker(shuffled(speakers)[0] || null);
       setName(getVisitorIdentity().name.split(' ')[0] || 'delegate');
     }
     loadData();
@@ -220,6 +235,46 @@ export default function HomePage() {
           ))}
         </div>
       </div>
+
+      {/* FEATURED SPEAKER */}
+      {featuredSpeaker && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h3 className="display text-xl text-ink leading-none">Featured speaker</h3>
+            <Link href="/talks" className="text-xs font-extrabold text-brand-600 uppercase">
+              UM Talk →
+            </Link>
+          </div>
+
+          <Link href="/talks" className="card card-hover p-3.5 flex items-center gap-3 group">
+            <div className="relative w-14 h-14 rounded-xl overflow-hidden bg-cream-100 shrink-0 border-2 border-ink">
+              {featuredSpeaker.photo_url ? (
+                <img
+                  src={featuredSpeaker.photo_url}
+                  alt={featuredSpeaker.name}
+                  width={56}
+                  height={56}
+                  loading="lazy"
+                  className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-cream-200 text-slate-500">
+                  <Mic className="w-5 h-5" />
+                </div>
+              )}
+            </div>
+            <div className="min-w-0 flex-1">
+              <h4 className="font-extrabold text-ink text-sm leading-tight group-hover:text-brand-600 transition-colors truncate">
+                {featuredSpeaker.name}
+              </h4>
+              <p className="text-[11px] text-brand-600 font-bold truncate">{featuredSpeaker.position}</p>
+              <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                &quot;{featuredSpeaker.session_title}&quot; · {featuredSpeaker.session_time}
+              </p>
+            </div>
+          </Link>
+        </div>
+      )}
     </div>
   );
 }

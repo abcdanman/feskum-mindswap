@@ -8,6 +8,7 @@ import { Checkpoint, QuizQuestion } from '@/lib/types';
 import Modal from '@/components/Modal';
 import ImageCropModal from '@/components/ImageCropModal';
 import { QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
+import { MAP_LABELS } from '@/lib/floorplan';
 import {
   QrCode,
   Plus,
@@ -283,6 +284,11 @@ export default function AdminBoothsPage() {
                       Inactive
                     </span>
                   )}
+                  {booth.map_label && (
+                    <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-brand-100 text-brand-700 mono">
+                      Map #{booth.map_label}
+                    </span>
+                  )}
                 </div>
                 <h3 className="font-extrabold text-ink text-sm leading-snug line-clamp-2">{booth.name}</h3>
                 <p className="text-[11px] text-slate-500 truncate">{booth.faculty} • {booth.location}</p>
@@ -459,6 +465,41 @@ export default function AdminBoothsPage() {
                     className={inputCls}
                   />
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="booth-map-label" className="eyebrow text-slate-500 block mb-1">
+                  Map position <span className="normal-case tracking-normal font-normal">(optional, for the venue floor plan)</span>
+                </label>
+                <select
+                  id="booth-map-label"
+                  name="map_label"
+                  value={editingBooth.map_label ?? ''}
+                  onChange={e =>
+                    setEditingBooth({
+                      ...editingBooth,
+                      map_label: e.target.value ? Number(e.target.value) : null,
+                    })
+                  }
+                  className={inputCls}
+                >
+                  <option value="">— Not labelled —</option>
+                  {MAP_LABELS.map((label, index) => (
+                    <option key={label} value={index + 1}>
+                      {index + 1} · {label}
+                    </option>
+                  ))}
+                </select>
+                {editingBooth.map_label && (() => {
+                  const takenBy = checkpoints.find(
+                    c => c.map_label === editingBooth.map_label && c.id !== editingBooth.id
+                  );
+                  return takenBy ? (
+                    <p className="text-[10px] text-rose-600 mt-1">
+                      Position {editingBooth.map_label} is already assigned to &quot;{takenBy.name}&quot;.
+                    </p>
+                  ) : null;
+                })()}
               </div>
 
               <div>
