@@ -14,13 +14,12 @@ interface StampCardProps {
 export default function StampCard({ checkpoint, visit, index }: StampCardProps) {
   const isCompleted = Boolean(visit);
   const isPartner = checkpoint.booth_type === 'partner';
+  const cardClassName = `relative group card card-hover p-4 block ${
+    isCompleted ? (isPartner ? 'bg-amber-50' : 'bg-emerald-50') : 'bg-white'
+  }`;
 
-  return (
-    <div
-      className={`relative group card card-hover p-4 ${
-        isCompleted ? (isPartner ? 'bg-amber-50' : 'bg-emerald-50') : 'bg-white'
-      }`}
-    >
+  const content = (
+    <>
       {/* Number Badge */}
       <div className="flex items-start justify-between mb-2 gap-2">
         <span className="display text-3xl text-slate-300 leading-none">
@@ -84,6 +83,18 @@ export default function StampCard({ checkpoint, visit, index }: StampCardProps) 
           </Link>
         </div>
       )}
-    </div>
+    </>
   );
+
+  // A stamped booth is view-only — tapping it reopens the checkpoint page's
+  // read-only recap (rating, review, quiz result) instead of the live form.
+  if (isCompleted) {
+    return (
+      <Link href={`/checkpoint/${checkpoint.qr_token}`} className={cardClassName}>
+        {content}
+      </Link>
+    );
+  }
+
+  return <div className={cardClassName}>{content}</div>;
 }
