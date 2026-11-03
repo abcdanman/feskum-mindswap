@@ -4,12 +4,14 @@ import {
   AdminAnalyticsVisitor,
   BoothVisit,
   Checkpoint,
+  EvaluationReport,
   LeaderboardDay,
   LeaderboardEntry,
   RankingMetric,
   RewardSetting,
   Speaker,
   VisitorReward,
+  VotingStatus,
 } from './types';
 import { INITIAL_REWARD_SETTING } from './mockData';
 
@@ -332,6 +334,17 @@ export async function submitSpeakerVote(
   };
 }
 
+export async function getVotingStatus(): Promise<VotingStatus> {
+  const result = await dataRequest('voting.status');
+  return (result as VotingStatus | null) || { is_active: false, title: "People's Choice Award", description: '' };
+}
+
+export async function setVotingActive(active: boolean): Promise<{ error: string | null }> {
+  const result = await adminRequest('voting.setActive', { active });
+  if (!result) return { error: 'Could not update voting status.' };
+  return { error: (result.error as string | null) || null };
+}
+
 export async function getAdminAnalytics() {
   const result = await adminRequest('analytics');
   return (result as {
@@ -363,6 +376,27 @@ export async function getAdminAnalytics() {
     speakerVotes: [],
     visitorIdentities: [],
   };
+}
+
+const EMPTY_EVALUATION_REPORT: EvaluationReport = {
+  day: 'all',
+  generated_at: new Date(0).toISOString(),
+  registered_visitors: 0,
+  active_visitors: 0,
+  avg_rating: 0,
+  funnel: { zero_stamps: 0, partial_stamps: 0, completed: 0, threshold: 8 },
+  booth_performance: [],
+  rating_distribution: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
+  quiz: { eligible_visits: 0, attempted: 0, completion_rate: 0, avg_accuracy: 0 },
+  voting: { votes: 0, participation_rate: 0 },
+  hourly_traffic: [],
+  reviews: [],
+  recommendations: [],
+};
+
+export async function getEvaluationReport(day: LeaderboardDay = 'all'): Promise<EvaluationReport> {
+  const result = await adminRequest('evaluation', { day });
+  return (result as EvaluationReport | null) || { ...EMPTY_EVALUATION_REPORT, day };
 }
 
 export async function checkAdminWrite(): Promise<{ ok: boolean; message: string }> {

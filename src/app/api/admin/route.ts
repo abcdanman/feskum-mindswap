@@ -6,6 +6,8 @@ import {
   deleteSpeaker,
   findVisitorByUsername,
   getAdminAnalytics,
+  getEvaluationReport,
+  setVotingActive,
   getVisitorReward,
   listCheckpoints,
   listSpeakers,
@@ -16,6 +18,7 @@ import {
   saveSpeaker,
 } from '@/lib/server/db';
 import { hasAdminSession } from '@/lib/server/session';
+import type { LeaderboardDay } from '@/lib/types';
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, {
@@ -43,6 +46,11 @@ export async function POST(request: NextRequest) {
       case 'analytics':
         return json(await getAdminAnalytics());
 
+      case 'evaluation': {
+        const day = (payload.day === 'day1' || payload.day === 'day2' ? payload.day : 'all') as LeaderboardDay;
+        return json(await getEvaluationReport(day));
+      }
+
       case 'checkpoints.list':
         return json(await listCheckpoints(true, false));
 
@@ -60,6 +68,9 @@ export async function POST(request: NextRequest) {
 
       case 'speakers.delete':
         return json(await deleteSpeaker(String(payload.id || '')));
+
+      case 'voting.setActive':
+        return json(await setVotingActive(Boolean(payload.active)));
 
       case 'reward.save':
         return json(await saveRewardSetting(payload.setting as Record<string, unknown>));

@@ -55,12 +55,11 @@ export default function ExhibitionPage() {
       {/* HEADER */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="display text-3xl text-ink flex items-center gap-2">
-            <Compass className="w-6 h-6 text-brand-600" aria-hidden="true" /> Booths
-          </h1>
-          <p className="text-xs text-slate-500">Explore faculty booths and interactive showcases</p>
+          <span className="eyebrow text-brand-600">// faculty exhibition</span>
+          <h1 className="display text-4xl text-ink leading-none mt-0.5">Booths</h1>
+          <p className="text-xs text-slate-500 mt-1">Explore faculty booths and interactive showcases</p>
         </div>
-        <span className="sticker bg-brand-500 text-white text-[9px]">{checkpoints.length} Booths</span>
+        <span className="sticker bg-brand-500 text-white text-[9px] shrink-0">{checkpoints.length} Booths</span>
       </div>
 
       {/* SEARCH BAR */}

@@ -71,6 +71,7 @@ CREATE TABLE IF NOT EXISTS public.speakers (
   session_date TEXT DEFAULT '13-14 Nov 2026',
   display_order INT DEFAULT 0,
   is_active BOOLEAN DEFAULT true,
+  is_winner BOOLEAN NOT NULL DEFAULT false,
   created_at TIMESTAMPTZ DEFAULT now()
 );
 
@@ -142,7 +143,7 @@ VALUES ('00000000-0000-0000-0000-000000000001', 'Laluan Aspirasi Passport Reward
 ON CONFLICT (id) DO NOTHING;
 
 INSERT INTO public.voting_events (id, title, description, is_active, voting_rule)
-VALUES ('00000000-0000-0000-0000-000000000002', 'UM Talk People Choice Award 2026', 'Vote for your most inspiring speaker at UM Talk Laluan Aspirasi.', true, 'one_per_visitor')
+VALUES ('00000000-0000-0000-0000-000000000002', 'UM Talk People Choice Award 2026', 'Vote for your most inspiring speaker at UM Talk Laluan Aspirasi.', false, 'one_per_visitor')
 ON CONFLICT (id) DO NOTHING;
 
 -- SEED DATA: 12 EXHIBITION BOOTHS (LALUAN ASPIRASI)

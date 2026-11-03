@@ -9,8 +9,10 @@ import { adminLogin, adminLogout, getAdminSession } from '@/lib/supabase';
 const ADMIN_TABS = [
   { label: 'Overview', href: '/admin' },
   { label: 'Booths', href: '/admin/booths' },
+  { label: 'Floor plan', href: '/admin/map' },
   { label: 'Speakers', href: '/admin/speakers' },
   { label: 'Helpdesk', href: '/admin/rewards' },
+  { label: 'Evaluation', href: '/admin/evaluation' },
   { label: 'Export', href: '/admin/export' },
 ];
 
@@ -139,7 +141,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* ADMIN SUB-NAVIGATION TABS */}
-      <div className="grid grid-cols-5 gap-1.5 p-1.5 rounded-2xl bg-white border-2 border-ink shadow-brut text-[11px] font-bold text-center">
+      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-1.5 p-1.5 rounded-2xl bg-white border-2 border-ink shadow-brut text-[11px] font-bold text-center">
         {ADMIN_TABS.map(tab => {
           const isActive = pathname === tab.href;
           return (

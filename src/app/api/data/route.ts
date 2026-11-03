@@ -17,6 +17,7 @@ import {
   submitBoothRating,
   submitSpeakerVote,
   hasVisitorVoted,
+  getVotingStatus,
   unlockVisitorReward,
   type VisitorIdentityInput,
 } from '@/lib/server/db';
@@ -139,6 +140,9 @@ export async function POST(request: NextRequest) {
 
       case 'speakers.list':
         return json(await listSpeakers(false));
+
+      case 'voting.status':
+        return json(await getVotingStatus());
 
       case 'speaker.vote.status':
         return visitorId ? json({ voted: await hasVisitorVoted(visitorId) }) : json({ voted: false });

@@ -7,17 +7,19 @@ import Modal from '@/components/Modal';
 
 interface SpeakerCardProps {
   speaker: Speaker;
-  hasVoted: boolean;
-  onVote: (speakerId: string) => Promise<void>;
+  hasVoted?: boolean;
+  onVote?: (speakerId: string) => Promise<void>;
+  /** Show the vote button/CTA at all. Defaults to false — most listings are read-only. */
+  votable?: boolean;
 }
 
-export default function SpeakerCard({ speaker, hasVoted, onVote }: SpeakerCardProps) {
+export default function SpeakerCard({ speaker, hasVoted = false, onVote, votable = false }: SpeakerCardProps) {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [showBioModal, setShowBioModal] = useState(false);
 
   const handleVote = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (hasVoted || isSubmitting) return;
+    if (!votable || !onVote || hasVoted || isSubmitting) return;
     setIsSubmitting(true);
     await onVote(speaker.id);
     setIsSubmitting(false);
@@ -72,7 +74,7 @@ export default function SpeakerCard({ speaker, hasVoted, onVote }: SpeakerCardPr
           {/* Session Topic */}
           <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink/10 mb-4">
             <span className="eyebrow text-slate-400 block mb-0.5">Session topic</span>
-            <p className="text-xs font-bold text-ink line-clamp-2">&quot;{speaker.session_title}&quot;</p>
+            <p className="text-xs font-bold text-ink line-clamp-2">&ldquo;{speaker.session_title}&rdquo;</p>
           </div>
         </div>
 
@@ -86,27 +88,29 @@ export default function SpeakerCard({ speaker, hasVoted, onVote }: SpeakerCardPr
             Profile →
           </button>
 
-          <button
-            type="button"
-            onClick={handleVote}
-            disabled={hasVoted || isSubmitting}
-            aria-label={hasVoted ? `Voted for ${speaker.name}` : `Vote for ${speaker.name}`}
-            className={`btn flex items-center gap-1.5 px-3 py-1.5 text-xs ${
-              hasVoted ? 'bg-cream-200 text-slate-400 cursor-not-allowed' : 'bg-brand-500 hover:bg-brand-600 text-white'
-            }`}
-          >
-            {hasVoted ? (
-              <>
-                <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
-                <span>Voted</span>
-              </>
-            ) : (
-              <>
-                <ThumbsUp className="w-3.5 h-3.5" aria-hidden="true" />
-                <span>Vote</span>
-              </>
-            )}
-          </button>
+          {votable && (
+            <button
+              type="button"
+              onClick={handleVote}
+              disabled={hasVoted || isSubmitting}
+              aria-label={hasVoted ? `Voted for ${speaker.name}` : `Vote for ${speaker.name}`}
+              className={`btn flex items-center gap-1.5 px-3 py-1.5 text-xs ${
+                hasVoted ? 'bg-cream-200 text-slate-400 cursor-not-allowed' : 'bg-brand-500 hover:bg-brand-600 text-white'
+              }`}
+            >
+              {hasVoted ? (
+                <>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600" aria-hidden="true" />
+                  <span>Voted</span>
+                </>
+              ) : (
+                <>
+                  <ThumbsUp className="w-3.5 h-3.5" aria-hidden="true" />
+                  <span>Vote</span>
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
 
@@ -139,7 +143,7 @@ export default function SpeakerCard({ speaker, hasVoted, onVote }: SpeakerCardPr
 
             <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink/10 mb-4 space-y-1">
               <span className="eyebrow text-slate-400">Scheduled session</span>
-              <p className="text-xs font-bold text-ink">&quot;{speaker.session_title}&quot;</p>
+              <p className="text-xs font-bold text-ink">&ldquo;{speaker.session_title}&rdquo;</p>
               <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1">
                 <span className="flex items-center gap-1">
                   <Clock className="w-3.5 h-3.5 text-brand-500" aria-hidden="true" /> {speaker.session_time}
@@ -155,17 +159,19 @@ export default function SpeakerCard({ speaker, hasVoted, onVote }: SpeakerCardPr
               <p className="text-sm text-slate-600 leading-relaxed">{speaker.bio}</p>
             </div>
 
-            <button
-              type="button"
-              onClick={handleVote}
-              disabled={hasVoted || isSubmitting}
-              className={`btn w-full py-3 flex items-center justify-center gap-2 text-sm ${
-                hasVoted ? 'bg-cream-200 text-slate-400' : 'bg-brand-500 hover:bg-brand-600 text-white'
-              }`}
-            >
-              {hasVoted ? <CheckCircle2 className="w-4 h-4 text-emerald-600" aria-hidden="true" /> : <ThumbsUp className="w-4 h-4" aria-hidden="true" />}
-              {hasVoted ? 'You voted for this speaker' : 'Cast People Choice vote'}
-            </button>
+            {votable && (
+              <button
+                type="button"
+                onClick={handleVote}
+                disabled={hasVoted || isSubmitting}
+                className={`btn w-full py-3 flex items-center justify-center gap-2 text-sm ${
+                  hasVoted ? 'bg-cream-200 text-slate-400' : 'bg-brand-500 hover:bg-brand-600 text-white'
+                }`}
+              >
+                {hasVoted ? <CheckCircle2 className="w-4 h-4 text-emerald-600" aria-hidden="true" /> : <ThumbsUp className="w-4 h-4" aria-hidden="true" />}
+                {hasVoted ? 'You voted for this speaker' : 'Cast People Choice vote'}
+              </button>
+            )}
           </div>
         </Modal>
       )}

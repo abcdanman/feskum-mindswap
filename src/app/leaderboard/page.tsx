@@ -149,7 +149,7 @@ export default function LeaderboardPage() {
       </div>
 
       <h1 className="display text-4xl text-ink leading-none">
-        Leader<br />board
+        Leaderboard
       </h1>
 
       <div className="flex items-center gap-1 p-1 rounded-2xl bg-white border-2 border-ink shadow-brut text-xs font-bold">

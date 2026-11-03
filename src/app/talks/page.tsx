@@ -1,46 +1,25 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getSpeakers, hasVisitorVoted, submitSpeakerVote } from '@/lib/supabase';
-import { Speaker } from '@/lib/types';
-import { getOrInitVisitorId } from '@/lib/visitor';
+import Link from 'next/link';
+import { getSpeakers, getVotingStatus } from '@/lib/supabase';
+import { Speaker, VotingStatus } from '@/lib/types';
 import SpeakerCard from '@/components/SpeakerCard';
-import { Mic, Calendar, CheckCircle2, Award } from 'lucide-react';
+import { Mic, Calendar, Award, ArrowRight } from 'lucide-react';
 
 export default function TalksPage() {
   const [speakers, setSpeakers] = useState<Speaker[]>([]);
-  const [hasVoted, setHasVoted] = useState<boolean>(false);
-  const [visitorId, setVisitorId] = useState<string>('');
+  const [votingStatus, setVotingStatus] = useState<VotingStatus | null>(null);
   const [selectedDate, setSelectedDate] = useState<string>('13 Nov 2026');
-  const [message, setMessage] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
 
   useEffect(() => {
     async function loadTalks() {
-      const id = getOrInitVisitorId();
-      setVisitorId(id);
-
-      const [spkList, voted] = await Promise.all([getSpeakers(), hasVisitorVoted(id)]);
-
+      const [spkList, status] = await Promise.all([getSpeakers(), getVotingStatus()]);
       setSpeakers(spkList);
-      setHasVoted(voted);
+      setVotingStatus(status);
     }
-
     loadTalks();
   }, []);
-
-  const handleVote = async (speakerId: string) => {
-    const res = await submitSpeakerVote(visitorId, speakerId);
-    if (res.success) {
-      setHasVoted(true);
-      setMessage({ text: 'Thank you! Your People Choice vote has been recorded.', type: 'success' });
-      const updated = await getSpeakers();
-      setSpeakers(updated);
-    } else {
-      setMessage({ text: res.message || 'Already voted.', type: 'error' });
-    }
-
-    setTimeout(() => setMessage(null), 4000);
-  };
 
   // Some sessions are seeded with a combined "13-14 Nov 2026" date;
   // treat those as running on both days instead of hiding them.
@@ -55,6 +34,8 @@ export default function TalksPage() {
     { value: '13 Nov 2026', label: 'Day 1 · 13 Nov' },
     { value: '14 Nov 2026', label: 'Day 2 · 14 Nov' },
   ];
+
+  const votingOpen = Boolean(votingStatus?.is_active);
 
   return (
     <div className="space-y-4 animate-fadeIn">
@@ -72,39 +53,34 @@ export default function TalksPage() {
           </div>
         </div>
 
-        {/* PEOPLE CHOICE VOTING BADGE */}
-        <div className="p-3.5 rounded-xl bg-white/10 border-2 border-white/25 flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <Award className="w-5 h-5 text-gold-300 shrink-0" />
+        {/* PEOPLE'S CHOICE ENTRY POINT — a live button once voting opens,
+            otherwise just an informational header with no call to action. */}
+        {votingOpen ? (
+          <Link
+            href="/talks/vote"
+            className="p-3.5 rounded-xl bg-white/10 border-2 border-white/25 flex items-center justify-between hover:bg-white/15 transition-colors group"
+          >
+            <div className="flex items-center gap-2.5">
+              <Award className="w-5 h-5 text-gold-300 shrink-0" aria-hidden="true" />
+              <div>
+                <h4 className="font-bold text-xs">{votingStatus?.title || "People's Choice Award"}</h4>
+                <p className="text-[10px] text-white/70">Vote for your favourite — tap to open</p>
+              </div>
+            </div>
+            <span className="sticker bg-gold-400 text-ink text-[9px] flex items-center gap-1 shrink-0 group-hover:translate-x-0.5 transition-transform">
+              Vote now <ArrowRight className="w-3 h-3" aria-hidden="true" />
+            </span>
+          </Link>
+        ) : (
+          <div className="p-3.5 rounded-xl bg-white/10 border-2 border-white/25 flex items-center gap-2.5">
+            <Award className="w-5 h-5 text-gold-300 shrink-0" aria-hidden="true" />
             <div>
               <h4 className="font-bold text-xs">People&apos;s Choice Award 2026</h4>
-              <p className="text-[10px] text-white/70">Vote for your most inspiring session!</p>
+              <p className="text-[10px] text-white/70">Opens once judges announce the top 3 finalists</p>
             </div>
           </div>
-          {hasVoted ? (
-            <span className="sticker bg-emerald-400 text-ink text-[9px] flex items-center gap-1 shrink-0">
-              <CheckCircle2 className="w-3 h-3" /> Voted
-            </span>
-          ) : (
-            <span className="sticker bg-gold-400 text-ink text-[9px] flex items-center gap-1 shrink-0">
-              1 Vote
-            </span>
-          )}
-        </div>
+        )}
       </div>
-
-      {/* NOTIFICATION MESSAGE */}
-      {message && (
-        <div
-          role="status"
-          aria-live="polite"
-          className={`p-3 rounded-2xl text-xs font-bold text-center border-2 border-ink ${
-            message.type === 'success' ? 'bg-emerald-400 text-ink' : 'bg-rose-100 text-rose-700'
-          }`}
-        >
-          {message.text}
-        </div>
-      )}
 
       {/* DATE SELECTOR TABS */}
       <div className="flex items-center gap-2">
@@ -121,10 +97,10 @@ export default function TalksPage() {
         ))}
       </div>
 
-      {/* SPEAKER TIMELINE CARDS */}
+      {/* SPEAKER TIMELINE CARDS — read-only listing, no voting here */}
       <div className="grid grid-cols-1 gap-3">
         {filteredSpeakers.map(speaker => (
-          <SpeakerCard key={speaker.id} speaker={speaker} hasVoted={hasVoted} onVote={handleVote} />
+          <SpeakerCard key={speaker.id} speaker={speaker} />
         ))}
 
         {filteredSpeakers.length === 0 && (

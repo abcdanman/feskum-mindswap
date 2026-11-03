@@ -118,7 +118,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
     return (
       <div className="py-20 text-center space-y-3">
         <div className="w-12 h-12 border-4 border-ink border-t-brand-500 rounded-full animate-spin mx-auto" />
-        <p className="text-xs text-slate-500 font-medium">Validating QR checkpoint...</p>
+        <p className="text-xs text-slate-500 font-medium">Validating QR checkpoint…</p>
       </div>
     );
   }
@@ -244,7 +244,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
               ))}
             </div>
             {activeVisit?.review && (
-              <p className="text-xs text-slate-600 italic pt-1 border-t-2 border-ink/10">&quot;{activeVisit.review}&quot;</p>
+              <p className="text-xs text-slate-600 italic pt-1 border-t-2 border-ink/10">&ldquo;{activeVisit.review}&rdquo;</p>
             )}
           </div>
 

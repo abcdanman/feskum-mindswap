@@ -5,6 +5,7 @@ import {
   type BoothAnalytics,
   type BoothVisit,
   type Checkpoint,
+  type EvaluationReport,
   type LeaderboardDay,
   type LeaderboardEntry,
   type QuizQuestion,
@@ -13,10 +14,11 @@ import {
   type Speaker,
   type SpeakerVote,
   type VisitorReward,
+  type VotingStatus,
 } from '@/lib/types';
 import { INITIAL_CHECKPOINTS, INITIAL_REWARD_SETTING, INITIAL_SPEAKERS } from '@/lib/mockData';
 import { getLeaderboardScore, calculateQuizScore, QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
-import { getLeaderboardDayRange } from '@/lib/event';
+import { getLeaderboardDayRange, EVENT_TIME_ZONE } from '@/lib/event';
 import { validateUsername } from '@/lib/username';
 import { getSupabaseAdmin, hasServerSupabase } from './supabaseAdmin';
 
@@ -924,6 +926,7 @@ export async function saveSpeaker(speaker: Partial<Speaker>): Promise<{ data: Sp
     session_date: speaker.session_date,
     display_order: displayOrder ?? 0,
     is_active: speaker.is_active ?? true,
+    is_winner: speaker.is_winner ?? false,
   };
   const { data, error } = await db().from('speakers').upsert(payload).select().single();
   if (error || !data) return { data: null, error: error?.message || 'Failed to save speaker.' };
@@ -942,16 +945,40 @@ export async function hasVisitorVoted(visitorId: string): Promise<boolean> {
   return Boolean(data?.length);
 }
 
+export async function getVotingStatus(): Promise<VotingStatus> {
+  if (!hasServerSupabase()) return { is_active: false, title: "People's Choice Award", description: '' };
+  const { data } = await db()
+    .from('voting_events')
+    .select('is_active, title, description')
+    .eq('id', VOTING_EVENT_ID)
+    .maybeSingle();
+  if (!data) return { is_active: false, title: "People's Choice Award", description: '' };
+  return { is_active: Boolean(data.is_active), title: data.title || "People's Choice Award", description: data.description || '' };
+}
+
+export async function setVotingActive(active: boolean): Promise<{ error: string | null }> {
+  if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
+  const { error } = await db().from('voting_events').update({ is_active: active }).eq('id', VOTING_EVENT_ID);
+  return { error: error?.message || null };
+}
+
 export async function submitSpeakerVote(
   visitorId: string,
   speakerId: string
 ): Promise<{ success: boolean; message?: string }> {
+  const status = await getVotingStatus();
+  if (!status.is_active) {
+    return { success: false, message: 'People’s Choice voting is not open yet.' };
+  }
   if (await hasVisitorVoted(visitorId)) {
     return { success: false, message: 'You have already cast your vote for the People Choice Award!' };
   }
-  const { data: speaker } = await db().from('speakers').select('id, is_active').eq('id', speakerId).maybeSingle();
+  const { data: speaker } = await db().from('speakers').select('id, is_active, is_winner').eq('id', speakerId).maybeSingle();
   if (!speaker?.id || speaker.is_active === false) {
     return { success: false, message: 'That speaker is not available for voting.' };
+  }
+  if (speaker.is_winner) {
+    return { success: false, message: 'This speaker has already been selected as a top-3 winner and is not eligible for the People’s Choice vote.' };
   }
   const { error } = await db().from('speaker_votes').insert({
     visitor_id: visitorId,
@@ -1037,6 +1064,219 @@ export async function getAdminAnalytics() {
     speakers,
     speakerVotes,
     visitorIdentities,
+  };
+}
+
+// -------------------------------------------------------------
+// EVALUATION REPORT — end-of-day read on whether the passport mechanic is
+// actually working, so organisers can decide what to change before the
+// next day opens, rather than guessing from the raw visit count alone.
+// -------------------------------------------------------------
+function hourBucket(timestamp: string): string {
+  return new Intl.DateTimeFormat('en-GB', {
+    timeZone: EVENT_TIME_ZONE,
+    hour: '2-digit',
+    hour12: false,
+  }).format(new Date(timestamp));
+}
+
+export async function getEvaluationReport(day: LeaderboardDay = 'all'): Promise<EvaluationReport> {
+  const empty: EvaluationReport = {
+    day,
+    generated_at: new Date().toISOString(),
+    registered_visitors: 0,
+    active_visitors: 0,
+    avg_rating: 0,
+    funnel: { zero_stamps: 0, partial_stamps: 0, completed: 0, threshold: 8 },
+    booth_performance: [],
+    rating_distribution: { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 },
+    quiz: { eligible_visits: 0, attempted: 0, completion_rate: 0, avg_accuracy: 0 },
+    voting: { votes: 0, participation_rate: 0 },
+    hourly_traffic: [],
+    reviews: [],
+    recommendations: ['Server database is not configured.'],
+  };
+  if (!hasServerSupabase()) return empty;
+
+  const range = getLeaderboardDayRange(day);
+  const [checkpoints, setting, visitsRes, votesRes, visitorsRes] = await Promise.all([
+    listCheckpoints(true, false),
+    getRewardSetting(),
+    db().from('booth_visits').select('*'),
+    db().from('speaker_votes').select('*'),
+    db().from('visitors').select('id'),
+  ]);
+
+  const checkpointMap = new Map(checkpoints.map(c => [c.id, c]));
+  const allVisits = (visitsRes.data || []) as BoothVisit[];
+  const allVotes = (votesRes.data || []) as SpeakerVote[];
+  const registeredVisitors = (visitorsRes.data || []).length;
+
+  const visits = allVisits.filter(v => isWithinRange(v.visited_at, range));
+  const votes = allVotes.filter(v => isWithinRange(v.created_at, range));
+
+  // Funnel: of visitors active in this window, how many actually reach the
+  // souvenir threshold vs stall out partway.
+  const requiredStampsByVisitor = new Map<string, number>();
+  const activeVisitorIds = new Set<string>();
+  visits.forEach(visit => {
+    activeVisitorIds.add(visit.visitor_id);
+    const checkpoint = checkpointMap.get(visit.checkpoint_id);
+    if ((checkpoint?.booth_type ?? 'required') !== 'partner') {
+      requiredStampsByVisitor.set(visit.visitor_id, (requiredStampsByVisitor.get(visit.visitor_id) || 0) + 1);
+    } else if (!requiredStampsByVisitor.has(visit.visitor_id)) {
+      requiredStampsByVisitor.set(visit.visitor_id, 0);
+    }
+  });
+  const threshold = setting.stamp_threshold || 8;
+  let zeroStamps = 0;
+  let partialStamps = 0;
+  let completed = 0;
+  requiredStampsByVisitor.forEach(count => {
+    if (count <= 0) zeroStamps += 1;
+    else if (count >= threshold) completed += 1;
+    else partialStamps += 1;
+  });
+
+  // Per-booth performance within this window.
+  const boothPerformance = checkpoints
+    .map(checkpoint => {
+      const boothVisits = visits.filter(v => v.checkpoint_id === checkpoint.id);
+      const count = boothVisits.length;
+      const avgRating = count > 0 ? boothVisits.reduce((sum, v) => sum + v.rating, 0) / count : 0;
+      const quizEligible = checkpoint.booth_type === 'partner' && (checkpoint.quiz?.length || 0) > 0;
+      const quizAttempts = boothVisits.filter(v => v.quiz_completed_at).length;
+      return {
+        id: checkpoint.id,
+        name: checkpoint.name,
+        faculty: checkpoint.faculty,
+        booth_type: checkpoint.booth_type || 'required',
+        visits: count,
+        avg_rating: Number(avgRating.toFixed(2)),
+        quiz_attempts: quizAttempts,
+        quiz_eligible: quizEligible,
+      };
+    })
+    .filter(b => b.visits > 0 || day === 'all')
+    .sort((a, b) => b.visits - a.visits);
+
+  // Rating distribution — now a meaningful signal since a rating requires
+  // an explicit tap rather than defaulting to 5 stars.
+  const ratingDistribution: EvaluationReport['rating_distribution'] = { '1': 0, '2': 0, '3': 0, '4': 0, '5': 0 };
+  visits.forEach(v => {
+    const key = String(Math.min(5, Math.max(1, Math.round(v.rating)))) as keyof typeof ratingDistribution;
+    ratingDistribution[key] += 1;
+  });
+
+  // Quiz engagement among visits where a quiz was actually available.
+  const quizEligibleVisits = visits.filter(v => {
+    const checkpoint = checkpointMap.get(v.checkpoint_id);
+    return checkpoint?.booth_type === 'partner' && (checkpoint.quiz?.length || 0) > 0;
+  });
+  const quizAttempted = quizEligibleVisits.filter(v => v.quiz_completed_at);
+  const avgAccuracy =
+    quizAttempted.length > 0
+      ? quizAttempted.reduce((sum, v) => sum + (v.quiz_total ? (v.quiz_correct || 0) / v.quiz_total : 0), 0) /
+        quizAttempted.length
+      : 0;
+
+  // Hourly traffic (KL local time) — surfaces peak/lull windows.
+  const hourCounts = new Map<string, number>();
+  visits.forEach(v => {
+    const hour = hourBucket(v.visited_at);
+    hourCounts.set(hour, (hourCounts.get(hour) || 0) + 1);
+  });
+  const hourlyTraffic = Array.from(hourCounts.entries())
+    .map(([hour, count]) => ({ hour, visits: count }))
+    .sort((a, b) => a.hour.localeCompare(b.hour));
+
+  // Written reviews, newest first, for organisers to actually read.
+  const reviews = visits
+    .filter(v => v.review && v.review.trim())
+    .sort((a, b) => new Date(b.visited_at).getTime() - new Date(a.visited_at).getTime())
+    .slice(0, 50)
+    .map(v => ({
+      booth_name: checkpointMap.get(v.checkpoint_id)?.name || 'Unknown booth',
+      rating: v.rating,
+      review: v.review || '',
+      visited_at: v.visited_at,
+    }));
+
+  const activeVisitors = activeVisitorIds.size;
+  const quizCompletionRate = quizEligibleVisits.length > 0 ? quizAttempted.length / quizEligibleVisits.length : 0;
+  const votingRate = activeVisitors > 0 ? votes.length / activeVisitors : 0;
+  const avgRatingOverall = visits.length > 0 ? visits.reduce((sum, v) => sum + v.rating, 0) / visits.length : 0;
+
+  // Simple rule-based flags, not a model — just thresholds an organiser
+  // would otherwise have to eyeball out of raw numbers themselves.
+  const recommendations: string[] = [];
+  if (registeredVisitors > 0 && activeVisitors / registeredVisitors < 0.5) {
+    recommendations.push(
+      `Only ${Math.round((activeVisitors / registeredVisitors) * 100)}% of registered visitors have scanned a single booth — remind staff at registration/entrance to walk people through their first scan.`
+    );
+  }
+  if (activeVisitors > 0 && completed / activeVisitors < 0.3) {
+    recommendations.push(
+      `Only ${Math.round((completed / activeVisitors) * 100)}% of active visitors reached all ${threshold} required stamps — consider whether the threshold, hours, or booth spacing is realistic for one day.`
+    );
+  }
+  const sampledBooths = boothPerformance.filter(b => b.visits > 0);
+  if (sampledBooths.length > 2) {
+    const medianVisits = [...sampledBooths].sort((a, b) => a.visits - b.visits)[Math.floor(sampledBooths.length / 2)].visits;
+    const underperforming = sampledBooths.filter(b => b.visits < medianVisits * 0.4);
+    underperforming.forEach(b => {
+      recommendations.push(`"${b.name}" has well below median footfall (${b.visits} visits) — consider relocating it closer to the main path or giving it extra signage tomorrow.`);
+    });
+    const lowRated = sampledBooths.filter(b => b.visits >= 3 && b.avg_rating > 0 && b.avg_rating < 3.5);
+    lowRated.forEach(b => {
+      recommendations.push(`"${b.name}" is rated ${b.avg_rating}/5 across ${b.visits} visits — worth checking in with that booth before day 2.`);
+    });
+  }
+  if (quizEligibleVisits.length >= 5 && quizCompletionRate < 0.4) {
+    recommendations.push(
+      `Only ${Math.round(quizCompletionRate * 100)}% of partner-booth visitors attempted the bonus quiz — remind staff to mention it when they hand out the stamp.`
+    );
+  }
+  if (activeVisitors >= 10 && votingRate < 0.3) {
+    recommendations.push(
+      `Only ${Math.round(votingRate * 100)}% of active visitors cast a People's Choice vote — prompt voting more near the UM Talk stage and helpdesk.`
+    );
+  }
+  if (visits.length >= 10 && ratingDistribution['5'] / visits.length > 0.85) {
+    recommendations.push(
+      `${Math.round((ratingDistribution['5'] / visits.length) * 100)}% of ratings are a perfect 5 stars — double-check this reflects real enthusiasm and not visitors rushing through the rating step.`
+    );
+  }
+  if (hourlyTraffic.length >= 3) {
+    const quietest = [...hourlyTraffic].sort((a, b) => a.visits - b.visits)[0];
+    recommendations.push(`Quietest hour was ${quietest.hour}:00 (${quietest.visits} visits) — a good slot to schedule a pull-in activity or announcement tomorrow.`);
+  }
+  if (recommendations.length === 0 && visits.length > 0) {
+    recommendations.push('No red flags from the numbers — the passport mechanic looks like it is working as intended.');
+  }
+  if (visits.length === 0) {
+    recommendations.push('No booth visits recorded yet for this window.');
+  }
+
+  return {
+    day,
+    generated_at: new Date().toISOString(),
+    registered_visitors: registeredVisitors,
+    active_visitors: activeVisitors,
+    avg_rating: Number(avgRatingOverall.toFixed(2)),
+    funnel: { zero_stamps: zeroStamps, partial_stamps: partialStamps, completed, threshold },
+    booth_performance: boothPerformance,
+    rating_distribution: ratingDistribution,
+    quiz: {
+      eligible_visits: quizEligibleVisits.length,
+      attempted: quizAttempted.length,
+      completion_rate: Number(quizCompletionRate.toFixed(2)),
+      avg_accuracy: Number(avgAccuracy.toFixed(2)),
+    },
+    voting: { votes: votes.length, participation_rate: Number(votingRate.toFixed(2)) },
+    hourly_traffic: hourlyTraffic,
+    reviews,
+    recommendations,
   };
 }
 

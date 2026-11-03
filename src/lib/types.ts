@@ -101,6 +101,8 @@ export interface Speaker {
   session_date: string;
   display_order: number;
   is_active: boolean;
+  /** Judges' top-3 pick — excluded from the People's Choice vote. */
+  is_winner?: boolean;
   vote_count?: number;
 }
 
@@ -111,6 +113,12 @@ export interface VotingEvent {
   is_active: boolean;
   voting_rule: string;
   created_at?: string;
+}
+
+export interface VotingStatus {
+  is_active: boolean;
+  title: string;
+  description: string;
 }
 
 export interface SpeakerVote {
@@ -131,6 +139,53 @@ export interface BoothAnalytics {
   quiz_completions: number;
   quiz_points: number;
   avg_rating: number;
+}
+
+export interface EvaluationBoothStat {
+  id: string;
+  name: string;
+  faculty: string;
+  booth_type: BoothType;
+  visits: number;
+  avg_rating: number;
+  quiz_attempts: number;
+  quiz_eligible: boolean;
+}
+
+export interface EvaluationReview {
+  booth_name: string;
+  rating: number;
+  review: string;
+  visited_at: string;
+}
+
+export interface EvaluationReport {
+  day: LeaderboardDay;
+  generated_at: string;
+  registered_visitors: number;
+  active_visitors: number;
+  avg_rating: number;
+  funnel: {
+    zero_stamps: number;
+    partial_stamps: number;
+    completed: number;
+    threshold: number;
+  };
+  booth_performance: EvaluationBoothStat[];
+  rating_distribution: Record<'1' | '2' | '3' | '4' | '5', number>;
+  quiz: {
+    eligible_visits: number;
+    attempted: number;
+    completion_rate: number;
+    avg_accuracy: number;
+  };
+  voting: {
+    votes: number;
+    participation_rate: number;
+  };
+  hourly_traffic: Array<{ hour: string; visits: number }>;
+  reviews: EvaluationReview[];
+  recommendations: string[];
 }
 
 export interface AdminAnalyticsVisitor {

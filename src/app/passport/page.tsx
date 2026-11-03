@@ -86,7 +86,7 @@ export default function PassportPage() {
               <Ticket className="w-5 h-5" />
             </div>
             <div>
-              <h1 className="display text-2xl text-ink leading-none">Digital passport</h1>
+              <h1 className="display text-3xl text-ink leading-none">Digital passport</h1>
               <p className="text-[11px] text-slate-500">Laluan Aspirasi @ FESKUM 2026</p>
             </div>
           </div>

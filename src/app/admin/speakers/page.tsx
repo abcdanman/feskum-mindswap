@@ -2,11 +2,11 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
-import { getSpeakers, saveSpeaker, deleteSpeaker, uploadImage } from '@/lib/supabase';
-import { Speaker } from '@/lib/types';
+import { getSpeakers, saveSpeaker, deleteSpeaker, uploadImage, getVotingStatus, setVotingActive } from '@/lib/supabase';
+import { Speaker, VotingStatus } from '@/lib/types';
 import Modal from '@/components/Modal';
 import ImageCropModal from '@/components/ImageCropModal';
-import { Plus, Edit3, Trash2, ArrowLeft, X, Save, ThumbsUp, User, UploadCloud, ImageIcon } from 'lucide-react';
+import { Plus, Edit3, Trash2, ArrowLeft, X, Save, ThumbsUp, User, UploadCloud, ImageIcon, Award, Crown } from 'lucide-react';
 
 const inputCls =
   'w-full p-2.5 rounded-xl bg-cream-50 border-2 border-ink text-ink text-sm focus:bg-white';
@@ -20,16 +20,36 @@ export default function AdminSpeakersPage() {
   const [error, setError] = useState('');
   const [initialSpeaker, setInitialSpeaker] = useState('');
   const [cropFile, setCropFile] = useState<File | null>(null);
+  const [votingStatus, setVotingStatusState] = useState<VotingStatus | null>(null);
+  const [togglingVote, setTogglingVote] = useState(false);
   const fileRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     loadSpeakers();
+    loadVotingStatus();
   }, []);
 
   async function loadSpeakers() {
     const list = await getSpeakers(true);
     setSpeakers(list);
   }
+
+  async function loadVotingStatus() {
+    const status = await getVotingStatus();
+    setVotingStatusState(status);
+  }
+
+  const handleToggleVoting = async () => {
+    if (!votingStatus) return;
+    setTogglingVote(true);
+    const { error: toggleError } = await setVotingActive(!votingStatus.is_active);
+    setTogglingVote(false);
+    if (toggleError) {
+      alert(`Could not update voting status: ${toggleError}`);
+      return;
+    }
+    await loadVotingStatus();
+  };
 
   const openNew = () => {
     const next: Partial<Speaker> = {
@@ -141,6 +161,33 @@ export default function AdminSpeakersPage() {
         </button>
       </div>
 
+      {/* PEOPLE'S CHOICE VOTING TOGGLE */}
+      <div className="card p-4 flex items-center justify-between gap-3 bg-gold-400/10">
+        <div className="flex items-center gap-2.5 min-w-0">
+          <div className="w-10 h-10 rounded-xl bg-gold-400 border-2 border-ink flex items-center justify-center text-ink shrink-0">
+            <Award className="w-5 h-5" aria-hidden="true" />
+          </div>
+          <div className="min-w-0">
+            <h3 className="font-extrabold text-ink text-sm">People&apos;s Choice voting</h3>
+            <p className="text-[11px] text-slate-500">
+              {votingStatus?.is_active
+                ? 'Open — visitors can vote at /talks/vote for everyone not marked Top 3.'
+                : 'Closed — mark Top 3 winners below, then open voting for everyone else.'}
+            </p>
+          </div>
+        </div>
+        <button
+          onClick={handleToggleVoting}
+          disabled={!votingStatus || togglingVote}
+          aria-pressed={Boolean(votingStatus?.is_active)}
+          className={`btn px-3.5 py-2 text-xs font-extrabold shrink-0 disabled:opacity-60 ${
+            votingStatus?.is_active ? 'bg-emerald-500 text-white' : 'bg-white text-ink'
+          }`}
+        >
+          {togglingVote ? 'Updating…' : votingStatus?.is_active ? 'Open' : 'Closed'}
+        </button>
+      </div>
+
       {/* SPEAKERS LIST */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {speakers.map(speaker => (
@@ -157,11 +204,17 @@ export default function AdminSpeakersPage() {
               </div>
 
               <div className="min-w-0 flex-1">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 flex-wrap">
                   <span className="eyebrow text-slate-500">{speaker.session_date}</span>
-                  <span className="text-[10px] font-bold text-gold-700 bg-gold-400/20 px-1.5 py-0.5 rounded border-2 border-ink/10 flex items-center gap-1">
-                    <ThumbsUp className="w-3 h-3 text-gold-500" /> {speaker.vote_count || 0}
-                  </span>
+                  {speaker.is_winner ? (
+                    <span className="text-[10px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-gold-400 text-ink flex items-center gap-1">
+                      <Crown className="w-3 h-3" aria-hidden="true" /> Top 3
+                    </span>
+                  ) : (
+                    <span className="text-[10px] font-bold text-gold-700 bg-gold-400/20 px-1.5 py-0.5 rounded border-2 border-ink/10 flex items-center gap-1">
+                      <ThumbsUp className="w-3 h-3 text-gold-500" /> {speaker.vote_count || 0}
+                    </span>
+                  )}
                 </div>
                 <h3 className="font-extrabold text-ink text-sm leading-snug line-clamp-2">{speaker.name}</h3>
                 <p className="text-[11px] text-brand-600 font-bold truncate">{speaker.position}</p>
@@ -365,6 +418,19 @@ export default function AdminSpeakersPage() {
                   />
                 </div>
               </div>
+
+              <label className="flex items-center gap-2.5 p-2.5 rounded-xl bg-gold-400/10 border-2 border-gold-500/40 cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={editingSpeaker.is_winner ?? false}
+                  onChange={e => setEditingSpeaker({ ...editingSpeaker, is_winner: e.target.checked })}
+                  className="w-4 h-4 accent-gold-500"
+                />
+                <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
+                  <Crown className="w-3.5 h-3.5 text-gold-600" aria-hidden="true" />
+                  Judges&apos; Top 3 — excludes this speaker from the People&apos;s Choice vote
+                </span>
+              </label>
 
               <div>
                 <label htmlFor="speaker-bio" className="eyebrow text-slate-500 block mb-1">Biography</label>

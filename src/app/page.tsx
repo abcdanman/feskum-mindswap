@@ -74,6 +74,7 @@ export default function HomePage() {
       accent: 'bg-brand-500',
     },
     { href: '/leaderboard', label: 'Leaderboard', sub: 'Live standings', icon: Trophy, accent: 'bg-gold-500' },
+    { href: '/schedule', label: 'Programme', sub: "What's on now", icon: Calendar, accent: 'bg-ink' },
   ];
 
   return (
@@ -137,7 +138,7 @@ export default function HomePage() {
       </div>
 
       {/* ACTION GRID */}
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-3 gap-2.5">
         {actions.map(action => {
           const Icon = action.icon;
           return (
@@ -269,7 +270,7 @@ export default function HomePage() {
               </h4>
               <p className="text-[11px] text-brand-600 font-bold truncate">{featuredSpeaker.position}</p>
               <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                &quot;{featuredSpeaker.session_title}&quot; · {featuredSpeaker.session_time}
+                &ldquo;{featuredSpeaker.session_title}&rdquo; · {featuredSpeaker.session_time}
               </p>
             </div>
           </Link>

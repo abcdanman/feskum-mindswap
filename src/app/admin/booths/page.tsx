@@ -496,7 +496,7 @@ export default function AdminBoothsPage() {
                   );
                   return takenBy ? (
                     <p className="text-[10px] text-rose-600 mt-1">
-                      Position {editingBooth.map_label} is already assigned to &quot;{takenBy.name}&quot;.
+                      Position {editingBooth.map_label} is already assigned to &ldquo;{takenBy.name}&rdquo;.
                     </p>
                   ) : null;
                 })()}

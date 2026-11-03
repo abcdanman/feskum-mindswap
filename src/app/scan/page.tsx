@@ -121,7 +121,7 @@ export default function ScanPage() {
         <span className="eyebrow text-brand-600">// checkpoint scanner</span>
       </div>
       <h1 className="display text-4xl text-ink leading-none">
-        Scan a<br />booth
+        Scan a booth
       </h1>
       {/* HOW TO SCAN */}
       <div className="card p-3.5 flex items-center gap-1.5">
