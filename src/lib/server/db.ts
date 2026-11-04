@@ -50,8 +50,22 @@ const rankingRowsCache = new Map<LeaderboardDay, { expiresAt: number; rows: RawR
 let checkpointCache: { expiresAt: number; byId: Map<string, Checkpoint> } | null = null;
 let checkpointCacheInFlight: Promise<Checkpoint[]> | null = null;
 
+// The public "active checkpoints" list is what every visitor-facing page
+// fetches on mount (home, booths, passport, scan) — cache it separately
+// from the by-id lookup above, which carries inactive booths too.
+const activeCheckpointsCache = new Map<string, { expiresAt: number; data: Checkpoint[] }>();
+const SPEAKERS_CACHE_MS = 15_000;
+const speakersCache = new Map<string, { expiresAt: number; data: Speaker[] }>();
+let votingStatusCache: { expiresAt: number; data: VotingStatus } | null = null;
+let rewardSettingCache: { expiresAt: number; data: RewardSetting } | null = null;
+
 function invalidateCheckpointCache() {
   checkpointCache = null;
+  activeCheckpointsCache.clear();
+}
+
+function invalidateSpeakersCache() {
+  speakersCache.clear();
 }
 
 async function getCheckpointCached(id: string): Promise<Checkpoint | null> {
@@ -114,11 +128,24 @@ export async function listCheckpoints(includeInactive = false, publicView = true
     return publicView ? local.map(sanitizeCheckpoint) : local;
   }
 
+  // The hot path — every visitor-facing page calls this with the same
+  // (false, true) args on mount. Cache that exact response per warm
+  // instance instead of round-tripping to Supabase on every tab switch.
+  const cacheKey = `${includeInactive}:${publicView}`;
+  if (!includeInactive) {
+    const cached = activeCheckpointsCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.data;
+  }
+
   let query = db().from('checkpoints').select('*').order('display_order', { ascending: true });
   if (!includeInactive) query = query.eq('is_active', true);
   const { data, error } = await query;
   if (error || !data) return [];
-  return (publicView ? data.map(sanitizeCheckpoint) : data) as Checkpoint[];
+  const result = (publicView ? data.map(sanitizeCheckpoint) : data) as Checkpoint[];
+  if (!includeInactive) {
+    activeCheckpointsCache.set(cacheKey, { expiresAt: Date.now() + CHECKPOINT_CACHE_MS, data: result });
+  }
+  return result;
 }
 
 export async function getCheckpointByToken(token: string): Promise<Checkpoint | null> {
@@ -332,14 +359,16 @@ export async function submitBoothQuiz(
 // -------------------------------------------------------------
 export async function getRewardSetting(): Promise<RewardSetting> {
   if (!hasServerSupabase()) return INITIAL_REWARD_SETTING;
+  if (rewardSettingCache && rewardSettingCache.expiresAt > Date.now()) return rewardSettingCache.data;
   const { data, error } = await db()
     .from('reward_settings')
     .select('*')
     .order('created_at', { ascending: true })
     .limit(1)
     .maybeSingle();
-  if (error || !data) return INITIAL_REWARD_SETTING;
-  return { ranking_metric: 'points', ...data } as RewardSetting;
+  const result = error || !data ? INITIAL_REWARD_SETTING : ({ ranking_metric: 'points', ...data } as RewardSetting);
+  rewardSettingCache = { expiresAt: Date.now() + SPEAKERS_CACHE_MS, data: result };
+  return result;
 }
 
 export async function saveRewardSetting(setting: Partial<RewardSetting>): Promise<{ data: RewardSetting; error: string | null }> {
@@ -347,6 +376,7 @@ export async function saveRewardSetting(setting: Partial<RewardSetting>): Promis
   const updated = { ...current, ...setting };
   if (!hasServerSupabase()) return { data: updated, error: 'Server database is not configured.' };
   const { error } = await db().from('reward_settings').upsert(updated);
+  if (!error) rewardSettingCache = { expiresAt: Date.now() + SPEAKERS_CACHE_MS, data: updated };
   return { data: updated, error: error?.message || null };
 }
 
@@ -899,16 +929,29 @@ export async function listSpeakers(includeInactive = false): Promise<Speaker[]> 
     const local = includeInactive ? INITIAL_SPEAKERS : INITIAL_SPEAKERS.filter(speaker => speaker.is_active !== false);
     return local.map(speaker => ({ ...speaker, vote_count: speaker.vote_count || 0 }));
   }
+
+  const cacheKey = String(includeInactive);
+  if (!includeInactive) {
+    const cached = speakersCache.get(cacheKey);
+    if (cached && cached.expiresAt > Date.now()) return cached.data;
+  }
+
   let query = db().from('speakers').select('*').order('display_order', { ascending: true });
   if (!includeInactive) query = query.eq('is_active', true);
-  const { data, error } = await query;
+  const [{ data, error }, { data: votes }] = await Promise.all([
+    query,
+    db().from('speaker_votes').select('speaker_id'),
+  ]);
   if (error || !data) return [];
-  const { data: votes } = await db().from('speaker_votes').select('speaker_id');
   const counts = new Map<string, number>();
   (votes || []).forEach((vote: { speaker_id: string }) => {
     counts.set(vote.speaker_id, (counts.get(vote.speaker_id) || 0) + 1);
   });
-  return (data as Speaker[]).map(speaker => ({ ...speaker, vote_count: counts.get(speaker.id) || 0 }));
+  const result = (data as Speaker[]).map(speaker => ({ ...speaker, vote_count: counts.get(speaker.id) || 0 }));
+  if (!includeInactive) {
+    speakersCache.set(cacheKey, { expiresAt: Date.now() + SPEAKERS_CACHE_MS, data: result });
+  }
+  return result;
 }
 
 export async function saveSpeaker(speaker: Partial<Speaker>): Promise<{ data: Speaker | null; error: string | null }> {
@@ -934,12 +977,14 @@ export async function saveSpeaker(speaker: Partial<Speaker>): Promise<{ data: Sp
   };
   const { data, error } = await db().from('speakers').upsert(payload).select().single();
   if (error || !data) return { data: null, error: error?.message || 'Failed to save speaker.' };
+  invalidateSpeakersCache();
   return { data: data as Speaker, error: null };
 }
 
 export async function deleteSpeaker(id: string): Promise<{ error: string | null }> {
   if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
   const { error } = await db().from('speakers').delete().eq('id', id);
+  if (!error) invalidateSpeakersCache();
   return { error: error?.message || null };
 }
 
@@ -951,18 +996,23 @@ export async function hasVisitorVoted(visitorId: string): Promise<boolean> {
 
 export async function getVotingStatus(): Promise<VotingStatus> {
   if (!hasServerSupabase()) return { is_active: false, title: "People's Choice Award", description: '' };
+  if (votingStatusCache && votingStatusCache.expiresAt > Date.now()) return votingStatusCache.data;
   const { data } = await db()
     .from('voting_events')
     .select('is_active, title, description')
     .eq('id', VOTING_EVENT_ID)
     .maybeSingle();
-  if (!data) return { is_active: false, title: "People's Choice Award", description: '' };
-  return { is_active: Boolean(data.is_active), title: data.title || "People's Choice Award", description: data.description || '' };
+  const result = !data
+    ? { is_active: false, title: "People's Choice Award", description: '' }
+    : { is_active: Boolean(data.is_active), title: data.title || "People's Choice Award", description: data.description || '' };
+  votingStatusCache = { expiresAt: Date.now() + SPEAKERS_CACHE_MS, data: result };
+  return result;
 }
 
 export async function setVotingActive(active: boolean): Promise<{ error: string | null }> {
   if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
   const { error } = await db().from('voting_events').update({ is_active: active }).eq('id', VOTING_EVENT_ID);
+  if (!error) votingStatusCache = null;
   return { error: error?.message || null };
 }
 
@@ -994,6 +1044,7 @@ export async function submitSpeakerVote(
     console.error('submitSpeakerVote:', error.message);
     return { success: false, message: 'Could not record your vote. Check your connection and try again.' };
   }
+  invalidateSpeakersCache();
   return { success: true };
 }
 

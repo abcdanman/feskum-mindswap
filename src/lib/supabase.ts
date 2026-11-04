@@ -14,6 +14,11 @@ import {
   VotingStatus,
 } from './types';
 import { INITIAL_REWARD_SETTING } from './mockData';
+import { cachedFetch, invalidateCached } from './clientCache';
+
+/** Shared, rarely-changing data — safe to reuse across tab navigations
+ * for a short window instead of refetching every time. */
+const PUBLIC_DATA_TTL_MS = 20_000;
 
 export const isSupabaseConfigured = true;
 
@@ -89,8 +94,10 @@ export async function getCheckpoints(includeInactive = false): Promise<Checkpoin
     const result = await adminRequest('checkpoints.list');
     return (result as Checkpoint[] | null) || [];
   }
-  const result = await dataRequest('checkpoints.list');
-  return (result as Checkpoint[] | null) || [];
+  return cachedFetch('checkpoints.list', PUBLIC_DATA_TTL_MS, async () => {
+    const result = await dataRequest('checkpoints.list');
+    return (result as Checkpoint[] | null) || [];
+  });
 }
 
 export async function getCheckpointByQrToken(qrToken: string): Promise<Checkpoint | null> {
@@ -103,6 +110,7 @@ export async function saveCheckpoint(
 ): Promise<{ data: Checkpoint | null; error: string | null }> {
   const result = await adminRequest('checkpoints.save', { checkpoint });
   if (!result) return { data: null, error: 'Could not save booth. Sign in again and retry.' };
+  invalidateCached('checkpoints.list');
   return {
     data: (result.data as Checkpoint | null) || null,
     error: (result.error as string | null) || null,
@@ -112,12 +120,22 @@ export async function saveCheckpoint(
 export async function deleteCheckpoint(id: string): Promise<{ error: string | null }> {
   const result = await adminRequest('checkpoints.delete', { id });
   if (!result) return { error: 'Could not delete booth.' };
+  invalidateCached('checkpoints.list');
   return { error: (result.error as string | null) || null };
 }
 
+// Short TTL, not the usual PUBLIC_DATA_TTL_MS — this is visitor-specific
+// and should reflect a just-earned stamp quickly. It exists mainly to
+// dedupe the Navbar's own poll against whatever the current page also
+// fetches on the same navigation, which otherwise fire as two separate
+// round-trips for the identical response.
+const VISITS_TTL_MS = 4_000;
+
 export async function getVisitorVisits(_visitorId?: string): Promise<BoothVisit[]> {
-  const result = await dataRequest('visitor.visits');
-  return (result as BoothVisit[] | null) || [];
+  return cachedFetch('visitor.visits', VISITS_TTL_MS, async () => {
+    const result = await dataRequest('visitor.visits');
+    return (result as BoothVisit[] | null) || [];
+  });
 }
 
 export async function getAdminVisitorVisits(visitorId: string): Promise<BoothVisit[]> {
@@ -133,6 +151,7 @@ export async function submitBoothRating(
 ): Promise<{ success: boolean; visit?: BoothVisit; message?: string }> {
   const result = await dataRequest('rating.submit', { checkpointId, rating, review });
   if (!result) return { success: false, message: 'Could not save your stamp. Check your connection and try again.' };
+  if (result.success) invalidateCached('visitor.visits');
   return {
     success: Boolean(result.success),
     visit: (result.visit as BoothVisit | undefined) || undefined,
@@ -155,6 +174,7 @@ export async function submitBoothQuiz(
 }> {
   const result = await dataRequest('quiz.submit', { checkpointId, answers });
   if (!result) return { success: false, correct: 0, total: 0, points: 0, message: 'Could not save your quiz.' };
+  if (result.success) invalidateCached('visitor.visits');
   return {
     success: Boolean(result.success),
     visit: (result.visit as BoothVisit | undefined) || undefined,
@@ -180,8 +200,10 @@ export async function manualGrantBoothVisit(
 }
 
 export async function getRewardSetting(): Promise<RewardSetting> {
-  const result = await dataRequest('reward.setting');
-  return (result as RewardSetting | null) || INITIAL_REWARD_SETTING;
+  return cachedFetch('reward.setting', PUBLIC_DATA_TTL_MS, async () => {
+    const result = await dataRequest('reward.setting');
+    return (result as RewardSetting | null) || INITIAL_REWARD_SETTING;
+  });
 }
 
 export async function saveRewardSetting(
@@ -190,6 +212,7 @@ export async function saveRewardSetting(
   const fallback = { ...INITIAL_REWARD_SETTING, ...setting };
   const result = await adminRequest('reward.save', { setting });
   if (!result) return { data: fallback, error: 'Could not save settings.' };
+  invalidateCached('reward.setting');
   return {
     data: (result.data as RewardSetting | null) || fallback,
     error: (result.error as string | null) || null,
@@ -227,6 +250,7 @@ export async function registerVisitorIdentity(
   if (!result) {
     return { visitorId: '', reclaimed: false, error: 'Could not save your profile. Check your connection and try again.' };
   }
+  invalidateCached('visitor.visits');
   return {
     visitorId: String(result.visitorId || ''),
     reclaimed: Boolean(result.reclaimed),
@@ -296,8 +320,14 @@ export async function getVisitorRank(
 }
 
 export async function getSpeakers(includeInactive = false): Promise<Speaker[]> {
-  const result = includeInactive ? await adminRequest('speakers.list') : await dataRequest('speakers.list');
-  return (result as Speaker[] | null) || [];
+  if (includeInactive) {
+    const result = await adminRequest('speakers.list');
+    return (result as Speaker[] | null) || [];
+  }
+  return cachedFetch('speakers.list', PUBLIC_DATA_TTL_MS, async () => {
+    const result = await dataRequest('speakers.list');
+    return (result as Speaker[] | null) || [];
+  });
 }
 
 export async function saveSpeaker(
@@ -305,6 +335,7 @@ export async function saveSpeaker(
 ): Promise<{ data: Speaker | null; error: string | null }> {
   const result = await adminRequest('speakers.save', { speaker });
   if (!result) return { data: null, error: 'Could not save speaker. Sign in again and retry.' };
+  invalidateCached('speakers.list');
   return {
     data: (result.data as Speaker | null) || null,
     error: (result.error as string | null) || null,
@@ -314,6 +345,7 @@ export async function saveSpeaker(
 export async function deleteSpeaker(id: string): Promise<{ error: string | null }> {
   const result = await adminRequest('speakers.delete', { id });
   if (!result) return { error: 'Could not delete speaker.' };
+  invalidateCached('speakers.list');
   return { error: (result.error as string | null) || null };
 }
 
@@ -328,6 +360,7 @@ export async function submitSpeakerVote(
 ): Promise<{ success: boolean; message?: string }> {
   const result = await dataRequest('speaker.vote.submit', { speakerId });
   if (!result) return { success: false, message: 'Could not record your vote. Check your connection and try again.' };
+  if (result.success) invalidateCached('speakers.list');
   return {
     success: Boolean(result.success),
     message: (result.message as string | undefined) || (result.error as string | undefined),
@@ -335,13 +368,16 @@ export async function submitSpeakerVote(
 }
 
 export async function getVotingStatus(): Promise<VotingStatus> {
-  const result = await dataRequest('voting.status');
-  return (result as VotingStatus | null) || { is_active: false, title: "People's Choice Award", description: '' };
+  return cachedFetch('voting.status', PUBLIC_DATA_TTL_MS, async () => {
+    const result = await dataRequest('voting.status');
+    return (result as VotingStatus | null) || { is_active: false, title: "People's Choice Award", description: '' };
+  });
 }
 
 export async function setVotingActive(active: boolean): Promise<{ error: string | null }> {
   const result = await adminRequest('voting.setActive', { active });
   if (!result) return { error: 'Could not update voting status.' };
+  invalidateCached('voting.status');
   return { error: (result.error as string | null) || null };
 }
 
