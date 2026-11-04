@@ -1,12 +1,14 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
-import { getOrInitVisitorId } from '@/lib/visitor';
-import { getCheckpoints, getVisitorVisits, getRewardSetting, getVisitorRewardStatus, unlockVisitorReward } from '@/lib/supabase';
-import { Checkpoint, BoothVisit, RewardSetting, VisitorReward } from '@/lib/types';
+import { getOrInitVisitorId, getVisitorIdentity } from '@/lib/visitor';
+import { getCheckpoints, getVisitorVisits, getRewardSetting, getVisitorRewardStatus, unlockVisitorReward, getVisitorRank } from '@/lib/supabase';
+import { Checkpoint, BoothVisit, RewardSetting, VisitorReward, RankingMetric } from '@/lib/types';
 import StampCard from '@/components/StampCard';
 import RewardModal from '@/components/RewardModal';
-import { Ticket, Trophy, QrCode, Trophy as TrophyIcon, CheckCircle2 } from 'lucide-react';
+import ShareCardModal from '@/components/ShareCardModal';
+import { ShareCardData } from '@/lib/shareCard';
+import { Ticket, Trophy, QrCode, Trophy as TrophyIcon, CheckCircle2, Share2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PassportPage() {
@@ -17,6 +19,9 @@ export default function PassportPage() {
   const [visitorReward, setVisitorReward] = useState<VisitorReward | null>(null);
   const [showRewardModal, setShowRewardModal] = useState<boolean>(false);
   const [filter, setFilter] = useState<'all' | 'completed' | 'pending'>('all');
+  const [showShareModal, setShowShareModal] = useState<boolean>(false);
+  const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
+  const [shareLoading, setShareLoading] = useState<boolean>(false);
 
   useEffect(() => {
     async function loadPassportData() {
@@ -69,6 +74,27 @@ export default function PassportPage() {
     if (filter === 'pending') return !isDone;
     return true;
   });
+
+  const handleOpenShare = async () => {
+    setShareLoading(true);
+    const identity = getVisitorIdentity();
+    const metric = (rewardSetting?.ranking_metric || 'points') as RankingMetric;
+    const rank = visitorId ? await getVisitorRank(visitorId, metric, 'all') : null;
+    setShareCardData({
+      name: identity.name || 'Visitor',
+      username: identity.username || null,
+      stamps: completedRequired,
+      threshold,
+      partnerStamps: completedPartner,
+      totalBooths: checkpoints.length,
+      rank: rank?.rank || null,
+      totalRanked: rank?.total || null,
+      points: rank?.entry?.points ?? null,
+      isComplete: isUnlocked,
+    });
+    setShareLoading(false);
+    setShowShareModal(true);
+  };
 
   const filters: { key: typeof filter; label: string; count: number }[] = [
     { key: 'all', label: 'All', count: checkpoints.length },
@@ -138,24 +164,50 @@ export default function PassportPage() {
 
         {/* Reward Status Banner */}
         {isUnlocked && (
-          <div className="p-4 rounded-xl bg-gold-400 border-2 border-ink flex items-center justify-between animate-pulseGlow">
-            <div className="flex items-center gap-3">
+          <div className="p-4 rounded-xl bg-gold-400 border-2 border-ink flex items-center justify-between gap-2 animate-pulseGlow">
+            <div className="flex items-center gap-3 min-w-0">
               <div className="w-10 h-10 rounded-xl bg-ink text-gold-400 flex items-center justify-center shrink-0">
                 <Trophy className="w-5 h-5" />
               </div>
-              <div>
+              <div className="min-w-0">
                 <h4 className="display text-lg text-ink leading-none">Reward unlocked!</h4>
                 <p className="text-[11px] text-ink/70">Show your badge at the HIR Helpdesk.</p>
               </div>
             </div>
 
-            <button
-              onClick={() => setShowRewardModal(true)}
-              className="px-3.5 py-2 rounded-xl bg-ink text-cream-50 font-extrabold text-xs shrink-0"
-            >
-              Show badge
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                onClick={handleOpenShare}
+                disabled={shareLoading}
+                aria-label="Share your progress"
+                className="p-2.5 rounded-xl bg-ink text-gold-400 disabled:opacity-50"
+              >
+                <Share2 className="w-4 h-4" />
+              </button>
+              <button
+                onClick={() => setShowRewardModal(true)}
+                className="px-3.5 py-2 rounded-xl bg-ink text-cream-50 font-extrabold text-xs"
+              >
+                Show badge
+              </button>
+            </div>
           </div>
+        )}
+
+        {/* Share CTA — before the reward unlocks there's nothing to "show",
+           but there's already progress worth bragging about. */}
+        {!isUnlocked && completedRequired > 0 && (
+          <button
+            onClick={handleOpenShare}
+            disabled={shareLoading}
+            className="w-full p-3 rounded-xl bg-cream-100 border-2 border-ink flex items-center justify-between gap-2 disabled:opacity-60 hover:bg-cream-200 transition-colors"
+          >
+            <span className="flex items-center gap-2 text-xs font-bold text-ink">
+              <Share2 className="w-4 h-4 text-brand-600" aria-hidden="true" />
+              Share your progress
+            </span>
+            <span className="text-[10px] text-slate-500">{completedRequired}/{threshold} stamped →</span>
+          </button>
         )}
       </div>
 
@@ -263,6 +315,10 @@ export default function PassportPage() {
           visitorId={visitorId}
           onClose={() => setShowRewardModal(false)}
         />
+      )}
+
+      {showShareModal && shareCardData && (
+        <ShareCardModal data={shareCardData} onClose={() => setShowShareModal(false)} />
       )}
     </div>
   );
