@@ -2,12 +2,15 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Gift, Trophy, Mic } from 'lucide-react';
+import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Gift, Trophy, Mic, Share2 } from 'lucide-react';
 import BoothThumb from '@/components/BoothThumb';
 import PushOptIn from '@/components/PushOptIn';
+import ShareCardModal from '@/components/ShareCardModal';
+import { ShareCardData } from '@/lib/shareCard';
+import { PassportPdfData } from '@/lib/passportPdf';
 import { getOrInitVisitorId, getVisitorIdentity } from '@/lib/visitor';
-import { getVisitorVisits, getCheckpoints, getRewardSetting, getSpeakers } from '@/lib/supabase';
-import { Checkpoint, RewardSetting, Speaker } from '@/lib/types';
+import { getVisitorVisits, getCheckpoints, getRewardSetting, getSpeakers, getVisitorRank } from '@/lib/supabase';
+import { BoothVisit, Checkpoint, RankingMetric, RewardSetting, Speaker } from '@/lib/types';
 
 // Fisher-Yates — used so the home page doesn't always spotlight the same
 // few booths/speaker by display order, which reads as favoritism when
@@ -22,6 +25,7 @@ function shuffled<T>(items: T[]): T[] {
 }
 
 export default function HomePage() {
+  const [visitorId, setVisitorId] = useState<string>('');
   const [stampCount, setStampCount] = useState<number>(0);
   const [partnerCount, setPartnerCount] = useState<number>(0);
   const [totalBooths, setTotalBooths] = useState<number>(12);
@@ -31,12 +35,18 @@ export default function HomePage() {
   const [featuredBooths, setFeaturedBooths] = useState<Checkpoint[]>([]);
   const [featuredSpeaker, setFeaturedSpeaker] = useState<Speaker | null>(null);
   const [name, setName] = useState('');
+  const [allVisits, setAllVisits] = useState<BoothVisit[]>([]);
+  const [showShareModal, setShowShareModal] = useState(false);
+  const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
+  const [pdfData, setPdfData] = useState<PassportPdfData | null>(null);
+  const [shareLoading, setShareLoading] = useState(false);
 
   useEffect(() => {
     async function loadData() {
-      const visitorId = getOrInitVisitorId();
+      const id = getOrInitVisitorId();
+      setVisitorId(id);
       const [visits, checkpoints, setting, speakers] = await Promise.all([
-        getVisitorVisits(visitorId),
+        getVisitorVisits(id),
         getCheckpoints(),
         getRewardSetting(),
         getSpeakers(),
@@ -58,6 +68,7 @@ export default function HomePage() {
       setFeaturedBooths(shuffled(requiredBooths.length > 0 ? requiredBooths : checkpoints).slice(0, 3));
       setFeaturedSpeaker(shuffled(speakers)[0] || null);
       setName(getVisitorIdentity().name.split(' ')[0] || 'delegate');
+      setAllVisits(visits);
     }
     loadData();
   }, []);
@@ -65,6 +76,35 @@ export default function HomePage() {
   const threshold = rewardSetting?.stamp_threshold || 8;
   const progressPercent = Math.min(Math.round((stampCount / threshold) * 100), 100);
   const unlocked = stampCount >= threshold;
+
+  const handleOpenShare = async () => {
+    setShareLoading(true);
+    const identity = getVisitorIdentity();
+    const metric = (rewardSetting?.ranking_metric || 'points') as RankingMetric;
+    const rank = visitorId ? await getVisitorRank(visitorId, metric, 'all') : null;
+    const shared = {
+      name: identity.name || 'Visitor',
+      username: identity.username || null,
+      stamps: stampCount,
+      threshold,
+      partnerStamps: partnerCount,
+      totalBooths,
+      rank: rank?.rank || null,
+      totalRanked: rank?.total || null,
+      points: rank?.entry?.points ?? null,
+      isComplete: unlocked,
+    };
+    setShareCardData(shared);
+    setPdfData({
+      ...shared,
+      booths: allVisits
+        .filter(v => v.checkpoint)
+        .map(v => ({ name: v.checkpoint!.name, faculty: v.checkpoint!.faculty, visitedAt: v.visited_at }))
+        .sort((a, b) => new Date(a.visitedAt).getTime() - new Date(b.visitedAt).getTime()),
+    });
+    setShareLoading(false);
+    setShowShareModal(true);
+  };
 
   const actions = [
     {
@@ -134,11 +174,28 @@ export default function HomePage() {
             {unlocked ? 'Reward unlocked!' : `${Math.max(threshold - stampCount, 0)} more required stamps`}
             {partnerCount > 0 && <span className="text-slate-400"> · {partnerCount} partner</span>}
           </span>
-          <Link href="/passport" className="text-xs font-extrabold text-brand-600 hover:text-brand-700 flex items-center gap-1 uppercase">
-            Open <ArrowRight className="w-3.5 h-3.5" />
-          </Link>
+          <div className="flex items-center gap-3">
+            {stampCount > 0 && (
+              <button
+                type="button"
+                onClick={handleOpenShare}
+                disabled={shareLoading}
+                aria-label="Share your passport progress"
+                className="text-xs font-extrabold text-brand-600 hover:text-brand-700 flex items-center gap-1 uppercase disabled:opacity-50"
+              >
+                <Share2 className="w-3.5 h-3.5" aria-hidden="true" /> Share
+              </button>
+            )}
+            <Link href="/passport" className="text-xs font-extrabold text-brand-600 hover:text-brand-700 flex items-center gap-1 uppercase">
+              Open <ArrowRight className="w-3.5 h-3.5" />
+            </Link>
+          </div>
         </div>
       </div>
+
+      {showShareModal && shareCardData && (
+        <ShareCardModal data={shareCardData} pdfData={pdfData} onClose={() => setShowShareModal(false)} />
+      )}
 
       {/* ACTION GRID */}
       <div className="grid grid-cols-3 gap-2.5">

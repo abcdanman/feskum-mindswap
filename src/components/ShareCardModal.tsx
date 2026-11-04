@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import Modal from '@/components/Modal';
-import { Share2, Download, Instagram, Loader2, FileText } from 'lucide-react';
+import { Share2, Download, Instagram, Loader2, FileText, Maximize2, X } from 'lucide-react';
 import {
   SHARE_CARD_TEMPLATES,
   ShareCardData,
@@ -23,7 +24,11 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
   const [rendering, setRendering] = useState(true);
   const [canShareFiles, setCanShareFiles] = useState(false);
   const [pdfBusy, setPdfBusy] = useState(false);
+  const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const lightboxCloseRef = useRef<HTMLButtonElement>(null);
+  const lightboxShareRef = useRef<HTMLButtonElement>(null);
+  const lightboxSaveRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -38,6 +43,36 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId]);
+
+  useEffect(() => {
+    if (!fullPreviewOpen) return;
+    lightboxCloseRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        setFullPreviewOpen(false);
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      // Minimal focus trap — keep Tab cycling among the lightbox's own
+      // three controls instead of leaking into the (visually hidden)
+      // modal behind it.
+      const items = [lightboxCloseRef.current, lightboxShareRef.current, lightboxSaveRef.current].filter(
+        (el): el is HTMLButtonElement => Boolean(el)
+      );
+      if (items.length === 0) return;
+      const index = items.indexOf(document.activeElement as HTMLButtonElement);
+      event.preventDefault();
+      if (event.shiftKey) {
+        items[index <= 0 ? items.length - 1 : index - 1].focus();
+      } else {
+        items[index === items.length - 1 ? 0 : index + 1].focus();
+      }
+    };
+    document.addEventListener('keydown', handleKey, true);
+    return () => document.removeEventListener('keydown', handleKey, true);
+  }, [fullPreviewOpen]);
 
   useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.canShare) return;
@@ -128,15 +163,29 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
         </div>
         <p className="text-[10px] text-slate-500 -mt-2">{SHARE_CARD_TEMPLATES.find(t => t.id === templateId)?.blurb}</p>
 
-        {/* Live preview */}
-        <div className="relative mx-auto w-full max-w-[220px] aspect-[9/16] rounded-xl overflow-hidden border-2 border-ink shadow-brut bg-cream-100">
+        {/* Live preview — tap to see it full size before deciding to share/save */}
+        <button
+          type="button"
+          onClick={() => setFullPreviewOpen(true)}
+          disabled={rendering}
+          aria-label="View full-size preview"
+          className="relative mx-auto block w-full max-w-[220px] aspect-[9/16] rounded-xl overflow-hidden border-2 border-ink shadow-brut bg-cream-100 group disabled:cursor-default"
+        >
           <canvas ref={canvasRef} className="w-full h-full object-cover" />
           {rendering && (
             <div className="absolute inset-0 flex items-center justify-center bg-cream-100/80">
               <Loader2 className="w-6 h-6 text-brand-500 animate-spin" aria-hidden="true" />
             </div>
           )}
-        </div>
+          {!rendering && (
+            <div className="absolute inset-0 flex items-end justify-center pb-2.5 bg-ink/0 group-hover:bg-ink/15 transition-colors">
+              <span className="px-2.5 py-1 rounded-full bg-ink/80 text-cream-50 text-[10px] font-bold flex items-center gap-1 opacity-90">
+                <Maximize2 className="w-3 h-3" aria-hidden="true" />
+                Tap to view full size
+              </span>
+            </div>
+          )}
+        </button>
 
         {/* Actions */}
         <div className="flex gap-2">
@@ -180,6 +229,60 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
           </div>
         )}
       </div>
+
+      {fullPreviewOpen && typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[60] flex flex-col items-center justify-center gap-4 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] bg-ink animate-fadeIn overscroll-contain"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Full-size passport card preview"
+            onMouseDown={event => {
+              if (event.target === event.currentTarget) setFullPreviewOpen(false);
+            }}
+          >
+            <button
+              ref={lightboxCloseRef}
+              type="button"
+              onClick={() => setFullPreviewOpen(false)}
+              aria-label="Close full-size preview"
+              className="absolute top-4 right-4 p-2.5 rounded-xl bg-white/10 text-cream-50 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-cream-50 focus-visible:outline-none"
+            >
+              <X className="w-5 h-5" aria-hidden="true" />
+            </button>
+            {canvasRef.current && (
+              // eslint-disable-next-line @next/next/no-img-element
+              <img
+                src={canvasRef.current.toDataURL('image/png')}
+                alt="Full-size preview of your passport share card"
+                width={1080}
+                height={1920}
+                className="max-w-full max-h-[78dvh] w-auto h-auto rounded-2xl border-2 border-white/20 shadow-2xl"
+              />
+            )}
+            <div className="flex gap-2 w-full max-w-xs">
+              <button
+                ref={lightboxShareRef}
+                type="button"
+                onClick={handleShare}
+                className="btn flex-1 py-3 bg-brand-500 hover:bg-brand-600 text-white text-xs flex items-center justify-center gap-1.5 focus-visible:ring-2 focus-visible:ring-cream-50 focus-visible:outline-none"
+              >
+                {canShareFiles ? <Instagram className="w-3.5 h-3.5" aria-hidden="true" /> : <Share2 className="w-3.5 h-3.5" aria-hidden="true" />}
+                {canShareFiles ? 'Share to Instagram' : 'Share'}
+              </button>
+              <button
+                ref={lightboxSaveRef}
+                type="button"
+                onClick={handleDownload}
+                className="btn px-4 py-3 bg-white/10 hover:bg-white/20 border-2 border-white/30 text-cream-50 text-xs flex items-center justify-center gap-1.5 focus-visible:ring-2 focus-visible:ring-cream-50 focus-visible:outline-none"
+              >
+                <Download className="w-3.5 h-3.5" aria-hidden="true" />
+                Save
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
     </Modal>
   );
 }

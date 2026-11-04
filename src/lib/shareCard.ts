@@ -77,6 +77,46 @@ function loadImage(src: string): Promise<HTMLImageElement | null> {
   });
 }
 
+/** Draws the mark preserving its natural aspect ratio into a box of the
+ * given height, anchored so `edgeX` stays put regardless of the computed
+ * width — 'left' keeps the left edge fixed, 'right' the right edge,
+ * 'center' centers on edgeX. */
+function drawLogo(
+  ctx: CanvasRenderingContext2D,
+  img: HTMLImageElement | null,
+  edgeX: number,
+  y: number,
+  h: number,
+  align: 'left' | 'right' | 'center'
+) {
+  if (!img || !img.naturalWidth || !img.naturalHeight) return;
+  const w = h * (img.naturalWidth / img.naturalHeight);
+  const x = align === 'right' ? edgeX - w : align === 'center' ? edgeX - w / 2 : edgeX;
+  ctx.drawImage(img, x, y, w, h);
+}
+
+/** A cream, ink-bordered "seal" chip with the navy mark centered inside —
+ * the same sticker treatment (border-ink + flat fill) used for every other
+ * badge in this design system, so the brand mark reads as a deliberate
+ * seal on any background instead of a faint watermark that's easy to
+ * miss against a busy or similarly-colored backdrop. */
+function drawLogoSeal(ctx: CanvasRenderingContext2D, img: HTMLImageElement | null, cx: number, cy: number, diameter: number) {
+  if (!img || !img.naturalWidth || !img.naturalHeight) return;
+  ctx.save();
+  ctx.fillStyle = CREAM;
+  ctx.beginPath();
+  ctx.arc(cx, cy, diameter / 2, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.lineWidth = Math.max(4, diameter * 0.035);
+  ctx.strokeStyle = INK;
+  ctx.stroke();
+
+  const h = diameter * 0.52;
+  const w = h * (img.naturalWidth / img.naturalHeight);
+  ctx.drawImage(img, cx - w / 2, cy - h / 2, w, h);
+  ctx.restore();
+}
+
 function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, r: number) {
   const rr = Math.min(r, w / 2, h / 2);
   ctx.beginPath();
@@ -152,7 +192,7 @@ function drawScoreboard(ctx: CanvasRenderingContext2D, data: ShareCardData, logo
   ctx.fillStyle = BRAND_LIGHT;
   ctx.font = `700 28px ${MONO_FONT}`;
   ctx.fillText('// LALUAN ASPIRASI', 90, 170);
-  if (logo) ctx.drawImage(logo, W - 90 - 84, 120, 84, 84);
+  drawLogoSeal(ctx, logo, W - 170, 195, 160);
 
   ctx.fillStyle = CREAM;
   ctx.font = `900 72px ${DISPLAY_FONT}`;
@@ -298,7 +338,7 @@ function drawTicket(ctx: CanvasRenderingContext2D, data: ShareCardData, logo: HT
   ctx.fillText('MINDSWAP', pad + 48, cardY + 170);
   ctx.font = `900 64px ${DISPLAY_FONT}`;
   ctx.fillText('@ FESKUM 2026', pad + 48, cardY + 240);
-  if (logo) ctx.drawImage(logo, W - pad - 48 - 96, cardY + 60, 96, 96);
+  drawLogoSeal(ctx, logo, W - pad - 48 - 80, cardY + 108, 150);
 
   // Perforation
   ctx.save();
@@ -417,7 +457,10 @@ function drawCertificate(ctx: CanvasRenderingContext2D, data: ShareCardData, log
   ctx.fillText('CERTIFICATE OF COMPLETION', W / 2, 210);
   ctx.font = `900 64px ${DISPLAY_FONT}`;
   ctx.fillText('MINDSWAP @ FESKUM 2026', W / 2, 290);
-  if (logo) ctx.drawImage(logo, W / 2 - 34, 310, 68, 68);
+  // A letterhead-style corner mark, not a second seal — the certificate
+  // already has its own large medallion below for the stamp count, so a
+  // centered brand seal here would just duplicate that circular shape.
+  drawLogo(ctx, logo, W - 96, 96, 72, 'right');
 
   // Seal — vertically balance the whole seal+name block in the space
   // below the title, since a fixed position leaves a large empty gap
@@ -506,7 +549,7 @@ export async function renderShareCard(templateId: ShareCardTemplateId, data: Sha
   const ctx = canvas.getContext('2d');
   if (!ctx) return;
   await ensureFonts();
-  const logo = await loadImage('/mindswap-logo.png');
+  const logo = await loadImage('/mindswap-mark-navy.png');
   ctx.clearRect(0, 0, W, H);
   if (templateId === 'ticket') drawTicket(ctx, data, logo);
   else if (templateId === 'certificate') drawCertificate(ctx, data, logo);
