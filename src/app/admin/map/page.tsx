@@ -4,7 +4,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { getCheckpoints, saveCheckpoint } from '@/lib/supabase';
 import { Checkpoint } from '@/lib/types';
-import { MAP_LABELS, MAP_ROWS } from '@/lib/floorplan';
+import { FACULTY_ROWS, EXTERNAL_ROWS, FIRST_EXTERNAL_POSITION } from '@/lib/floorplan';
 import { ArrowLeft, Save, MapPin, AlertTriangle, CheckCircle2 } from 'lucide-react';
 
 export default function AdminMapPage() {
@@ -32,7 +32,6 @@ export default function AdminMapPage() {
     setLoading(false);
   }
 
-  const requiredBooths = useMemo(() => checkpoints.filter(c => c.booth_type !== 'partner'), [checkpoints]);
   const checkpointMap = useMemo(() => new Map(checkpoints.map(c => [c.id, c])), [checkpoints]);
 
   const isDirty = JSON.stringify(assignments) !== JSON.stringify(initialAssignments);
@@ -98,29 +97,27 @@ export default function AdminMapPage() {
   };
 
   const slot = (position: number) => {
+    const isExternal = position >= FIRST_EXTERNAL_POSITION;
+    const displayNo = isExternal ? position - FIRST_EXTERNAL_POSITION + 1 : position;
     const assignedId = assignments[position] || '';
-    const assignedBooth = assignedId ? checkpointMap.get(assignedId) : null;
     const changed = assignments[position] !== initialAssignments[position];
     return (
       <div
         key={position}
         className={`rounded-xl border-2 p-2 space-y-1 ${
-          changed ? 'border-brand-500 bg-brand-50' : assignedBooth ? 'border-ink bg-white' : 'border-ink/20 bg-cream-50'
+          changed ? 'border-brand-500 bg-brand-50' : assignedId ? 'border-ink bg-white' : 'border-ink/20 bg-cream-50'
         }`}
       >
-        <div className="flex items-center justify-between">
-          <span className="text-[9px] font-extrabold uppercase tracking-wide text-slate-400">#{position}</span>
-          <span className="text-[9px] text-slate-400 truncate max-w-[90px]" title={MAP_LABELS[position - 1]}>
-            {MAP_LABELS[position - 1]}
-          </span>
-        </div>
+        <span className="text-[9px] font-extrabold uppercase tracking-wide text-slate-400 block">
+          {isExternal ? `External #${displayNo}` : `#${displayNo}`}
+        </span>
         <select
           value={assignedId}
           onChange={e => handleAssign(position, e.target.value)}
           className="w-full text-[11px] font-bold text-ink bg-transparent border-0 p-0 focus:outline-none focus:ring-0"
         >
           <option value="">— Empty —</option>
-          {requiredBooths.map(b => (
+          {checkpoints.map(b => (
             <option key={b.id} value={b.id}>
               {b.name}
             </option>
@@ -143,7 +140,7 @@ export default function AdminMapPage() {
           </Link>
           <div>
             <h1 className="display text-2xl text-ink leading-none">Floor plan</h1>
-            <p className="text-[11px] text-slate-500">Assign booths to the 17 numbered positions</p>
+            <p className="text-[11px] text-slate-500">Assign booths to the 27 numbered positions</p>
           </div>
         </div>
         <button
@@ -180,19 +177,68 @@ export default function AdminMapPage() {
       ) : (
         <div className="card p-4 bg-cream-100 space-y-3">
           {/* Non-interactive context, matching the real floor plan's shape */}
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="rounded-xl bg-slate-200/50 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+              Backstage (Speakers)
+            </div>
+            <div className="rounded-xl bg-slate-200/50 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+              Technical
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="rounded-xl bg-rose-100/50 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+              Fire Exit &amp; VIP Lounge Entry
+            </div>
+            <div className="rounded-xl bg-slate-200/50 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+              Judges
+            </div>
+          </div>
           <div className="rounded-xl bg-amber-200/60 border-2 border-ink/20 text-center py-2 text-[10px] font-extrabold uppercase tracking-wide text-ink/60">
             Stage &amp; LED screen
           </div>
-          <div className="rounded-xl bg-orange-200/50 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+          <div className="rounded-xl bg-orange-200/40 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+            VIP seating
+          </div>
+          <div className="rounded-xl bg-orange-100/50 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
             General audience seating
           </div>
+          <div className="grid grid-cols-2 gap-1.5">
+            <div className="rounded-xl bg-slate-100/60 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+              Ruang Berlegar 2
+            </div>
+            <div className="rounded-xl bg-slate-100/60 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+              Ruang Berlegar 1
+            </div>
+          </div>
 
-          <div className="space-y-2 pt-1">
-            {MAP_ROWS.map((row, i) => (
-              <div key={i} className={`grid gap-1.5`} style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
+          <p className="eyebrow text-slate-400 pt-1">Faculty booths — positions 1–19</p>
+          <div className="space-y-2">
+            {FACULTY_ROWS.map((row, i) => (
+              <div key={i} className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
                 {row.map(position => slot(position))}
               </div>
             ))}
+          </div>
+
+          <p className="eyebrow text-slate-400 pt-2 border-t-2 border-ink/10">External booths — positions 20–27</p>
+          <div className="space-y-2">
+            {EXTERNAL_ROWS.map((row, i) => (
+              <div key={i} className="grid gap-1.5" style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
+                {row.map(position => slot(position))}
+              </div>
+            ))}
+          </div>
+
+          <div className="grid grid-cols-3 gap-1.5 pt-2 border-t-2 border-ink/10">
+            <div className="rounded-xl bg-rose-200/40 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+              Photo Booth
+            </div>
+            <div className="rounded-xl bg-emerald-200/40 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+              Helpdesk
+            </div>
+            <div className="rounded-xl bg-emerald-200/40 border-2 border-ink/10 text-center py-1.5 text-[9px] font-bold uppercase tracking-wide text-ink/50">
+              Registration
+            </div>
           </div>
 
           <p className="text-[10px] text-slate-500 flex items-center gap-1.5 pt-1">
