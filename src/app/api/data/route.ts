@@ -19,6 +19,8 @@ import {
   hasVisitorVoted,
   getVotingStatus,
   unlockVisitorReward,
+  savePushSubscription,
+  deletePushSubscription,
   type VisitorIdentityInput,
 } from '@/lib/server/db';
 import { getVisitorId, setVisitorCookie } from '@/lib/server/session';
@@ -143,6 +145,21 @@ export async function POST(request: NextRequest) {
 
       case 'voting.status':
         return json(await getVotingStatus());
+
+      case 'push.subscribe': {
+        if (!visitorId) return needsVisitor();
+        const sub = payload.subscription as { endpoint?: string; keys?: { p256dh?: string; auth?: string } } | undefined;
+        if (!sub?.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) return json({ error: 'Invalid subscription.' }, 400);
+        return json(
+          await savePushSubscription(visitorId, { endpoint: sub.endpoint, keys: { p256dh: sub.keys.p256dh, auth: sub.keys.auth } })
+        );
+      }
+
+      case 'push.unsubscribe': {
+        const endpoint = typeof payload.endpoint === 'string' ? payload.endpoint : '';
+        if (!endpoint) return json({ error: 'Missing endpoint.' }, 400);
+        return json(await deletePushSubscription(endpoint));
+      }
 
       case 'speaker.vote.status':
         return visitorId ? json({ voted: await hasVisitorVoted(visitorId) }) : json({ voted: false });

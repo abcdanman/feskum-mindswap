@@ -440,3 +440,29 @@ export async function checkAdminWrite(): Promise<{ ok: boolean; message: string 
   if (!result) return { ok: false, message: 'Could not verify admin write access.' };
   return { ok: Boolean(result.ok), message: String(result.message || '') };
 }
+
+export async function subscribeToPush(subscription: PushSubscriptionJSON): Promise<{ error: string | null }> {
+  const result = await dataRequest('push.subscribe', { subscription });
+  if (!result) return { error: 'Could not save your subscription.' };
+  return { error: (result.error as string | null) || null };
+}
+
+export async function unsubscribeFromPush(endpoint: string): Promise<{ error: string | null }> {
+  const result = await dataRequest('push.unsubscribe', { endpoint });
+  if (!result) return { error: 'Could not remove your subscription.' };
+  return { error: (result.error as string | null) || null };
+}
+
+export async function broadcastPushNotification(
+  title: string,
+  body: string,
+  url?: string
+): Promise<{ sent: number; failed: number; error: string | null }> {
+  const result = await adminRequest('push.broadcast', { title, body, url });
+  if (!result) return { sent: 0, failed: 0, error: 'Could not send the notification.' };
+  return {
+    sent: Number(result.sent) || 0,
+    failed: Number(result.failed) || 0,
+    error: (result.error as string | null) || null,
+  };
+}

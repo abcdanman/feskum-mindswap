@@ -1,5 +1,6 @@
 import 'server-only';
 import crypto from 'node:crypto';
+import webpush from 'web-push';
 import {
   type AdminAnalyticsVisitor,
   type BoothAnalytics,
@@ -1353,4 +1354,71 @@ export async function checkAdminWrite(): Promise<{ ok: boolean; message: string 
   if (insertError) return { ok: false, message: insertError.message };
   await db().from('checkpoints').delete().eq('id', probeId);
   return { ok: true, message: 'Admin write access confirmed.' };
+}
+
+// -------------------------------------------------------------
+// WEB PUSH
+// -------------------------------------------------------------
+let vapidConfigured = false;
+function ensureVapid(): boolean {
+  if (vapidConfigured) return true;
+  const publicKey = process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY;
+  const privateKey = process.env.VAPID_PRIVATE_KEY;
+  if (!publicKey || !privateKey) return false;
+  webpush.setVapidDetails(process.env.VAPID_SUBJECT || 'mailto:admin@example.com', publicKey, privateKey);
+  vapidConfigured = true;
+  return true;
+}
+
+export interface PushSubscriptionInput {
+  endpoint: string;
+  keys: { p256dh: string; auth: string };
+}
+
+export async function savePushSubscription(visitorId: string, sub: PushSubscriptionInput): Promise<{ error: string | null }> {
+  if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
+  if (!sub.endpoint || !sub.keys?.p256dh || !sub.keys?.auth) return { error: 'Invalid subscription.' };
+  const { error } = await db()
+    .from('push_subscriptions')
+    .upsert({ visitor_id: visitorId, endpoint: sub.endpoint, p256dh: sub.keys.p256dh, auth: sub.keys.auth }, { onConflict: 'endpoint' });
+  return { error: error?.message || null };
+}
+
+export async function deletePushSubscription(endpoint: string): Promise<{ error: string | null }> {
+  if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
+  const { error } = await db().from('push_subscriptions').delete().eq('endpoint', endpoint);
+  return { error: error?.message || null };
+}
+
+export async function broadcastPush(
+  title: string,
+  body: string,
+  url?: string
+): Promise<{ sent: number; failed: number; error: string | null }> {
+  if (!hasServerSupabase()) return { sent: 0, failed: 0, error: 'Server database is not configured.' };
+  if (!ensureVapid()) return { sent: 0, failed: 0, error: 'Push notifications are not configured (missing VAPID keys).' };
+  if (!title.trim()) return { sent: 0, failed: 0, error: 'Title is required.' };
+
+  const { data, error } = await db().from('push_subscriptions').select('id, endpoint, p256dh, auth');
+  if (error) return { sent: 0, failed: 0, error: error.message };
+  const subs = (data || []) as { id: string; endpoint: string; p256dh: string; auth: string }[];
+  const payload = JSON.stringify({ title, body, url: url || '/' });
+
+  let sent = 0;
+  let failed = 0;
+  const staleIds: string[] = [];
+  await Promise.all(
+    subs.map(async sub => {
+      try {
+        await webpush.sendNotification({ endpoint: sub.endpoint, keys: { p256dh: sub.p256dh, auth: sub.auth } }, payload);
+        sent++;
+      } catch (err) {
+        failed++;
+        const statusCode = (err as { statusCode?: number })?.statusCode;
+        if (statusCode === 404 || statusCode === 410) staleIds.push(sub.id);
+      }
+    })
+  );
+  if (staleIds.length) await db().from('push_subscriptions').delete().in('id', staleIds);
+  return { sent, failed, error: null };
 }

@@ -2,6 +2,7 @@ import type { Metadata } from 'next';
 import { Anton, Space_Grotesk, Space_Mono } from 'next/font/google';
 import './globals.css';
 import IdentityGate from '@/components/IdentityGate';
+import ServiceWorkerRegister from '@/components/ServiceWorkerRegister';
 
 const display = Anton({
   subsets: ['latin'],
@@ -71,6 +72,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         <a href="#main-content" className="skip-link btn bg-brand-500 text-white px-4 py-2 text-xs uppercase">
           Skip to content
         </a>
+        <ServiceWorkerRegister />
         <IdentityGate>{children}</IdentityGate>
       </body>
     </html>

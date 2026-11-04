@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Gift, Trophy, Mic } from 'lucide-react';
 import BoothThumb from '@/components/BoothThumb';
+import PushOptIn from '@/components/PushOptIn';
 import { getOrInitVisitorId, getVisitorIdentity } from '@/lib/visitor';
 import { getVisitorVisits, getCheckpoints, getRewardSetting, getSpeakers } from '@/lib/supabase';
 import { Checkpoint, RewardSetting, Speaker } from '@/lib/types';
@@ -110,6 +111,8 @@ export default function HomePage() {
           </div>
         </div>
       </div>
+
+      <PushOptIn />
 
       {/* PASSPORT WIDGET */}
       <div className="card p-4 space-y-2.5">

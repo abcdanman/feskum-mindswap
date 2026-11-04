@@ -343,4 +343,19 @@ REVOKE ALL ON TABLE public.leaderboard_snapshots FROM anon, authenticated;
 -- migrations/20261103_checkpoint_map_label.sql)
 ALTER TABLE public.checkpoints ADD COLUMN IF NOT EXISTS map_label INT NULL;
 
+-- 10. WEB PUSH SUBSCRIPTIONS (see migrations/20261104_push_subscriptions.sql)
+CREATE TABLE IF NOT EXISTS public.push_subscriptions (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  visitor_id UUID REFERENCES public.visitors(id) ON DELETE CASCADE,
+  endpoint TEXT NOT NULL UNIQUE,
+  p256dh TEXT NOT NULL,
+  auth TEXT NOT NULL,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE INDEX IF NOT EXISTS push_subscriptions_visitor_id_idx ON public.push_subscriptions(visitor_id);
+
+ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.push_subscriptions FROM anon, authenticated;
+
 NOTIFY pgrst, 'reload schema';

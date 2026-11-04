@@ -4,6 +4,7 @@ import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { getAdminAnalytics, checkAdminWrite } from '@/lib/supabase';
 import { Users, Ticket, Star, Gift, Award, Trophy, ShieldCheck, ShieldAlert, RefreshCw, HelpCircle, Handshake } from 'lucide-react';
+import PushBroadcastCard from '@/components/admin/PushBroadcastCard';
 
 export default function AdminOverviewPage() {
   const [analytics, setAnalytics] = useState<Awaited<ReturnType<typeof getAdminAnalytics>> | null>(null);
@@ -103,6 +104,8 @@ export default function AdminOverviewPage() {
         </div>
         <span className="eyebrow text-brand-600">View →</span>
       </Link>
+
+      <PushBroadcastCard />
 
       {/* PEOPLE'S CHOICE LIVE TALLY */}
       {analytics && (

@@ -16,6 +16,7 @@ import {
   saveCheckpoint,
   saveRewardSetting,
   saveSpeaker,
+  broadcastPush,
 } from '@/lib/server/db';
 import { hasAdminSession } from '@/lib/server/session';
 import type { LeaderboardDay } from '@/lib/types';
@@ -103,6 +104,15 @@ export async function POST(request: NextRequest) {
 
       case 'write.check':
         return json(await checkAdminWrite());
+
+      case 'push.broadcast':
+        return json(
+          await broadcastPush(
+            String(payload.title || ''),
+            String(payload.body || ''),
+            typeof payload.url === 'string' ? payload.url : undefined
+          )
+        );
 
       default:
         return json({ error: 'Unknown action.' }, 404);
