@@ -8,7 +8,7 @@ import { Checkpoint, QuizQuestion } from '@/lib/types';
 import Modal from '@/components/Modal';
 import ImageCropModal from '@/components/ImageCropModal';
 import { QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
-import { FACULTY_ROWS, EXTERNAL_ROWS, FIRST_EXTERNAL_POSITION } from '@/lib/floorplan';
+import { FACULTY_SLOTS, EXTERNAL_SLOTS, FIRST_EXTERNAL_POSITION } from '@/lib/floorplan';
 import {
   QrCode,
   Plus,
@@ -485,14 +485,14 @@ export default function AdminBoothsPage() {
                 >
                   <option value="">— Not labelled —</option>
                   <optgroup label="Faculty booths">
-                    {FACULTY_ROWS.flat().map(position => (
+                    {FACULTY_SLOTS.map(({ position }) => (
                       <option key={position} value={position}>
                         Position {position}
                       </option>
                     ))}
                   </optgroup>
                   <optgroup label="External booths">
-                    {EXTERNAL_ROWS.flat().map(position => (
+                    {EXTERNAL_SLOTS.map(({ position }) => (
                       <option key={position} value={position}>
                         External {position - FIRST_EXTERNAL_POSITION + 1}
                       </option>
