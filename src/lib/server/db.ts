@@ -795,7 +795,11 @@ async function buildRankingRowsUncached(day: LeaderboardDay = 'all'): Promise<Ra
       partner_trail_complete: partnerTrailComplete,
       partner_completion_at: partnerTrailComplete && trail ? trail.latest : null,
       rating_sum: row.rating_sum,
-      votes: row.votes,
+      // The unique-vote constraint is per visitor_id, not per student_id —
+      // someone who votes from two unlinked devices before ever linking by
+      // matric can legitimately hold two valid vote rows. Once merged here
+      // by student_id, cap at 1 so that doesn't silently double the score.
+      votes: Math.min(row.votes, 1),
       name: showOk ? rawName : '',
       username: showOk ? username : null,
     });

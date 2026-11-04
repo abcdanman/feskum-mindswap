@@ -4,18 +4,8 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { getCheckpoints, saveCheckpoint } from '@/lib/supabase';
 import { Checkpoint } from '@/lib/types';
-import { MAP_LABELS } from '@/lib/floorplan';
+import { MAP_LABELS, MAP_ROWS } from '@/lib/floorplan';
 import { ArrowLeft, Save, MapPin, AlertTriangle, CheckCircle2 } from 'lucide-react';
-
-// Matches the real venue floor plan's row shape (4 / 4 / 5 / 4 "Fac. booth"
-// slots) — a reasonable default arrangement for the 17 numbered positions.
-// Final placement is still an admin decision; this just lays them out.
-const ROWS = [
-  [1, 2, 3, 4],
-  [5, 6, 7, 8],
-  [9, 10, 11, 12, 13],
-  [14, 15, 16, 17],
-];
 
 export default function AdminMapPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
@@ -198,7 +188,7 @@ export default function AdminMapPage() {
           </div>
 
           <div className="space-y-2 pt-1">
-            {ROWS.map((row, i) => (
+            {MAP_ROWS.map((row, i) => (
               <div key={i} className={`grid gap-1.5`} style={{ gridTemplateColumns: `repeat(${row.length}, minmax(0, 1fr))` }}>
                 {row.map(position => slot(position))}
               </div>

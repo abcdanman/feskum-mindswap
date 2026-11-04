@@ -39,6 +39,7 @@ export default function ExhibitionPage() {
     )[0]?.checkpoint_id ?? null;
 
   const categories = ['All', ...Array.from(new Set(checkpoints.map(c => c.category)))];
+  const isFiltering = Boolean(searchQuery.trim()) || selectedCategory !== 'All' || typeFilter !== 'all';
 
   const filteredBooths = checkpoints.filter(booth => {
     const matchesSearch =
@@ -139,10 +140,11 @@ export default function ExhibitionPage() {
 
       {view === 'map' ? (
         <FloorPlanMap
-          checkpoints={filteredBooths}
+          checkpoints={checkpoints}
           visitedIds={visitedSet}
           lastCheckpointId={lastCheckpointId}
           onSelect={setSelectedBooth}
+          highlightedIds={isFiltering ? new Set(filteredBooths.map(b => b.id)) : null}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
