@@ -2,7 +2,7 @@
 
 import React, { useEffect, useRef, useState } from 'react';
 import Modal from '@/components/Modal';
-import { Share2, Download, Instagram, Loader2 } from 'lucide-react';
+import { Share2, Download, Instagram, Loader2, FileText } from 'lucide-react';
 import {
   SHARE_CARD_TEMPLATES,
   ShareCardData,
@@ -10,16 +10,19 @@ import {
   renderShareCard,
   canvasToBlob,
 } from '@/lib/shareCard';
+import { PassportPdfData, generatePassportPdf, passportPdfFileName } from '@/lib/passportPdf';
 
 interface ShareCardModalProps {
   data: ShareCardData;
+  pdfData?: PassportPdfData | null;
   onClose: () => void;
 }
 
-export default function ShareCardModal({ data, onClose }: ShareCardModalProps) {
+export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModalProps) {
   const [templateId, setTemplateId] = useState<ShareCardTemplateId>(data.isComplete ? 'certificate' : 'scoreboard');
   const [rendering, setRendering] = useState(true);
   const [canShareFiles, setCanShareFiles] = useState(false);
+  const [pdfBusy, setPdfBusy] = useState(false);
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
@@ -82,6 +85,17 @@ export default function ShareCardModal({ data, onClose }: ShareCardModalProps) {
       if ((err as DOMException)?.name === 'AbortError') return;
     }
     handleDownload();
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!pdfData || pdfBusy) return;
+    setPdfBusy(true);
+    try {
+      const doc = await generatePassportPdf(pdfData);
+      doc.save(passportPdfFileName(pdfData));
+    } finally {
+      setPdfBusy(false);
+    }
   };
 
   return (
@@ -149,6 +163,21 @@ export default function ShareCardModal({ data, onClose }: ShareCardModalProps) {
           <p className="text-[10px] text-slate-400 text-center">
             Saved to your device — open Instagram and share it as a Story or post from your gallery.
           </p>
+        )}
+
+        {pdfData && (
+          <div className="pt-3 border-t-2 border-ink/10 space-y-2">
+            <p className="text-[10px] text-slate-500">Need something more formal? A one-page certificate, good for a CV or portfolio.</p>
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              disabled={pdfBusy}
+              className="btn w-full py-2.5 bg-white border-2 border-ink disabled:opacity-50 text-ink text-xs flex items-center justify-center gap-1.5"
+            >
+              {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <FileText className="w-3.5 h-3.5" aria-hidden="true" />}
+              {pdfBusy ? 'Preparing…' : 'Download PDF certificate'}
+            </button>
+          </div>
         )}
       </div>
     </Modal>

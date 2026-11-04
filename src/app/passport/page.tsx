@@ -8,6 +8,7 @@ import StampCard from '@/components/StampCard';
 import RewardModal from '@/components/RewardModal';
 import ShareCardModal from '@/components/ShareCardModal';
 import { ShareCardData } from '@/lib/shareCard';
+import { PassportPdfData } from '@/lib/passportPdf';
 import { Ticket, Trophy, QrCode, Trophy as TrophyIcon, CheckCircle2, Share2 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -21,6 +22,7 @@ export default function PassportPage() {
   const [filter, setFilter] = useState<'all' | 'completed' | 'pending'>('all');
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
   const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
+  const [pdfData, setPdfData] = useState<PassportPdfData | null>(null);
   const [shareLoading, setShareLoading] = useState<boolean>(false);
 
   useEffect(() => {
@@ -91,6 +93,21 @@ export default function PassportPage() {
       totalRanked: rank?.total || null,
       points: rank?.entry?.points ?? null,
       isComplete: isUnlocked,
+    });
+    setPdfData({
+      name: identity.name || 'Visitor',
+      username: identity.username || null,
+      stamps: completedRequired,
+      threshold,
+      totalBooths: checkpoints.length,
+      rank: rank?.rank || null,
+      totalRanked: rank?.total || null,
+      points: rank?.entry?.points ?? null,
+      isComplete: isUnlocked,
+      booths: visits
+        .filter(v => v.checkpoint)
+        .map(v => ({ name: v.checkpoint!.name, faculty: v.checkpoint!.faculty, visitedAt: v.visited_at }))
+        .sort((a, b) => new Date(a.visitedAt).getTime() - new Date(b.visitedAt).getTime()),
     });
     setShareLoading(false);
     setShowShareModal(true);
@@ -318,7 +335,7 @@ export default function PassportPage() {
       )}
 
       {showShareModal && shareCardData && (
-        <ShareCardModal data={shareCardData} onClose={() => setShowShareModal(false)} />
+        <ShareCardModal data={shareCardData} pdfData={pdfData} onClose={() => setShowShareModal(false)} />
       )}
     </div>
   );
