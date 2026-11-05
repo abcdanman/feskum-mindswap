@@ -250,7 +250,7 @@ export async function generatePassportPdf(data: PassportPdfData): Promise<jsPDF>
   doc.setTextColor(SLATE);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.text('feskum-mindswap.vercel.app', cx, H - margin - 6, { align: 'center' });
+  doc.text('mindswap.space', cx, H - margin - 6, { align: 'center' });
 
   drawHighlightsPage(doc, W, H, margin);
 
@@ -358,7 +358,7 @@ function drawHighlightsPage(doc: jsPDF, W: number, H: number, margin: number) {
   doc.setTextColor(SLATE);
   doc.setFont('helvetica', 'bold');
   doc.setFontSize(7.5);
-  doc.text('feskum-mindswap.vercel.app', cx, H - margin - 6, { align: 'center' });
+  doc.text('mindswap.space', cx, H - margin - 6, { align: 'center' });
 }
 
 export function passportPdfFileName(data: PassportPdfData): string {

@@ -173,7 +173,7 @@ function footer(ctx: CanvasRenderingContext2D, color: string, dim: string) {
   ctx.fillText('MINDSWAP @ FESKUM 2026', W / 2, H - 118);
   ctx.fillStyle = dim;
   ctx.font = `400 22px ${BODY_FONT}`;
-  ctx.fillText('13–14 NOV · UNIVERSITI MALAYA · feskum-mindswap.vercel.app', W / 2, H - 80);
+  ctx.fillText('13–14 NOV · UNIVERSITI MALAYA · mindswap.space', W / 2, H - 80);
 }
 
 function drawScoreboard(ctx: CanvasRenderingContext2D, data: ShareCardData, logo: HTMLImageElement | null) {

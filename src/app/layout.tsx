@@ -24,7 +24,7 @@ const mono = Space_Mono({
   display: 'swap',
 });
 
-const SITE_URL = 'https://feskum-mindswap.vercel.app';
+const SITE_URL = 'https://mindswap.space';
 
 export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
