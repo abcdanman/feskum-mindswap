@@ -37,34 +37,30 @@ export interface WalkwayLayout {
   direction: 'left' | 'right';
 }
 
-// Shared left/right edge every booth row aligns to, regardless of how many
-// slots it holds — rows with a different item count get a different slot
-// width, not a different starting point, so columns don't zigzag row to row.
-const ROW_LEFT = 7;
-const ROW_RIGHT = 93;
-const ROW_GAP = 2;
-
-/** Builds one row of evenly-spaced slots sized to fill the shared
- * left/right span exactly, so every row's first slot starts at the same
- * left edge and its last slot ends at the same right edge. */
-function row(positions: number[], top: number, height = 5): SlotLayout[] {
-  const count = positions.length;
-  const width = (ROW_RIGHT - ROW_LEFT - ROW_GAP * (count - 1)) / count;
-  return positions.map((position, i) => ({ position, top, left: ROW_LEFT + i * (width + ROW_GAP), width, height }));
+/** Builds one row of evenly-spaced, equal-width slots — keeps every row's
+ * internal gap and width consistent instead of hand-tuned per slot, while
+ * still letting each row start wherever the real floor plan's stagger
+ * (mirroring the walkways between rows) puts it. */
+function row(positions: number[], top: number, startLeft: number, width: number, gap: number, height = 5): SlotLayout[] {
+  return positions.map((position, i) => ({ position, top, left: startLeft + i * (width + gap), width, height }));
 }
 
-/** 17 numbered "Fac. booth" slots, 4 / 4 / 5 / 4 — positions 1-17. */
+/** 17 numbered "Fac. booth" slots, 4 / 4 / 5 / 4 — positions 1-17. Row tops
+ * give extra vertical clearance around the two walkway-arrow gaps (after
+ * row 1-4 and row 9-13) so the dashed line doesn't crowd the boxes either
+ * side of it; the wall-divided gaps need less room since a solid line reads
+ * fine close-up. */
 export const FACULTY_SLOTS: SlotLayout[] = [
-  ...row([1, 2, 3, 4], 35),
-  ...row([5, 6, 7, 8], 46),
-  ...row([9, 10, 11, 12, 13], 57),
-  ...row([14, 15, 16, 17], 68),
+  ...row([1, 2, 3, 4], 35, 8.5, 14, 3),
+  ...row([5, 6, 7, 8], 48, 18.5, 14, 3),
+  ...row([9, 10, 11, 12, 13], 58, 13.5, 13.5, 2.25),
+  ...row([14, 15, 16, 17], 71, 7.5, 14, 3),
 ];
 
 /** 7 numbered "External booth" slots, 4 / 3 — positions 18-24. */
 export const EXTERNAL_SLOTS: SlotLayout[] = [
-  ...row([18, 19, 20, 21], 79),
-  ...row([22, 23, 24], 90),
+  ...row([18, 19, 20, 21], 79, 8.5, 14, 3),
+  ...row([22, 23, 24], 90, 8.5, 14, 3),
 ];
 
 export const FIRST_EXTERNAL_POSITION = 18;
@@ -89,14 +85,15 @@ export const LANDMARKS: LandmarkLayout[] = [
 /** Wall dividers between seating and booth rows, and between booth rows. */
 export const WALLS: WallLayout[] = [
   { top: 32.5, left: 6, width: 60 },
-  { top: 53, left: 6, width: 88 },
-  { top: 74, left: 6, width: 70 },
+  { top: 55, left: 6, width: 88 },
+  { top: 77, left: 6, width: 70 },
 ];
 
-/** Direction-of-flow hints through the aisles between booth rows. */
+/** Direction-of-flow hints through the aisles between booth rows — centered
+ * in their (now roomier) gap so the dashed line clears the boxes on both sides. */
 export const WALKWAYS: WalkwayLayout[] = [
-  { top: 41.5, left: 12, width: 76, direction: 'right' },
-  { top: 63, left: 12, width: 76, direction: 'left' },
+  { top: 44, left: 12, width: 76, direction: 'right' },
+  { top: 67, left: 12, width: 76, direction: 'left' },
 ];
 
 export const VENUE_NAME = 'Marquee Tent, High Impact Research Building, Universiti Malaya';
