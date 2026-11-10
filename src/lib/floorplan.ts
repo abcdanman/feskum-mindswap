@@ -37,26 +37,34 @@ export interface WalkwayLayout {
   direction: 'left' | 'right';
 }
 
-/** Builds one row of evenly-spaced, equal-width slots — keeps every row's
- * internal gap and width consistent instead of hand-tuned per slot, while
- * still letting each row start wherever the real floor plan's stagger
- * (mirroring the walkways between rows) puts it. */
-function row(positions: number[], top: number, startLeft: number, width: number, gap: number, height = 5): SlotLayout[] {
-  return positions.map((position, i) => ({ position, top, left: startLeft + i * (width + gap), width, height }));
+// Shared left/right edge every booth row aligns to, regardless of how many
+// slots it holds — rows with a different item count get a different slot
+// width, not a different starting point, so columns don't zigzag row to row.
+const ROW_LEFT = 7;
+const ROW_RIGHT = 93;
+const ROW_GAP = 2;
+
+/** Builds one row of evenly-spaced slots sized to fill the shared
+ * left/right span exactly, so every row's first slot starts at the same
+ * left edge and its last slot ends at the same right edge. */
+function row(positions: number[], top: number, height = 5): SlotLayout[] {
+  const count = positions.length;
+  const width = (ROW_RIGHT - ROW_LEFT - ROW_GAP * (count - 1)) / count;
+  return positions.map((position, i) => ({ position, top, left: ROW_LEFT + i * (width + ROW_GAP), width, height }));
 }
 
 /** 17 numbered "Fac. booth" slots, 4 / 4 / 5 / 4 — positions 1-17. */
 export const FACULTY_SLOTS: SlotLayout[] = [
-  ...row([1, 2, 3, 4], 35, 8.5, 14, 3),
-  ...row([5, 6, 7, 8], 46, 18.5, 14, 3),
-  ...row([9, 10, 11, 12, 13], 57, 13.5, 13.5, 2.25),
-  ...row([14, 15, 16, 17], 68, 7.5, 14, 3),
+  ...row([1, 2, 3, 4], 35),
+  ...row([5, 6, 7, 8], 46),
+  ...row([9, 10, 11, 12, 13], 57),
+  ...row([14, 15, 16, 17], 68),
 ];
 
 /** 7 numbered "External booth" slots, 4 / 3 — positions 18-24. */
 export const EXTERNAL_SLOTS: SlotLayout[] = [
-  ...row([18, 19, 20, 21], 79, 8.5, 14, 3),
-  ...row([22, 23, 24], 90, 8.5, 14, 3),
+  ...row([18, 19, 20, 21], 79),
+  ...row([22, 23, 24], 90),
 ];
 
 export const FIRST_EXTERNAL_POSITION = 18;
@@ -89,7 +97,6 @@ export const WALLS: WallLayout[] = [
 export const WALKWAYS: WalkwayLayout[] = [
   { top: 41.5, left: 12, width: 76, direction: 'right' },
   { top: 63, left: 12, width: 76, direction: 'left' },
-  { top: 86, left: 12, width: 65, direction: 'left' },
 ];
 
 export const VENUE_NAME = 'Marquee Tent, High Impact Research Building, Universiti Malaya';

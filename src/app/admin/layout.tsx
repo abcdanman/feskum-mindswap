@@ -142,7 +142,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </div>
 
       {/* ADMIN SUB-NAVIGATION TABS */}
-      <div className="grid grid-cols-3 sm:grid-cols-4 lg:grid-cols-7 gap-1.5 p-1.5 rounded-2xl bg-white border-2 border-ink shadow-brut text-[11px] font-bold text-center">
+      <div className="grid grid-cols-4 lg:grid-cols-8 gap-1.5 p-1.5 rounded-2xl bg-white border-2 border-ink shadow-brut text-[11px] font-bold text-center">
         {ADMIN_TABS.map(tab => {
           const isActive = pathname === tab.href;
           return (
