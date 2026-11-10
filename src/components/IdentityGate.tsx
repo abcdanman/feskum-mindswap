@@ -153,9 +153,9 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
               type="button"
               onClick={handleHiddenAdminTap}
               className="eyebrow text-brand-600 text-right"
-              aria-label="Laluan Aspirasi"
+              aria-label="Kemuncak Aspirasi"
             >
-              // Laluan Aspirasi
+              // Kemuncak Aspirasi
             </button>
           </div>
           <div className="space-y-2">

@@ -189,6 +189,7 @@ export async function saveCheckpoint(
     is_active: checkpoint.is_active ?? true,
     display_order: checkpoint.display_order ?? 0,
     map_label: checkpoint.map_label ?? null,
+    map_color: checkpoint.map_color ?? null,
   };
   if (!payload.qr_token && payload.name) {
     payload.qr_token = `qr-${crypto.randomUUID().slice(0, 8)}`;
@@ -598,6 +599,75 @@ export async function findVisitorByUsername(username: string): Promise<AdminAnal
     .maybeSingle();
   if (error || !data) return null;
   return data as AdminAnalyticsVisitor;
+}
+
+export interface VisitorListEntry {
+  id: string;
+  display_name: string | null;
+  username: string | null;
+  student_id: string | null;
+  faculty: string | null;
+  show_on_leaderboard: boolean;
+  created_at: string;
+  stamp_count: number;
+}
+
+/** Every registered identity, for the admin's account-management view —
+ * covers the "release this device" case: a visitor whose device/localStorage
+ * is stuck can have their row deleted here and re-register from scratch. */
+export async function listAllVisitors(): Promise<VisitorListEntry[]> {
+  if (!hasServerSupabase()) return [];
+  const [visitorsRes, visitsRes] = await Promise.all([
+    db()
+      .from('visitors')
+      .select('id, display_name, username, student_id, faculty, show_on_leaderboard, created_at')
+      .order('created_at', { ascending: false }),
+    db().from('booth_visits').select('visitor_id'),
+  ]);
+  const visitors = (visitorsRes.data || []) as Omit<VisitorListEntry, 'stamp_count'>[];
+  const counts = new Map<string, number>();
+  ((visitsRes.data || []) as { visitor_id: string }[]).forEach(v => counts.set(v.visitor_id, (counts.get(v.visitor_id) || 0) + 1));
+  return visitors.map(v => ({ ...v, stamp_count: counts.get(v.id) || 0 }));
+}
+
+/** Cascades to booth_visits/visitor_rewards/speaker_votes/push_subscriptions
+ * (all ON DELETE CASCADE) — lets the visitor re-register as a fresh identity. */
+export async function deleteVisitor(id: string): Promise<{ error: string | null }> {
+  if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
+  const { error } = await db().from('visitors').delete().eq('id', id);
+  if (error) return { error: error.message || 'Could not delete that visitor.' };
+  return { error: null };
+}
+
+export async function updateVisitorProfile(
+  id: string,
+  fields: {
+    display_name?: string;
+    username?: string;
+    student_id?: string | null;
+    faculty?: string;
+    show_on_leaderboard?: boolean;
+  }
+): Promise<{ error: string | null }> {
+  if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
+  const payload: Record<string, unknown> = {};
+  if (fields.display_name !== undefined) payload.display_name = fields.display_name.trim().slice(0, 80);
+  if (fields.faculty !== undefined) payload.faculty = fields.faculty.trim().slice(0, 120);
+  if (fields.student_id !== undefined) payload.student_id = fields.student_id ? fields.student_id.trim().slice(0, 40) : null;
+  if (fields.show_on_leaderboard !== undefined) payload.show_on_leaderboard = fields.show_on_leaderboard;
+  if (fields.username !== undefined) {
+    const check = await validateUsername(fields.username);
+    if (!check.ok) return { error: check.error };
+    const owner = await usernameOwner(check.username, id);
+    if (owner) return { error: 'That username is already taken.' };
+    payload.username = check.username;
+  }
+  const { error } = await db().from('visitors').update(payload).eq('id', id);
+  if (error) {
+    if (error.code === '23505') return { error: 'That username is already taken.' };
+    return { error: error.message || 'Could not update that visitor.' };
+  }
+  return { error: null };
 }
 
 // -------------------------------------------------------------

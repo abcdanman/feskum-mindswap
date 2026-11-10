@@ -374,6 +374,26 @@ export async function getVotingStatus(): Promise<VotingStatus> {
   });
 }
 
+export async function listAllVisitors() {
+  const result = await adminRequest('visitors.list');
+  return ((result?.visitors as import('./types').VisitorListEntry[] | undefined) || []);
+}
+
+export async function deleteVisitor(id: string): Promise<{ error: string | null }> {
+  const result = await adminRequest('visitors.delete', { id });
+  if (!result) return { error: 'Could not delete that visitor. Sign in again and retry.' };
+  return { error: (result.error as string | null) || null };
+}
+
+export async function updateVisitorProfile(
+  id: string,
+  fields: Partial<{ display_name: string; username: string; student_id: string | null; faculty: string; show_on_leaderboard: boolean }>
+): Promise<{ error: string | null }> {
+  const result = await adminRequest('visitors.update', { id, fields });
+  if (!result) return { error: 'Could not update that visitor. Sign in again and retry.' };
+  return { error: (result.error as string | null) || null };
+}
+
 export async function setVotingActive(active: boolean): Promise<{ error: string | null }> {
   const result = await adminRequest('voting.setActive', { active });
   if (!result) return { error: 'Could not update voting status.' };

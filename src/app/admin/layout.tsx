@@ -8,6 +8,7 @@ import { adminLogin, adminLogout, getAdminSession } from '@/lib/supabase';
 
 const ADMIN_TABS = [
   { label: 'Overview', href: '/admin' },
+  { label: 'Visitors', href: '/admin/visitors' },
   { label: 'Booths', href: '/admin/booths' },
   { label: 'Floor plan', href: '/admin/map' },
   { label: 'Speakers', href: '/admin/speakers' },

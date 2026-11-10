@@ -130,7 +130,7 @@ export default function PassportPage() {
             </div>
             <div>
               <h1 className="display text-3xl text-ink leading-none">Digital passport</h1>
-              <p className="text-[11px] text-slate-500">Laluan Aspirasi @ FESKUM 2026</p>
+              <p className="text-[11px] text-slate-500">Kemuncak Aspirasi @ FESKUM 2026</p>
             </div>
           </div>
 

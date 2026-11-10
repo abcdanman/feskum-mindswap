@@ -30,8 +30,8 @@ export const metadata: Metadata = {
   metadataBase: new URL(SITE_URL),
   title: 'MindSwap @ FESKUM 2026 — Interactive Event Web App',
   description:
-    'Official Laluan Aspirasi digital passport, exhibition booth guide, and UM Talk People Choice voting web platform for MindSwap @ FESKUM 2026, Universiti Malaya.',
-  keywords: ['MindSwap', 'FESKUM 2026', 'Laluan Aspirasi', 'Universiti Malaya', 'UM Talk', 'Digital Passport'],
+    'Official Kemuncak Aspirasi digital passport, exhibition booth guide, and UM Talk People Choice voting web platform for MindSwap @ FESKUM 2026, Universiti Malaya.',
+  keywords: ['MindSwap', 'FESKUM 2026', 'Kemuncak Aspirasi', 'Universiti Malaya', 'UM Talk', 'Digital Passport'],
   applicationName: 'MindSwap 2026',
   appleWebApp: {
     capable: true,

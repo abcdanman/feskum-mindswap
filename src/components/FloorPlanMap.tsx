@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { Checkpoint } from '@/lib/types';
-import { FIRST_EXTERNAL_POSITION, VENUE_NAME, SlotLayout } from '@/lib/floorplan';
+import { FIRST_EXTERNAL_POSITION, VENUE_NAME, SlotLayout, mapColorOption } from '@/lib/floorplan';
 import FloorPlanCanvas from './FloorPlanCanvas';
 import { CheckCircle2, MapPin } from 'lucide-react';
 
@@ -50,6 +50,10 @@ export default function FloorPlanMap({
     const visited = visitedIds.has(checkpoint.id);
     const isHere = lastCheckpointId === checkpoint.id;
     const dimmed = highlightedIds ? !highlightedIds.has(checkpoint.id) : false;
+    // Admin's color tag is a secondary cue — status (visited/here) always
+    // wins the slot's own background, so a tag only shows as an accent bar
+    // on an otherwise-unvisited booth.
+    const colorOpt = !visited ? mapColorOption(checkpoint.map_color) : null;
 
     return (
       <button
@@ -60,6 +64,7 @@ export default function FloorPlanMap({
         } ${dimmed ? 'opacity-25' : ''}`}
         aria-label={`${checkpoint.name}${visited ? ' — stamped' : ''}${isHere ? ' — you were here' : ''}`}
       >
+        {colorOpt && <span className={`absolute inset-x-0 top-0 h-[3px] ${colorOpt.swatchClass}`} aria-hidden="true" />}
         {isHere && (
           <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-brand-500 border-2 border-ink animate-pulse" aria-hidden="true" />
         )}

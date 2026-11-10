@@ -37,40 +37,26 @@ export interface WalkwayLayout {
   direction: 'left' | 'right';
 }
 
+/** Builds one row of evenly-spaced, equal-width slots — keeps every row's
+ * internal gap and width consistent instead of hand-tuned per slot, while
+ * still letting each row start wherever the real floor plan's stagger
+ * (mirroring the walkways between rows) puts it. */
+function row(positions: number[], top: number, startLeft: number, width: number, gap: number, height = 5): SlotLayout[] {
+  return positions.map((position, i) => ({ position, top, left: startLeft + i * (width + gap), width, height }));
+}
+
 /** 17 numbered "Fac. booth" slots, 4 / 4 / 5 / 4 — positions 1-17. */
 export const FACULTY_SLOTS: SlotLayout[] = [
-  { position: 1, top: 35, left: 8.5, width: 13.5, height: 5 },
-  { position: 2, top: 35, left: 25, width: 14, height: 5 },
-  { position: 3, top: 35, left: 42, width: 14, height: 5 },
-  { position: 4, top: 35, left: 59.5, width: 14, height: 5 },
-
-  { position: 5, top: 46, left: 18.5, width: 13.5, height: 5 },
-  { position: 6, top: 46, left: 38.5, width: 14, height: 5 },
-  { position: 7, top: 46, left: 57, width: 14, height: 5 },
-  { position: 8, top: 46, left: 75, width: 14, height: 5 },
-
-  { position: 9, top: 57, left: 13.5, width: 12, height: 5 },
-  { position: 10, top: 57, left: 27, width: 13, height: 5 },
-  { position: 11, top: 57, left: 43.5, width: 14, height: 5 },
-  { position: 12, top: 57, left: 61.5, width: 14, height: 5 },
-  { position: 13, top: 57, left: 79.5, width: 14, height: 5 },
-
-  { position: 14, top: 68, left: 7.5, width: 14, height: 5 },
-  { position: 15, top: 68, left: 24, width: 14, height: 5 },
-  { position: 16, top: 68, left: 41.5, width: 14, height: 5 },
-  { position: 17, top: 68, left: 59.5, width: 14, height: 5 },
+  ...row([1, 2, 3, 4], 35, 8.5, 14, 3),
+  ...row([5, 6, 7, 8], 46, 18.5, 14, 3),
+  ...row([9, 10, 11, 12, 13], 57, 13.5, 13.5, 2.25),
+  ...row([14, 15, 16, 17], 68, 7.5, 14, 3),
 ];
 
 /** 7 numbered "External booth" slots, 4 / 3 — positions 18-24. */
 export const EXTERNAL_SLOTS: SlotLayout[] = [
-  { position: 18, top: 79, left: 8.5, width: 14, height: 5 },
-  { position: 19, top: 79, left: 26.5, width: 14, height: 5 },
-  { position: 20, top: 79, left: 42.5, width: 14, height: 5 },
-  { position: 21, top: 79, left: 59.5, width: 14, height: 5 },
-
-  { position: 22, top: 90, left: 8.5, width: 14, height: 5 },
-  { position: 23, top: 90, left: 26.5, width: 14, height: 5 },
-  { position: 24, top: 90, left: 42.5, width: 14, height: 5 },
+  ...row([18, 19, 20, 21], 79, 8.5, 14, 3),
+  ...row([22, 23, 24], 90, 8.5, 14, 3),
 ];
 
 export const FIRST_EXTERNAL_POSITION = 18;
@@ -107,3 +93,27 @@ export const WALKWAYS: WalkwayLayout[] = [
 ];
 
 export const VENUE_NAME = 'Marquee Tent, High Impact Research Building, Universiti Malaya';
+
+/** Palette tokens an admin can tag a booth with on the floor plan — shared
+ * so the editor and the public map use the exact same swatches. Token is
+ * what's persisted (`map_color`); the rest is presentation. */
+export interface MapColorOption {
+  token: string;
+  label: string;
+  swatchClass: string;
+  slotClass: string;
+}
+
+export const MAP_COLORS: MapColorOption[] = [
+  { token: 'brand', label: 'Brand', swatchClass: 'bg-brand-500', slotClass: 'bg-brand-100 border-brand-500' },
+  { token: 'gold', label: 'Gold', swatchClass: 'bg-gold-500', slotClass: 'bg-gold-300/40 border-gold-500' },
+  { token: 'emerald', label: 'Emerald', swatchClass: 'bg-emerald-500', slotClass: 'bg-emerald-100 border-emerald-500' },
+  { token: 'rose', label: 'Rose', swatchClass: 'bg-rose-500', slotClass: 'bg-rose-100 border-rose-500' },
+  { token: 'purple', label: 'Purple', swatchClass: 'bg-purple-500', slotClass: 'bg-purple-100 border-purple-500' },
+  { token: 'slate', label: 'Slate', swatchClass: 'bg-slate-500', slotClass: 'bg-slate-100 border-slate-500' },
+];
+
+export function mapColorOption(token: string | null | undefined): MapColorOption | null {
+  if (!token) return null;
+  return MAP_COLORS.find(c => c.token === token) || null;
+}

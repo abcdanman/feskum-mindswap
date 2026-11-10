@@ -191,7 +191,7 @@ function drawScoreboard(ctx: CanvasRenderingContext2D, data: ShareCardData, logo
   ctx.textAlign = 'left';
   ctx.fillStyle = BRAND_LIGHT;
   ctx.font = `700 28px ${MONO_FONT}`;
-  ctx.fillText('// LALUAN ASPIRASI', 90, 170);
+  ctx.fillText('// KEMUNCAK ASPIRASI', 90, 170);
   drawLogoSeal(ctx, logo, W - 170, 195, 160);
 
   ctx.fillStyle = CREAM;

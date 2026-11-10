@@ -118,7 +118,7 @@ export async function generatePassportPdf(data: PassportPdfData): Promise<jsPDF>
   doc.setTextColor(SLATE);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10);
-  doc.text('Laluan Aspirasi — Innovation Passport Challenge', cx, y, { align: 'center' });
+  doc.text('Kemuncak Aspirasi — Innovation Passport Challenge', cx, y, { align: 'center' });
   y += 14;
 
   // The header above (logo/eyebrow/title/subtitle) stays anchored near the
@@ -318,7 +318,7 @@ function drawHighlightsPage(doc: jsPDF, W: number, H: number, margin: number) {
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(10.5);
   const about = doc.splitTextToSize(
-    'Laluan Aspirasi is MindSwap’s innovation passport challenge: explore every faculty booth across the exhibition floor, ' +
+    'Kemuncak Aspirasi is MindSwap’s innovation passport challenge: explore every faculty booth across the exhibition floor, ' +
       'collect a stamp at each one, and unlock a reward at the HIR Helpdesk once your passport is complete.',
     W - margin * 2 - 32
   );

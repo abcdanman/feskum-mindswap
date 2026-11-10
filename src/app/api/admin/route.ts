@@ -4,11 +4,13 @@ import {
   claimVisitorReward,
   deleteCheckpoint,
   deleteSpeaker,
+  deleteVisitor,
   findVisitorByUsername,
   getAdminAnalytics,
   getEvaluationReport,
   setVotingActive,
   getVisitorReward,
+  listAllVisitors,
   listCheckpoints,
   listSpeakers,
   listVisitorVisits,
@@ -16,6 +18,7 @@ import {
   saveCheckpoint,
   saveRewardSetting,
   saveSpeaker,
+  updateVisitorProfile,
   broadcastPush,
 } from '@/lib/server/db';
 import { hasAdminSession } from '@/lib/server/session';
@@ -101,6 +104,17 @@ export async function POST(request: NextRequest) {
             typeof payload.staffName === 'string' ? payload.staffName : 'Staff Helpdesk'
           ),
         });
+
+      case 'visitors.list':
+        return json({ visitors: await listAllVisitors() });
+
+      case 'visitors.delete':
+        return json(await deleteVisitor(String(payload.id || '')));
+
+      case 'visitors.update':
+        return json(
+          await updateVisitorProfile(String(payload.id || ''), payload.fields as Record<string, unknown>)
+        );
 
       case 'write.check':
         return json(await checkAdminWrite());

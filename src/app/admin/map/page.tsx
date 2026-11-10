@@ -4,14 +4,17 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import { getCheckpoints, saveCheckpoint } from '@/lib/supabase';
 import { Checkpoint } from '@/lib/types';
-import { FIRST_EXTERNAL_POSITION, SlotLayout } from '@/lib/floorplan';
+import { FIRST_EXTERNAL_POSITION, SlotLayout, MAP_COLORS, mapColorOption } from '@/lib/floorplan';
 import FloorPlanCanvas from '@/components/FloorPlanCanvas';
-import { ArrowLeft, Save, MapPin, AlertTriangle, CheckCircle2 } from 'lucide-react';
+import { ArrowLeft, Save, MapPin, AlertTriangle, CheckCircle2, Palette } from 'lucide-react';
 
 export default function AdminMapPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [assignments, setAssignments] = useState<Record<number, string>>({});
   const [initialAssignments, setInitialAssignments] = useState<Record<number, string>>({});
+  const [colors, setColors] = useState<Record<string, string>>({});
+  const [initialColors, setInitialColors] = useState<Record<string, string>>({});
+  const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
@@ -25,25 +28,36 @@ export default function AdminMapPage() {
     const list = await getCheckpoints(true);
     setCheckpoints(list);
     const loaded: Record<number, string> = {};
+    const loadedColors: Record<string, string> = {};
     list.forEach(c => {
       if (c.map_label) loaded[c.map_label] = c.id;
+      if (c.map_color) loadedColors[c.id] = c.map_color;
     });
     setAssignments(loaded);
     setInitialAssignments(loaded);
+    setColors(loadedColors);
+    setInitialColors(loadedColors);
+    setColorPickerFor(null);
     setLoading(false);
   }
 
   const checkpointMap = useMemo(() => new Map(checkpoints.map(c => [c.id, c])), [checkpoints]);
 
-  const isDirty = JSON.stringify(assignments) !== JSON.stringify(initialAssignments);
+  const isDirty =
+    JSON.stringify(assignments) !== JSON.stringify(initialAssignments) ||
+    JSON.stringify(colors) !== JSON.stringify(initialColors);
   const changeCount = useMemo(() => {
     const positions = new Set([...Object.keys(assignments), ...Object.keys(initialAssignments)]);
     let count = 0;
     positions.forEach(p => {
       if (assignments[Number(p)] !== initialAssignments[Number(p)]) count += 1;
     });
+    const colorIds = new Set([...Object.keys(colors), ...Object.keys(initialColors)]);
+    colorIds.forEach(id => {
+      if (colors[id] !== initialColors[id]) count += 1;
+    });
     return count;
-  }, [assignments, initialAssignments]);
+  }, [assignments, initialAssignments, colors, initialColors]);
 
   const handleAssign = (position: number, checkpointId: string) => {
     setMessage('');
@@ -60,11 +74,22 @@ export default function AdminMapPage() {
     });
   };
 
+  const handleSetColor = (checkpointId: string, token: string | null) => {
+    setMessage('');
+    setColors(prev => {
+      const next = { ...prev };
+      if (token) next[checkpointId] = token;
+      else delete next[checkpointId];
+      return next;
+    });
+    setColorPickerFor(null);
+  };
+
   const handleSave = async () => {
     setSaving(true);
     setMessage('');
 
-    // Only touch booths whose assigned position actually changed — not an
+    // Only touch booths whose assignment or color actually changed — not an
     // autosave-on-every-click, one batch write when you hit Save.
     const changedCheckpointIds = new Set<string>();
     const allPositions = new Set([...Object.keys(assignments), ...Object.keys(initialAssignments)].map(Number));
@@ -76,13 +101,21 @@ export default function AdminMapPage() {
         if (after) changedCheckpointIds.add(after);
       }
     });
+    const allColorIds = new Set([...Object.keys(colors), ...Object.keys(initialColors)]);
+    allColorIds.forEach(id => {
+      if (colors[id] !== initialColors[id]) changedCheckpointIds.add(id);
+    });
 
     const results = await Promise.all(
       Array.from(changedCheckpointIds).map(id => {
         const checkpoint = checkpointMap.get(id);
         if (!checkpoint) return Promise.resolve({ error: null });
         const newPosition = Object.entries(assignments).find(([, cid]) => cid === id)?.[0];
-        return saveCheckpoint({ ...checkpoint, map_label: newPosition ? Number(newPosition) : null });
+        return saveCheckpoint({
+          ...checkpoint,
+          map_label: newPosition ? Number(newPosition) : null,
+          map_color: colors[id] || null,
+        });
       })
     );
 
@@ -102,16 +135,43 @@ export default function AdminMapPage() {
     const isExternal = position >= FIRST_EXTERNAL_POSITION;
     const displayNo = isExternal ? position - FIRST_EXTERNAL_POSITION + 1 : position;
     const assignedId = assignments[position] || '';
-    const changed = assignments[position] !== initialAssignments[position];
+    const changed =
+      assignments[position] !== initialAssignments[position] ||
+      (assignedId && colors[assignedId] !== initialColors[assignedId]);
+    const colorOpt = mapColorOption(assignedId ? colors[assignedId] : null);
+    const pickerOpen = colorPickerFor === String(position);
+
     return (
       <div
-        className={`w-full h-full rounded-lg border-2 px-1 py-0.5 flex flex-col justify-center overflow-hidden ${
-          changed ? 'border-brand-500 bg-brand-50' : assignedId ? 'border-ink bg-white' : 'border-ink/20 bg-white/40'
+        className={`relative w-full h-full rounded-lg border-2 px-1 py-0.5 flex flex-col justify-center gap-0.5 overflow-visible ${
+          changed
+            ? 'border-brand-500 bg-brand-50'
+            : colorOpt
+              ? colorOpt.slotClass
+              : assignedId
+                ? 'border-ink bg-white'
+                : 'border-ink/20 bg-white/40'
         }`}
       >
-        <span className="text-[6px] sm:text-[8px] font-extrabold uppercase tracking-wide text-slate-400 leading-none">
-          {isExternal ? `Ext #${displayNo}` : `#${displayNo}`}
-        </span>
+        <div className="flex items-center justify-between gap-0.5">
+          <span className="text-[6px] sm:text-[8px] font-extrabold uppercase tracking-wide text-slate-400 leading-none shrink-0">
+            {isExternal ? `Ext #${displayNo}` : `#${displayNo}`}
+          </span>
+          {assignedId && (
+            <button
+              type="button"
+              onClick={() => setColorPickerFor(pickerOpen ? null : String(position))}
+              aria-label="Set booth color"
+              className="w-2.5 h-2.5 sm:w-3 sm:h-3 rounded-full border border-ink/40 shrink-0 flex items-center justify-center"
+            >
+              {colorOpt ? (
+                <span className={`w-full h-full rounded-full ${colorOpt.swatchClass}`} />
+              ) : (
+                <Palette className="w-full h-full text-slate-300" aria-hidden="true" />
+              )}
+            </button>
+          )}
+        </div>
         <select
           value={assignedId}
           onChange={e => handleAssign(position, e.target.value)}
@@ -124,6 +184,28 @@ export default function AdminMapPage() {
             </option>
           ))}
         </select>
+
+        {pickerOpen && assignedId && (
+          <div className="absolute z-10 top-full left-0 mt-1 p-1.5 rounded-lg border-2 border-ink bg-white shadow-brut flex items-center gap-1 flex-wrap w-max max-w-[140px]">
+            <button
+              type="button"
+              onClick={() => handleSetColor(assignedId, null)}
+              aria-label="No color"
+              className="w-4 h-4 rounded-full border-2 border-ink/30 bg-white flex items-center justify-center text-[8px] text-slate-400"
+            >
+              ×
+            </button>
+            {MAP_COLORS.map(c => (
+              <button
+                key={c.token}
+                type="button"
+                onClick={() => handleSetColor(assignedId, c.token)}
+                aria-label={c.label}
+                className={`w-4 h-4 rounded-full border-2 ${colors[assignedId] === c.token ? 'border-ink' : 'border-ink/20'} ${c.swatchClass}`}
+              />
+            ))}
+          </div>
+        )}
       </div>
     );
   };
@@ -141,7 +223,7 @@ export default function AdminMapPage() {
           </Link>
           <div>
             <h1 className="display text-2xl text-ink leading-none">Floor plan</h1>
-            <p className="text-[11px] text-slate-500">Assign booths to the 24 numbered positions</p>
+            <p className="text-[11px] text-slate-500">Assign booths and tag colors on the 24 numbered positions</p>
           </div>
         </div>
         <button

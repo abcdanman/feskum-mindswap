@@ -2,10 +2,11 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Gift, Trophy, Mic, Share2 } from 'lucide-react';
+import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Gift, Trophy, Mic, Share2, Award } from 'lucide-react';
 import BoothThumb from '@/components/BoothThumb';
 import PushOptIn from '@/components/PushOptIn';
 import ShareCardModal from '@/components/ShareCardModal';
+import CertificateModal from '@/components/CertificateModal';
 import { ShareCardData } from '@/lib/shareCard';
 import { PassportPdfData } from '@/lib/passportPdf';
 import { getOrInitVisitorId, getVisitorIdentity } from '@/lib/visitor';
@@ -35,11 +36,13 @@ export default function HomePage() {
   const [featuredBooths, setFeaturedBooths] = useState<Checkpoint[]>([]);
   const [featuredSpeaker, setFeaturedSpeaker] = useState<Speaker | null>(null);
   const [name, setName] = useState('');
+  const [fullName, setFullName] = useState('');
   const [allVisits, setAllVisits] = useState<BoothVisit[]>([]);
   const [showShareModal, setShowShareModal] = useState(false);
   const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
   const [pdfData, setPdfData] = useState<PassportPdfData | null>(null);
   const [shareLoading, setShareLoading] = useState(false);
+  const [showCertModal, setShowCertModal] = useState(false);
 
   useEffect(() => {
     async function loadData() {
@@ -68,6 +71,7 @@ export default function HomePage() {
       setFeaturedBooths(shuffled(requiredBooths.length > 0 ? requiredBooths : checkpoints).slice(0, 3));
       setFeaturedSpeaker(shuffled(speakers)[0] || null);
       setName(getVisitorIdentity().name.split(' ')[0] || 'delegate');
+      setFullName(getVisitorIdentity().name || 'Visitor');
       setAllVisits(visits);
     }
     loadData();
@@ -123,16 +127,16 @@ export default function HomePage() {
       {/* HERO */}
       <div className="relative card p-5 bg-ink text-cream-50 overflow-hidden">
         <div className="flex items-center justify-between gap-3 mb-4">
-          <span className="sticker bg-brand-500 text-white text-[9px] shrink-0">Laluan Aspirasi</span>
+          <span className="sticker bg-brand-500 text-white text-[9px] shrink-0">MindSwap @ FESKUM 2026</span>
           <span className="eyebrow text-cream-200/70">FESKUM 2026</span>
         </div>
 
         <p className="eyebrow text-brand-400 mb-1.5">Welcome, {name}.</p>
         <h1 className="display text-5xl text-cream-50 leading-[0.9]">
-          Kemuncak<br /><span className="text-brand-400">Aspirasi!</span>
+          MindSwap<br /><span className="text-brand-400">2026</span>
         </h1>
         <p className="text-xs text-cream-200/80 mt-2.5 leading-relaxed">
-          Explore faculty booths. Collect stamps. Vote for your favourite.
+          Veni, vidi, vici.
         </p>
 
         <div className="pt-4 mt-4 border-t-2 border-cream-50/15 space-y-2.5 text-[11px] text-cream-100 font-semibold">
@@ -175,6 +179,16 @@ export default function HomePage() {
             {partnerCount > 0 && <span className="text-slate-400"> · {partnerCount} partner</span>}
           </span>
           <div className="flex items-center gap-3">
+            {unlocked && (
+              <button
+                type="button"
+                onClick={() => setShowCertModal(true)}
+                aria-label="Export your Certificate of Appreciation"
+                className="text-xs font-extrabold text-brand-600 hover:text-brand-700 flex items-center gap-1 uppercase"
+              >
+                <Award className="w-3.5 h-3.5" aria-hidden="true" /> Certificate
+              </button>
+            )}
             {stampCount > 0 && (
               <button
                 type="button"
@@ -195,6 +209,10 @@ export default function HomePage() {
 
       {showShareModal && shareCardData && (
         <ShareCardModal data={shareCardData} pdfData={pdfData} onClose={() => setShowShareModal(false)} />
+      )}
+
+      {showCertModal && (
+        <CertificateModal name={fullName} onClose={() => setShowCertModal(false)} />
       )}
 
       {/* ACTION GRID */}

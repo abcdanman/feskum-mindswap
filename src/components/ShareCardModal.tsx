@@ -12,6 +12,8 @@ import {
   canvasToBlob,
 } from '@/lib/shareCard';
 import { PassportPdfData, generatePassportPdf, passportPdfFileName } from '@/lib/passportPdf';
+import { renderPdfPagesToCanvases } from '@/lib/pdfPreview';
+import { jsPDF } from 'jspdf';
 
 interface ShareCardModalProps {
   data: ShareCardData;
@@ -23,12 +25,16 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
   const [templateId, setTemplateId] = useState<ShareCardTemplateId>(data.isComplete ? 'certificate' : 'scoreboard');
   const [rendering, setRendering] = useState(true);
   const [canShareFiles, setCanShareFiles] = useState(false);
-  const [pdfBusy, setPdfBusy] = useState(false);
   const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
+  const [pdfGenerating, setPdfGenerating] = useState(false);
+  const [pdfPreviewOpen, setPdfPreviewOpen] = useState(false);
+  const [pdfPageUrls, setPdfPageUrls] = useState<string[]>([]);
+  const [pdfDoc, setPdfDoc] = useState<jsPDF | null>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const lightboxCloseRef = useRef<HTMLButtonElement>(null);
   const lightboxShareRef = useRef<HTMLButtonElement>(null);
   const lightboxSaveRef = useRef<HTMLButtonElement>(null);
+  const pdfCloseRef = useRef<HTMLButtonElement>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -75,6 +81,20 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
   }, [fullPreviewOpen]);
 
   useEffect(() => {
+    if (!pdfPreviewOpen) return;
+    pdfCloseRef.current?.focus();
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        setPdfPreviewOpen(false);
+      }
+    };
+    document.addEventListener('keydown', handleKey, true);
+    return () => document.removeEventListener('keydown', handleKey, true);
+  }, [pdfPreviewOpen]);
+
+  useEffect(() => {
     if (typeof navigator === 'undefined' || !navigator.canShare) return;
     try {
       const probe = new File([new Uint8Array([0])], 'probe.png', { type: 'image/png' });
@@ -112,7 +132,7 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
         await navigator.share({
           files: [file],
           title: 'My MindSwap @ FESKUM 2026 passport',
-          text: `${data.stamps}/${data.threshold} booths stamped at MindSwap @ FESKUM 2026 — Laluan Aspirasi!`,
+          text: `${data.stamps}/${data.threshold} booths stamped at MindSwap @ FESKUM 2026 — Kemuncak Aspirasi!`,
         });
         return;
       }
@@ -122,15 +142,23 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
     handleDownload();
   };
 
-  const handleDownloadPdf = async () => {
-    if (!pdfData || pdfBusy) return;
-    setPdfBusy(true);
+  const handlePreviewPdf = async () => {
+    if (!pdfData || pdfGenerating) return;
+    setPdfGenerating(true);
     try {
       const doc = await generatePassportPdf(pdfData);
-      doc.save(passportPdfFileName(pdfData));
+      const canvases = await renderPdfPagesToCanvases(doc);
+      setPdfDoc(doc);
+      setPdfPageUrls(canvases.map(c => c.toDataURL('image/png')));
+      setPdfPreviewOpen(true);
     } finally {
-      setPdfBusy(false);
+      setPdfGenerating(false);
     }
+  };
+
+  const handleDownloadPdf = () => {
+    if (!pdfDoc || !pdfData) return;
+    pdfDoc.save(passportPdfFileName(pdfData));
   };
 
   return (
@@ -216,15 +244,15 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
 
         {pdfData && (
           <div className="pt-3 border-t-2 border-ink/10 space-y-2">
-            <p className="text-[10px] text-slate-500">Need something more formal? A one-page certificate, good for a CV or portfolio.</p>
+            <p className="text-[10px] text-slate-500">Need something more formal? A two-page passport summary, good for a CV or portfolio — not the Certificate of Appreciation (that's exported from the home page).</p>
             <button
               type="button"
-              onClick={handleDownloadPdf}
-              disabled={pdfBusy}
+              onClick={handlePreviewPdf}
+              disabled={pdfGenerating}
               className="btn w-full py-2.5 bg-white border-2 border-ink disabled:opacity-50 text-ink text-xs flex items-center justify-center gap-1.5"
             >
-              {pdfBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <FileText className="w-3.5 h-3.5" aria-hidden="true" />}
-              {pdfBusy ? 'Preparing…' : 'Download PDF certificate'}
+              {pdfGenerating ? <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" /> : <FileText className="w-3.5 h-3.5" aria-hidden="true" />}
+              {pdfGenerating ? 'Preparing…' : 'Preview passport PDF (2 pages)'}
             </button>
           </div>
         )}
@@ -279,6 +307,46 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
                 <Download className="w-3.5 h-3.5" aria-hidden="true" />
                 Save
               </button>
+            </div>
+          </div>,
+          document.body
+        )}
+
+      {pdfPreviewOpen && pdfPageUrls.length > 0 && typeof document !== 'undefined' &&
+        createPortal(
+          <div
+            className="fixed inset-0 z-[60] flex flex-col items-center gap-4 p-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))] bg-ink animate-fadeIn overscroll-contain overflow-y-auto"
+            role="dialog"
+            aria-modal="true"
+            aria-label="Passport PDF preview, two pages"
+          >
+            <button
+              ref={pdfCloseRef}
+              type="button"
+              onClick={() => setPdfPreviewOpen(false)}
+              aria-label="Close PDF preview"
+              className="fixed top-4 right-4 p-2.5 rounded-xl bg-white/10 text-cream-50 hover:bg-white/20 focus-visible:ring-2 focus-visible:ring-cream-50 focus-visible:outline-none"
+            >
+              <X className="w-5 h-5" aria-hidden="true" />
+            </button>
+            <button
+              type="button"
+              onClick={handleDownloadPdf}
+              className="sticky top-4 btn py-3 px-6 bg-brand-500 hover:bg-brand-600 text-white text-xs flex items-center justify-center gap-1.5 focus-visible:ring-2 focus-visible:ring-cream-50 focus-visible:outline-none"
+            >
+              <Download className="w-3.5 h-3.5" aria-hidden="true" />
+              Download PDF
+            </button>
+            <div className="flex flex-col gap-4 items-center w-full max-w-2xl pb-4">
+              {pdfPageUrls.map((src, i) => (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  key={i}
+                  src={src}
+                  alt={`Passport PDF, page ${i + 1} of ${pdfPageUrls.length}`}
+                  className="w-full h-auto rounded-xl border-2 border-white/20 shadow-2xl bg-white"
+                />
+              ))}
             </div>
           </div>,
           document.body

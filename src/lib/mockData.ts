@@ -400,7 +400,7 @@ export const INITIAL_SPEAKERS: Speaker[] = [
 
 export const INITIAL_REWARD_SETTING: RewardSetting = {
   id: 'reward-setting-1',
-  title: 'Laluan Aspirasi Passport Reward',
+  title: 'Kemuncak Aspirasi Passport Reward',
   stamp_threshold: 8,
   description: 'Complete 8 required faculty booth checkpoints to unlock your official MindSwap @ FESKUM 2026 souvenir! Partner booths are optional bonus stops.',
   is_active: true,

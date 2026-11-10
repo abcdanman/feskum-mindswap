@@ -51,6 +51,8 @@ export interface Checkpoint {
   display_order: number;
   /** Which of the 17 numbered faculty positions on the venue floor plan this booth occupies. */
   map_label?: number | null;
+  /** Palette token (see MAP_COLORS) for color-coding this booth on the floor plan. */
+  map_color?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -194,4 +196,15 @@ export interface AdminAnalyticsVisitor {
   username: string | null;
   student_id: string | null;
   faculty: string | null;
+}
+
+export interface VisitorListEntry {
+  id: string;
+  display_name: string | null;
+  username: string | null;
+  student_id: string | null;
+  faculty: string | null;
+  show_on_leaderboard: boolean;
+  created_at: string;
+  stamp_count: number;
 }

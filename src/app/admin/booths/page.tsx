@@ -190,7 +190,7 @@ export default function AdminBoothsPage() {
 
     const payload: Partial<Checkpoint> = {
       ...editingBooth,
-      description: editingBooth.description || 'Interactive showcase at the Laluan Aspirasi exhibition.',
+      description: editingBooth.description || 'Interactive showcase at the Kemuncak Aspirasi exhibition.',
       qr_token: editingBooth.qr_token || genToken(editingBooth.name),
       is_active: editingBooth.is_active ?? true,
       booth_type: editingBooth.booth_type || 'required',
