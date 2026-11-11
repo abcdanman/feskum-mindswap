@@ -234,7 +234,7 @@ export default function AdminEvaluationPage() {
                       <p className="text-xs font-bold text-ink truncate">{b.name}</p>
                       <p className="text-[10px] text-slate-500 truncate">
                         {b.faculty}
-                        {b.booth_type === 'partner' ? ' · Partner' : ''}
+                        {b.booth_type === 'partner' ? ' · External' : ''}
                       </p>
                     </div>
                     <div className="flex items-center gap-3 shrink-0 text-[11px] font-bold text-right">

@@ -191,7 +191,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
           <div className="absolute inset-0 bg-gradient-to-t from-ink/70 via-transparent to-transparent" />
           <span className="absolute top-3 left-3 sticker bg-ink text-cream-50 text-[9px]">{checkpoint.category}</span>
           <span className={`absolute top-3 right-3 sticker text-[9px] ${isPartner ? 'bg-gold-400 text-ink' : 'bg-emerald-500 text-white'}`}>
-            {isPartner ? 'Partner · +5' : 'Required · +10'}
+            {isPartner ? 'External · +5' : 'Required · +10'}
           </span>
         </div>
 
@@ -224,11 +224,11 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
 
           <div>
             <span className="sticker bg-emerald-400 text-ink text-[10px]">
-              {isPartner ? 'Partner stamp collected' : 'Stamp collected'}
+              {isPartner ? 'External stamp collected' : 'Stamp collected'}
             </span>
             <h3 className="display text-2xl text-ink mt-2">
               {isPartner
-                ? (successStamp ? 'Partner stamp collected!' : 'Partner stamp already collected')
+                ? (successStamp ? 'External stamp collected!' : 'External stamp already collected')
                 : (successStamp ? 'Congratulations!' : "You've already visited")}
             </h3>
             <p className="text-xs text-slate-600 mt-1">
@@ -263,7 +263,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
 
           {isPartner && (
             <p className="text-[11px] text-slate-500">
-              Partner bonus: +5 points per stamp. This booth does not count toward the 8-stamp souvenir.
+              External bonus: +5 points per stamp. This booth does not count toward the 8-stamp souvenir.
             </p>
           )}
 
@@ -355,7 +355,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
             <Sparkles className="w-5 h-5 text-gold-500" />
             <div>
               <h3 className="display text-xl text-ink leading-none">
-                {isPartner ? 'Rate to collect partner stamp' : 'Rate to collect stamp'}
+                {isPartner ? 'Rate to collect external stamp' : 'Rate to collect stamp'}
               </h3>
               <p className="text-[11px] text-slate-500">
                 {isPartner

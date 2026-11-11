@@ -12,8 +12,8 @@ export const QUIZ_MAX_QUESTIONS = 2;
 
 export const SCORING_RULES = [
   { label: 'Required faculty stamp', points: POINTS.requiredStamp, detail: 'Counts toward the 8-stamp souvenir.' },
-  { label: 'Partner booth stamp', points: POINTS.partnerStamp, detail: 'Optional bonus stop.' },
-  { label: 'Partner trail complete', points: POINTS.partnerTrail, detail: 'All active partner booths visited.' },
+  { label: 'External booth stamp', points: POINTS.partnerStamp, detail: 'Optional bonus stop.' },
+  { label: 'External trail complete', points: POINTS.partnerTrail, detail: 'All active external booths visited.' },
   { label: 'Quiz answer', points: POINTS.quizPerCorrect, detail: `Per correct answer, max ${QUIZ_MAX_QUESTIONS} per booth.` },
   { label: 'UM Talk vote', points: POINTS.vote, detail: 'One People’s Choice vote.' },
 ];

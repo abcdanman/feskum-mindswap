@@ -5,7 +5,7 @@ import { Checkpoint } from '@/lib/types';
 import { FIRST_EXTERNAL_POSITION, VENUE_NAME, SlotLayout, mapColorOption } from '@/lib/floorplan';
 import { facultyCode } from '@/lib/faculties';
 import FloorPlanCanvas from './FloorPlanCanvas';
-import { CheckCircle2, MapPin } from 'lucide-react';
+import { CheckCircle2, MapPin, Gift } from 'lucide-react';
 
 interface FloorPlanMapProps {
   checkpoints: Checkpoint[];
@@ -53,7 +53,10 @@ export default function FloorPlanMap({
     const dimmed = highlightedIds ? !highlightedIds.has(checkpoint.id) : false;
     // Admin's color tag is a secondary cue — status (visited/here) always
     // wins the slot's own background, so a tag only shows as an accent bar
-    // on an otherwise-unvisited booth.
+    // on an otherwise-unvisited booth. Required/external used to carry its
+    // own translucent gold wash too, which fought with a tag's accent bar
+    // for attention — that distinction now lives in the small "E" badge
+    // instead, so the only background colors on the map mean status.
     const colorOpt = !visited ? mapColorOption(checkpoint.map_color) : null;
 
     return (
@@ -61,11 +64,20 @@ export default function FloorPlanMap({
         type="button"
         onClick={() => onSelect?.(checkpoint)}
         className={`relative w-full h-full rounded-lg border-2 border-ink px-1 py-0.5 flex flex-col items-center justify-center gap-0.5 text-center transition-all active:scale-95 overflow-hidden ${
-          visited ? 'bg-emerald-500 text-white' : isExternal ? 'bg-gold-400/40 text-ink hover:bg-gold-400/60' : 'bg-white text-ink hover:bg-cream-100'
+          visited ? 'bg-emerald-500 text-white' : 'bg-white text-ink hover:bg-cream-100'
         } ${dimmed ? 'opacity-25' : ''}`}
-        aria-label={`${checkpoint.name}${visited ? ' — stamped' : ''}${isHere ? ' — you were here' : ''}`}
+        aria-label={`${checkpoint.name}${isExternal ? ' — external booth' : ''}${visited ? ' — stamped' : ''}${isHere ? ' — you were here' : ''}`}
       >
-        {colorOpt && <span className={`absolute inset-x-0 top-0 h-[3px] ${colorOpt.swatchClass}`} aria-hidden="true" />}
+        {colorOpt && <span className={`absolute inset-x-0 top-0 h-1 ${colorOpt.swatchClass}`} aria-hidden="true" />}
+        {isExternal && !visited && (
+          <span
+            className="absolute top-1 left-1 w-3 h-3 rounded-full bg-gold-400 border border-ink/40 flex items-center justify-center"
+            aria-hidden="true"
+            title="External booth"
+          >
+            <Gift className="w-2 h-2 text-ink" aria-hidden="true" />
+          </span>
+        )}
         {isHere && (
           <span className="absolute -top-1 -right-1 w-3 h-3 rounded-full bg-brand-500 border-2 border-ink animate-pulse" aria-hidden="true" />
         )}
@@ -74,7 +86,7 @@ export default function FloorPlanMap({
         ) : (
           <span className="text-[8px] font-extrabold text-slate-400 leading-none">{isExternal ? `E${displayNo}` : `#${displayNo}`}</span>
         )}
-        <span className="text-[7px] sm:text-[8px] font-bold leading-tight whitespace-nowrap">{facultyCode(checkpoint.faculty)}</span>
+        <span className="text-[8px] sm:text-[9px] font-bold leading-tight whitespace-nowrap">{facultyCode(checkpoint.faculty)}</span>
       </button>
     );
   };
@@ -89,24 +101,28 @@ export default function FloorPlanMap({
         )}
       </div>
 
-      <div className="flex items-center justify-between gap-2 text-[10px] text-slate-500 flex-wrap">
-        <span className="inline-flex items-center gap-1.5">
-          <MapPin className="w-3.5 h-3.5 text-brand-600" aria-hidden="true" />
-          {venue}
+      <div className="flex items-center gap-1.5 text-[10px] text-slate-500">
+        <MapPin className="w-3.5 h-3.5 text-brand-600 shrink-0" aria-hidden="true" />
+        {venue}
+      </div>
+      <div className="flex items-center gap-x-3 gap-y-1.5 text-[10px] text-slate-500 flex-wrap">
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-white border-2 border-ink" aria-hidden="true" />
+          To visit
         </span>
-        <span className="inline-flex items-center gap-3">
-          <span className="inline-flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-white border-2 border-ink" aria-hidden="true" />
-            To visit
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-ink" aria-hidden="true" />
+          Stamped
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-brand-500 border-2 border-ink" aria-hidden="true" />
+          You were here
+        </span>
+        <span className="inline-flex items-center gap-1">
+          <span className="w-2.5 h-2.5 rounded-full bg-gold-400 border border-ink/40 flex items-center justify-center shrink-0">
+            <Gift className="w-1.5 h-1.5 text-ink" aria-hidden="true" />
           </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 border-2 border-ink" aria-hidden="true" />
-            Stamped
-          </span>
-          <span className="inline-flex items-center gap-1">
-            <span className="w-2.5 h-2.5 rounded-full bg-brand-500 border-2 border-ink" aria-hidden="true" />
-            You were here
-          </span>
+          External booth
         </span>
       </div>
     </div>

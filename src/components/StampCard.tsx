@@ -30,7 +30,7 @@ export default function StampCard({ checkpoint, visit, index }: StampCardProps) 
             isPartner ? 'bg-gold-400 text-ink' : 'bg-brand-500 text-white'
           }`}
         >
-          {isPartner ? 'Partner · ' : ''}{checkpoint.category}
+          {isPartner ? 'External · ' : ''}{checkpoint.category}
         </span>
       </div>
 
@@ -68,7 +68,7 @@ export default function StampCard({ checkpoint, visit, index }: StampCardProps) 
             }`}
           >
             <CheckCircle2 className="w-3 h-3" />
-            <span>{isPartner ? 'PARTNER' : 'STAMPED'}</span>
+            <span>{isPartner ? 'EXTERNAL' : 'STAMPED'}</span>
           </div>
         </div>
       ) : (

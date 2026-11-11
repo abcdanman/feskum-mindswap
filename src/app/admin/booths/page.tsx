@@ -3,8 +3,8 @@
 import React, { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import QRCode from 'qrcode';
-import { getCheckpoints, saveCheckpoint, deleteCheckpoint, uploadImage } from '@/lib/supabase';
-import { Checkpoint, QuizQuestion } from '@/lib/types';
+import { getCheckpoints, saveCheckpoint, deleteCheckpoint, uploadImage, getEvaluationReport } from '@/lib/supabase';
+import { Checkpoint, QuizQuestion, EvaluationReport } from '@/lib/types';
 import Modal from '@/components/Modal';
 import ImageCropModal from '@/components/ImageCropModal';
 import { QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
@@ -22,6 +22,10 @@ import {
   ImageIcon,
   AlertTriangle,
   Printer,
+  BarChart3,
+  Star,
+  Ticket,
+  MessageSquareQuote,
 } from 'lucide-react';
 
 function slugify(value: string): string {
@@ -44,6 +48,9 @@ const inputCls =
 export default function AdminBoothsPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [selectedBooth, setSelectedBooth] = useState<Checkpoint | null>(null);
+  const [insightsBooth, setInsightsBooth] = useState<Checkpoint | null>(null);
+  const [evaluationReport, setEvaluationReport] = useState<EvaluationReport | null>(null);
+  const [insightsLoading, setInsightsLoading] = useState(false);
   const [qrDataUrl, setQrDataUrl] = useState<string>('');
 
   const [showModal, setShowModal] = useState<boolean>(false);
@@ -82,6 +89,18 @@ export default function AdminBoothsPage() {
     } catch (err) {
       console.error('QR generation error:', err);
     }
+  };
+
+  // Reuses the same evaluation report the Evaluation tab shows — one fetch
+  // covers every booth's visits/rating/reviews, cached for the rest of the
+  // session instead of refetching per booth opened.
+  const handleShowInsights = async (booth: Checkpoint) => {
+    setInsightsBooth(booth);
+    if (evaluationReport) return;
+    setInsightsLoading(true);
+    const report = await getEvaluationReport('all');
+    setEvaluationReport(report);
+    setInsightsLoading(false);
   };
 
   const openNew = () => {
@@ -260,7 +279,13 @@ export default function AdminBoothsPage() {
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
         {checkpoints.map(booth => (
           <div key={booth.id} className="card p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-            <div className="flex items-center gap-3 min-w-0 flex-1">
+            <button
+              type="button"
+              onClick={() => handleShowInsights(booth)}
+              aria-label={`View insights for ${booth.name}`}
+              title="View visits, rating and reviews"
+              className="flex items-center gap-3 min-w-0 flex-1 text-left hover:bg-cream-100 rounded-xl -m-1 p-1 transition-colors"
+            >
               <div className="w-14 h-14 rounded-xl overflow-hidden bg-cream-100 shrink-0 border-2 border-ink">
                 {booth.image_url ? (
                   <img src={booth.image_url} alt={booth.name} width={56} height={56} loading="lazy" className="w-full h-full object-cover" />
@@ -276,7 +301,7 @@ export default function AdminBoothsPage() {
                   <span className="eyebrow text-brand-600 truncate">{booth.category}</span>
                   {booth.booth_type === 'partner' && (
                     <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-gold-400 text-ink">
-                      Partner
+                      External
                     </span>
                   )}
                   {booth.is_active === false && (
@@ -293,9 +318,17 @@ export default function AdminBoothsPage() {
                 <h3 className="font-extrabold text-ink text-sm leading-snug line-clamp-2">{booth.name}</h3>
                 <p className="text-[11px] text-slate-500 truncate">{booth.faculty} • {booth.location}</p>
               </div>
-            </div>
+            </button>
 
             <div className="flex items-center justify-end gap-1.5 shrink-0">
+              <button
+                onClick={() => handleShowInsights(booth)}
+                className="btn w-10 h-10 bg-white text-ink flex items-center justify-center"
+                aria-label={`View insights for ${booth.name}`}
+                title="Visits, rating & reviews"
+              >
+                <BarChart3 className="w-4 h-4" aria-hidden="true" />
+              </button>
               <button
                 onClick={() => handleSelectBooth(booth)}
                 className="btn w-10 h-10 bg-white text-ink flex items-center justify-center"
@@ -325,6 +358,86 @@ export default function AdminBoothsPage() {
         ))}
       </div>
 
+      {/* INSIGHTS MODAL — reuses the Evaluation tab's own report so the
+         numbers can never drift between the two views. */}
+      {insightsBooth && (
+        <Modal
+          onClose={() => setInsightsBooth(null)}
+          labelledBy="booth-insights-title"
+          closeLabel="Close insights"
+          panelClassName="!max-w-lg p-6"
+        >
+          <div className="space-y-4">
+            <div>
+              <span className="sticker bg-brand-500 text-white text-[9px]">Booth insights</span>
+              <h3 id="booth-insights-title" className="display text-2xl text-ink mt-3 leading-none">
+                {insightsBooth.name}
+              </h3>
+              <p className="text-xs text-brand-600 font-bold mt-1">{insightsBooth.faculty}</p>
+            </div>
+
+            {insightsLoading ? (
+              <div className="py-10 text-center">
+                <div className="w-8 h-8 border-4 border-ink border-t-brand-500 rounded-full animate-spin mx-auto" />
+              </div>
+            ) : (
+              (() => {
+                const stat = evaluationReport?.booth_performance.find(b => b.id === insightsBooth.id);
+                const reviews = (evaluationReport?.reviews || []).filter(r => r.booth_name === insightsBooth.name);
+                return (
+                  <>
+                    <div className="grid grid-cols-2 gap-2.5">
+                      <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink text-center">
+                        <Ticket className="w-4 h-4 text-brand-600 mx-auto mb-1" aria-hidden="true" />
+                        <span className="block display text-2xl text-ink leading-none">{stat?.visits ?? 0}</span>
+                        <span className="block text-[10px] text-slate-500 font-bold uppercase mt-1">Visits</span>
+                      </div>
+                      <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink text-center">
+                        <Star className="w-4 h-4 text-gold-500 mx-auto mb-1" aria-hidden="true" />
+                        <span className="block display text-2xl text-ink leading-none">
+                          {stat && stat.visits > 0 ? stat.avg_rating.toFixed(1) : '—'}
+                        </span>
+                        <span className="block text-[10px] text-slate-500 font-bold uppercase mt-1">Avg rating</span>
+                      </div>
+                    </div>
+
+                    <div>
+                      <h4 className="eyebrow text-slate-500 flex items-center gap-1.5 mb-2">
+                        <MessageSquareQuote className="w-3.5 h-3.5" aria-hidden="true" /> Reviews ({reviews.length})
+                      </h4>
+                      {reviews.length === 0 ? (
+                        <p className="text-xs text-slate-400 text-center py-6">No reviews yet.</p>
+                      ) : (
+                        <div className="space-y-2 max-h-72 overflow-y-auto pr-1">
+                          {reviews.map((r, i) => (
+                            <div key={i} className="p-3 rounded-xl bg-white border-2 border-ink/10">
+                              <div className="flex items-center justify-between gap-2">
+                                <div className="flex items-center gap-0.5">
+                                  {[1, 2, 3, 4, 5].map(star => (
+                                    <Star
+                                      key={star}
+                                      className={`w-3 h-3 ${star <= r.rating ? 'text-gold-500 fill-gold-500' : 'text-slate-200'}`}
+                                    />
+                                  ))}
+                                </div>
+                                <span className="text-[10px] text-slate-400 mono shrink-0">
+                                  {new Date(r.visited_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                                </span>
+                              </div>
+                              {r.review && <p className="text-xs text-ink mt-1.5 italic">&ldquo;{r.review}&rdquo;</p>}
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </>
+                );
+              })()
+            )}
+          </div>
+        </Modal>
+      )}
+
       {/* QR MODAL */}
       {selectedBooth && qrDataUrl && (
         <Modal
@@ -336,7 +449,7 @@ export default function AdminBoothsPage() {
           <div className="text-center space-y-4">
             <div>
               <span className="sticker bg-brand-500 text-white text-[9px]">Booth QR signage</span>
-              <h3 id="booth-qr-title" className="display text-2xl text-ink mt-3 leading-none pr-8">
+              <h3 id="booth-qr-title" className="display text-2xl text-ink mt-3 leading-none">
                 {selectedBooth.name}
               </h3>
               <p className="text-xs text-brand-600 font-bold mt-1">{selectedBooth.faculty}</p>
@@ -394,7 +507,7 @@ export default function AdminBoothsPage() {
                 </h3>
                 {editingBooth.booth_type === 'partner' && (
                   <span className="text-[9px] font-extrabold uppercase px-1.5 py-0.5 rounded bg-gold-400 text-ink">
-                    Partner
+                    External
                   </span>
                 )}
               </div>
@@ -550,11 +663,11 @@ export default function AdminBoothsPage() {
                         : 'bg-white text-ink'
                     }`}
                   >
-                    Partner
+                    External
                   </button>
                 </div>
                 <p className="text-[10px] text-slate-500 mt-1.5">
-                  Partner booths give +5 points and never block the 8-stamp souvenir.
+                  External booths give +5 points and never block the 8-stamp souvenir.
                 </p>
               </div>
 

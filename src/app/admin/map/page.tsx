@@ -6,6 +6,7 @@ import { getCheckpoints, saveCheckpoint } from '@/lib/supabase';
 import { Checkpoint } from '@/lib/types';
 import { FIRST_EXTERNAL_POSITION, SlotLayout, MAP_COLORS, mapColorOption } from '@/lib/floorplan';
 import FloorPlanCanvas from '@/components/FloorPlanCanvas';
+import BoothSlotPicker from '@/components/BoothSlotPicker';
 import { ArrowLeft, Save, MapPin, AlertTriangle, CheckCircle2, Palette } from 'lucide-react';
 
 export default function AdminMapPage() {
@@ -172,18 +173,11 @@ export default function AdminMapPage() {
             </button>
           )}
         </div>
-        <select
+        <BoothSlotPicker
           value={assignedId}
-          onChange={e => handleAssign(position, e.target.value)}
-          className="w-full text-[7px] sm:text-[9px] font-bold text-ink bg-transparent border-0 p-0 focus:outline-none focus:ring-0 truncate"
-        >
-          <option value="">— Empty —</option>
-          {checkpoints.map(b => (
-            <option key={b.id} value={b.id}>
-              {b.name}
-            </option>
-          ))}
-        </select>
+          onChange={id => handleAssign(position, id)}
+          checkpoints={checkpoints}
+        />
 
         {pickerOpen && assignedId && (
           <div className="absolute z-10 top-full left-0 mt-1 p-1.5 rounded-lg border-2 border-ink bg-white shadow-brut flex items-center gap-1 flex-wrap w-max max-w-[140px]">

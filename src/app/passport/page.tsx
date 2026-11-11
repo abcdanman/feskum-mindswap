@@ -154,7 +154,7 @@ export default function PassportPage() {
             <span className="block mono text-[9.5px] text-cream-50/50 uppercase tracking-wide">Stamps</span>
             <span className="block font-bold text-sm text-cream-50">{completedRequired} / {threshold}</span>
             {partnerCheckpoints.length > 0 && (
-              <span className="block text-[9px] text-cream-50/45">+{completedPartner} partner</span>
+              <span className="block text-[9px] text-cream-50/45">+{completedPartner} external</span>
             )}
           </div>
           <div className="min-w-0">
@@ -250,7 +250,7 @@ export default function PassportPage() {
       {partnerCheckpoints.length > 0 && (
         <div className="card p-4 space-y-2">
           <div className="flex items-center justify-between">
-            <span className="eyebrow text-slate-500">Partner trail</span>
+            <span className="eyebrow text-slate-500">External trail</span>
             <span className="mono text-sm font-bold text-brand-600">
               {completedPartner} / {partnerCheckpoints.length}
             </span>

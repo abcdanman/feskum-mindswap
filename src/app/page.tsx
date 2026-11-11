@@ -116,7 +116,7 @@ export default function HomePage() {
     {
       href: '/exhibition',
       label: 'Booths',
-      sub: `${requiredBoothCount} required${partnerBoothCount > 0 ? ` · ${partnerBoothCount} partner` : ''}`,
+      sub: `${requiredBoothCount} required${partnerBoothCount > 0 ? ` · ${partnerBoothCount} external` : ''}`,
       icon: Compass,
       accent: 'bg-brand-500',
     },
@@ -175,12 +175,11 @@ export default function HomePage() {
           <div className="bg-brand-500 h-full transition-all duration-500" style={{ width: `${progressPercent}%` }} />
         </div>
 
-        <div className="flex items-center justify-between pt-1">
+        <div className="flex flex-col items-center gap-2 pt-1 text-center">
           <span className="text-[11px] text-slate-500 font-medium">
             {unlocked ? 'Reward unlocked!' : `${Math.max(threshold - stampCount, 0)} more required stamps`}
-            {partnerCount > 0 && <span className="text-slate-400"> · {partnerCount} partner</span>}
           </span>
-          <div className="flex items-center gap-3">
+          <div className="flex items-center justify-center gap-3">
             {/* Always visible, not just once unlocked — hiding it entirely
                made it unfindable while a visitor was still collecting
                stamps and came looking for it. Locked state explains why

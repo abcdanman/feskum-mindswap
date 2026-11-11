@@ -105,7 +105,7 @@ export default function ExhibitionPage() {
         {[
           { key: 'all' as const, label: 'All booths' },
           { key: 'required' as const, label: 'Required' },
-          { key: 'partner' as const, label: 'Partner' },
+          { key: 'partner' as const, label: 'External' },
         ].map(item => (
           <button
             key={item.key}
@@ -166,7 +166,7 @@ export default function ExhibitionPage() {
                         booth.booth_type === 'partner' ? 'bg-gold-400 text-ink' : 'bg-ink text-cream-50'
                       }`}
                     >
-                      {booth.booth_type === 'partner' ? 'Partner · ' : ''}{booth.category}
+                      {booth.booth_type === 'partner' ? 'External · ' : ''}{booth.category}
                     </span>
                     {isVisited && (
                       <span className="absolute top-2 right-2 flex items-center gap-1 bg-emerald-500 text-white text-[9px] font-extrabold px-2 py-0.5 rounded-full border-2 border-ink">
@@ -237,7 +237,7 @@ export default function ExhibitionPage() {
                   selectedBooth.booth_type === 'partner' ? 'bg-gold-400 text-ink' : 'bg-ink text-cream-50'
                 }`}
               >
-                {selectedBooth.booth_type === 'partner' ? 'Partner booth' : 'Required booth'} · {selectedBooth.category}
+                {selectedBooth.booth_type === 'partner' ? 'External booth' : 'Required booth'} · {selectedBooth.category}
               </span>
             </div>
 

@@ -36,7 +36,7 @@ export default function AdminOverviewPage() {
     ? [
         { label: 'Visitors', value: analytics.totalVisitors, sub: 'Registered identities', icon: Users, color: 'text-brand-600' },
         { label: 'Stamps', value: analytics.totalVisits, sub: 'QR visits logged', icon: Ticket, color: 'text-emerald-600' },
-        { label: 'Partner', value: partnerVisits, sub: 'Bonus stamps', icon: Handshake, color: 'text-amber-600' },
+        { label: 'External', value: partnerVisits, sub: 'Bonus stamps', icon: Handshake, color: 'text-amber-600' },
         { label: 'Quizzes', value: analytics.totalQuizCompletions, sub: `${analytics.totalQuizPoints} bonus pts`, icon: HelpCircle, color: 'text-brand-600' },
         { label: 'Avg Rating', value: `${analytics.avgOverallRating}`, sub: 'Overall satisfaction', icon: Star, color: 'text-gold-500' },
         { label: 'Claimed', value: `${analytics.rewardsClaimed}/${analytics.rewardsUnlocked}`, sub: 'Helpdesk redemptions', icon: Gift, color: 'text-gold-700' },
@@ -197,7 +197,7 @@ export default function AdminOverviewPage() {
             <div className="flex items-center gap-2">
               <Handshake className="w-5 h-5 text-amber-600" />
               <div>
-                <h3 className="display text-xl text-ink leading-none">Partner booths</h3>
+                <h3 className="display text-xl text-ink leading-none">External booths</h3>
                 <p className="text-[11px] text-slate-500">Bonus stops · excluded from Best Booth</p>
               </div>
             </div>

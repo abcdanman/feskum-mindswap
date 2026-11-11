@@ -50,6 +50,33 @@ const FACULTY_CODES: Record<string, string> = {
   Others: 'OTHER',
 };
 
+function normalizeFacultyKey(s: string): string {
+  return s.trim().toLowerCase().replace(/^faculty of\s+/i, '').replace(/^academy of\s+/i, '');
+}
+
+const NORMALIZED_CODES = new Map(Object.entries(FACULTY_CODES).map(([k, v]) => [normalizeFacultyKey(k), v]));
+
 export function facultyCode(faculty: string): string {
-  return FACULTY_CODES[faculty] || faculty.replace(/^Faculty of\s+/i, '').slice(0, 10).toUpperCase();
+  const hit = NORMALIZED_CODES.get(normalizeFacultyKey(faculty));
+  if (hit) return hit;
+
+  // Fallback for anything not in the table above — a partner/external
+  // booth's "faculty" field is usually just its sponsor's name, which
+  // won't match a UM faculty. Build up whole words until the next one
+  // would blow the budget, so it never cuts a word in half (no more
+  // "SPORTS & E" or "MATCHA CLU").
+  const words = faculty
+    .replace(/^Faculty of\s+/i, '')
+    .replace(/^Academy of\s+/i, '')
+    .trim()
+    .split(/\s+/)
+    .filter(w => w !== '&');
+  let out = '';
+  for (const word of words) {
+    const next = out ? `${out} ${word}` : word;
+    if (next.length > 10 && out) break;
+    out = next;
+    if (out.length >= 10) break;
+  }
+  return (out || faculty).toUpperCase();
 }
