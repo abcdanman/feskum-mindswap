@@ -82,6 +82,10 @@ export default function PassportPage() {
     const identity = getVisitorIdentity();
     const metric = (rewardSetting?.ranking_metric || 'points') as RankingMetric;
     const rank = visitorId ? await getVisitorRank(visitorId, metric, 'all') : null;
+    const sortedBooths = visits
+      .filter(v => v.checkpoint)
+      .map(v => ({ name: v.checkpoint!.name, faculty: v.checkpoint!.faculty, visitedAt: v.visited_at }))
+      .sort((a, b) => new Date(a.visitedAt).getTime() - new Date(b.visitedAt).getTime());
     setShareCardData({
       name: identity.name || 'Visitor',
       username: identity.username || null,
@@ -93,6 +97,7 @@ export default function PassportPage() {
       totalRanked: rank?.total || null,
       points: rank?.entry?.points ?? null,
       isComplete: isUnlocked,
+      booths: sortedBooths,
     });
     setPdfData({
       name: identity.name || 'Visitor',
@@ -104,10 +109,7 @@ export default function PassportPage() {
       totalRanked: rank?.total || null,
       points: rank?.entry?.points ?? null,
       isComplete: isUnlocked,
-      booths: visits
-        .filter(v => v.checkpoint)
-        .map(v => ({ name: v.checkpoint!.name, faculty: v.checkpoint!.faculty, visitedAt: v.visited_at }))
-        .sort((a, b) => new Date(a.visitedAt).getTime() - new Date(b.visitedAt).getTime()),
+      booths: sortedBooths,
     });
     setShareLoading(false);
     setShowShareModal(true);

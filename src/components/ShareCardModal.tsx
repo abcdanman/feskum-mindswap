@@ -22,7 +22,7 @@ interface ShareCardModalProps {
 }
 
 export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModalProps) {
-  const [templateId, setTemplateId] = useState<ShareCardTemplateId>(data.isComplete ? 'certificate' : 'scoreboard');
+  const [templateId, setTemplateId] = useState<ShareCardTemplateId>('passport');
   const [rendering, setRendering] = useState(true);
   const [canShareFiles, setCanShareFiles] = useState(false);
   const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
@@ -170,7 +170,7 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
         </div>
 
         {/* Template picker */}
-        <div className="grid grid-cols-3 gap-2">
+        <div className="grid grid-cols-4 gap-2">
           {SHARE_CARD_TEMPLATES.map(t => (
             <button
               key={t.id}

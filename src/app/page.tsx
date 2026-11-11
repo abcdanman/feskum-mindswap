@@ -86,6 +86,10 @@ export default function HomePage() {
     const identity = getVisitorIdentity();
     const metric = (rewardSetting?.ranking_metric || 'points') as RankingMetric;
     const rank = visitorId ? await getVisitorRank(visitorId, metric, 'all') : null;
+    const sortedBooths = allVisits
+      .filter(v => v.checkpoint)
+      .map(v => ({ name: v.checkpoint!.name, faculty: v.checkpoint!.faculty, visitedAt: v.visited_at }))
+      .sort((a, b) => new Date(a.visitedAt).getTime() - new Date(b.visitedAt).getTime());
     const shared = {
       name: identity.name || 'Visitor',
       username: identity.username || null,
@@ -97,14 +101,12 @@ export default function HomePage() {
       totalRanked: rank?.total || null,
       points: rank?.entry?.points ?? null,
       isComplete: unlocked,
+      booths: sortedBooths,
     };
     setShareCardData(shared);
     setPdfData({
       ...shared,
-      booths: allVisits
-        .filter(v => v.checkpoint)
-        .map(v => ({ name: v.checkpoint!.name, faculty: v.checkpoint!.faculty, visitedAt: v.visited_at }))
-        .sort((a, b) => new Date(a.visitedAt).getTime() - new Date(b.visitedAt).getTime()),
+      booths: sortedBooths,
     });
     setShareLoading(false);
     setShowShareModal(true);
