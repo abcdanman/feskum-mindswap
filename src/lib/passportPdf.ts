@@ -8,6 +8,7 @@
  */
 
 import { jsPDF } from 'jspdf';
+import { STAMP_COLORS, hashSeed } from '@/components/BoothStamp';
 
 export interface PassportPdfBooth {
   name: string;
@@ -31,6 +32,7 @@ export interface PassportPdfData {
 const INK = '#0f172a';
 const BRAND = '#293B9D';
 const GOLD = '#f59e0b';
+const GOLD_FOIL = '#d4a94e';
 const SLATE = '#64748b';
 const CREAM = '#FAF8F5';
 
@@ -86,40 +88,49 @@ export async function generatePassportPdf(data: PassportPdfData): Promise<jsPDF>
   doc.roundedRect(margin + 4, margin + 4, W - (margin + 4) * 2, H - (margin + 4) * 2, 3, 3, 'S');
 
   const cx = W / 2;
-  let y = margin + 20;
+  const inkX = margin + 4;
+  const inkW = W - (margin + 4) * 2;
+  const bandH = 54;
+  doc.setFillColor(INK);
+  doc.rect(inkX, margin + 4, inkW, bandH, 'F');
 
-  // Mark-only (not the full wordmark lockup) — the title line right below
-  // already spells out "MINDSWAP @ FESKUM 2026", so pairing it with just
-  // the brand's navy mark reads cleaner than repeating the wordmark twice.
+  let y = margin + 4 + 16;
+
+  // The navy mark sits on a cream "seal" circle (same treatment as the
+  // share card and BoothStamp) rather than directly on the ink band, since
+  // the mark's own navy is too close to ink to read there on its own.
   const logo = await loadImageDataUrl('/mindswap-mark-navy.png');
+  const sealCx = cx;
+  const sealCy = y + 4;
+  const sealR = 11;
+  doc.setFillColor(CREAM);
+  doc.circle(sealCx, sealCy, sealR, 'F');
+  doc.setDrawColor(GOLD_FOIL);
+  doc.setLineWidth(0.6);
+  doc.circle(sealCx, sealCy, sealR, 'S');
   if (logo) {
     try {
-      const logoH = 16;
+      const logoH = sealR * 1.05;
       const logoW = logoH * logo.aspect;
-      doc.addImage(logo.dataUrl, 'PNG', cx - logoW / 2, y - 6, logoW, logoH);
-      y += 14;
+      doc.addImage(logo.dataUrl, 'PNG', sealCx - logoW / 2, sealCy - logoH / 2, logoW, logoH);
     } catch {
       /* skip logo if it fails to embed */
     }
   }
+  y += sealR + 10;
 
-  doc.setTextColor(SLATE);
+  doc.setTextColor(GOLD_FOIL);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
-  doc.text('CERTIFICATE OF PARTICIPATION', cx, y, { align: 'center' });
-  y += 10;
-
-  doc.setTextColor(BRAND);
-  doc.setFont('helvetica', 'bold');
-  doc.setFontSize(28);
-  doc.text('MINDSWAP @ FESKUM 2026', cx, y, { align: 'center' });
+  doc.setFontSize(22);
+  doc.text('MINDSWAP', cx, y, { align: 'center' });
   y += 7;
 
-  doc.setTextColor(SLATE);
+  doc.setTextColor(CREAM);
   doc.setFont('helvetica', 'normal');
-  doc.setFontSize(10);
-  doc.text('Kemuncak Aspirasi — Innovation Passport Challenge', cx, y, { align: 'center' });
-  y += 14;
+  doc.setFontSize(9);
+  doc.text('CERTIFICATE OF PARTICIPATION · KEMUNCAK ASPIRASI', cx, y, { align: 'center' });
+
+  y = margin + 4 + bandH + 14;
 
   // The header above (logo/eyebrow/title/subtitle) stays anchored near the
   // top, but everything below it — badge, paragraph, stats, booth list —
@@ -194,7 +205,10 @@ export async function generatePassportPdf(data: PassportPdfData): Promise<jsPDF>
   });
   y = statY + 30;
 
-  // Visited booths list
+  // Visited booths list — each row gets a small ink-stamp dot, colored the
+  // same way (hashed on the booth's own name) as the BoothStamp component
+  // and the canvas share card, so a booth's "color" is the same object
+  // wherever it shows up across the app.
   if (shownBooths.length > 0) {
     doc.setTextColor(INK);
     doc.setFont('helvetica', 'bold');
@@ -207,6 +221,7 @@ export async function generatePassportPdf(data: PassportPdfData): Promise<jsPDF>
     y += 6;
 
     const colW = (W - margin * 2 - 32) / 2;
+    const dotR = 1.3;
 
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.5);
@@ -215,10 +230,15 @@ export async function generatePassportPdf(data: PassportPdfData): Promise<jsPDF>
       const row = i % boothsPerCol;
       const bx = margin + 16 + col * colW;
       const by = y + row * rowH;
+
+      const stampColor = STAMP_COLORS[hashSeed(b.name) % STAMP_COLORS.length];
+      doc.setFillColor(stampColor);
+      doc.circle(bx + dotR, by - dotR * 1.1, dotR, 'F');
+
       doc.setTextColor(INK);
       doc.setFont('helvetica', 'bold');
-      const name = b.name.length > 28 ? b.name.slice(0, 27) + '…' : b.name;
-      doc.text(name, bx, by);
+      const name = b.name.length > 24 ? b.name.slice(0, 23) + '…' : b.name;
+      doc.text(name, bx + dotR * 3, by);
       doc.setTextColor(SLATE);
       doc.setFont('helvetica', 'normal');
       doc.text(formatDate(b.visitedAt), bx + colW - 6, by, { align: 'right' });
@@ -288,19 +308,23 @@ function drawHighlightsPage(doc: jsPDF, W: number, H: number, margin: number) {
   doc.setLineWidth(0.3);
   doc.roundedRect(margin + 4, margin + 4, W - (margin + 4) * 2, H - (margin + 4) * 2, 3, 3, 'S');
 
-  let y = margin + 22;
-  doc.setTextColor(SLATE);
+  const bandH2 = 36;
+  doc.setFillColor(INK);
+  doc.rect(margin + 4, margin + 4, W - (margin + 4) * 2, bandH2, 'F');
+
+  let y = margin + 4 + 14;
+  doc.setTextColor(GOLD_FOIL);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(10);
+  doc.setFontSize(9);
   doc.text('EVENT HIGHLIGHTS', cx, y, { align: 'center' });
-  y += 10;
+  y += 9;
 
-  doc.setTextColor(BRAND);
+  doc.setTextColor(CREAM);
   doc.setFont('helvetica', 'bold');
-  doc.setFontSize(22);
+  doc.setFontSize(18);
   doc.text('MindSwap @ FESKUM 2026', cx, y, { align: 'center' });
-  y += 8;
 
+  y = margin + 4 + bandH2 + 12;
   doc.setTextColor(SLATE);
   doc.setFont('helvetica', 'normal');
   doc.setFontSize(9.5);
@@ -328,7 +352,7 @@ function drawHighlightsPage(doc: jsPDF, W: number, H: number, margin: number) {
   // Highlight cards
   const cardX = margin + 16;
   const cardW = W - margin * 2 - 32;
-  HIGHLIGHTS.forEach(h => {
+  HIGHLIGHTS.forEach((h, i) => {
     doc.setFont('helvetica', 'normal');
     doc.setFontSize(8.7);
     const bodyLines = doc.splitTextToSize(h.body, cardW - 26);
@@ -338,7 +362,7 @@ function drawHighlightsPage(doc: jsPDF, W: number, H: number, margin: number) {
     doc.setLineWidth(0.4);
     doc.roundedRect(cardX, y, cardW, cardH, 3, 3, 'S');
 
-    doc.setFillColor(BRAND);
+    doc.setFillColor(STAMP_COLORS[i % STAMP_COLORS.length]);
     doc.roundedRect(cardX, y, 7, cardH, 2, 2, 'F');
 
     doc.setTextColor(INK);

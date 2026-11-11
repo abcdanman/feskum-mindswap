@@ -1,7 +1,7 @@
 'use client';
 
 import React from 'react';
-import { ArrowRight, ArrowLeft } from 'lucide-react';
+import { ArrowRight, ArrowLeft, ArrowLeftRight } from 'lucide-react';
 import { FACULTY_SLOTS, EXTERNAL_SLOTS, LANDMARKS, WALLS, WALKWAYS, SlotLayout } from '@/lib/floorplan';
 
 interface FloorPlanCanvasProps {
@@ -13,11 +13,21 @@ interface FloorPlanCanvasProps {
 
 export default function FloorPlanCanvas({ renderSlot, minWidth = 640 }: FloorPlanCanvasProps) {
   return (
-    <div className="overflow-x-auto -mx-1 px-1">
-      <div
-        className="relative w-full rounded-2xl border-2 border-ink bg-cream-50"
-        style={{ aspectRatio: '4 / 3', minWidth }}
-      >
+    <div>
+      {/* Below `minWidth` the map scrolls sideways — without this hint that
+         reads as the map being cut off rather than scrollable. Hidden once
+         the viewport is wide enough that the map fits without scrolling
+         (Tailwind's sm: breakpoint is also 640px, matching the default
+         minWidth, so the two stay in sync). */}
+      <p className="sm:hidden flex items-center justify-center gap-1.5 text-[10px] font-bold text-brand-600 pb-1.5" aria-hidden="true">
+        <ArrowLeftRight className="w-3 h-3" />
+        Scroll sideways to see the full map
+      </p>
+      <div className="overflow-x-auto -mx-1 px-1">
+        <div
+          className="relative w-full rounded-2xl border-2 border-ink bg-cream-50"
+          style={{ aspectRatio: '4 / 3', minWidth }}
+        >
         {LANDMARKS.map(l => (
           <div
             key={l.label}
@@ -70,6 +80,7 @@ export default function FloorPlanCanvas({ renderSlot, minWidth = 640 }: FloorPla
             {renderSlot(slot)}
           </div>
         ))}
+        </div>
       </div>
     </div>
   );

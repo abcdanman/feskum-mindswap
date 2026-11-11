@@ -4,13 +4,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import Modal from '@/components/Modal';
 import { Share2, Download, Instagram, Loader2, FileText, Maximize2, X } from 'lucide-react';
-import {
-  SHARE_CARD_TEMPLATES,
-  ShareCardData,
-  ShareCardTemplateId,
-  renderShareCard,
-  canvasToBlob,
-} from '@/lib/shareCard';
+import { ShareCardData, renderShareCard, canvasToBlob } from '@/lib/shareCard';
 import { PassportPdfData, generatePassportPdf, passportPdfFileName } from '@/lib/passportPdf';
 import { renderPdfPagesToCanvases } from '@/lib/pdfPreview';
 import { jsPDF } from 'jspdf';
@@ -22,7 +16,6 @@ interface ShareCardModalProps {
 }
 
 export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModalProps) {
-  const [templateId, setTemplateId] = useState<ShareCardTemplateId>('passport');
   const [rendering, setRendering] = useState(true);
   const [canShareFiles, setCanShareFiles] = useState(false);
   const [fullPreviewOpen, setFullPreviewOpen] = useState(false);
@@ -41,14 +34,14 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
     setRendering(true);
     const canvas = canvasRef.current;
     if (!canvas) return;
-    renderShareCard(templateId, data, canvas).then(() => {
+    renderShareCard(data, canvas).then(() => {
       if (!cancelled) setRendering(false);
     });
     return () => {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [templateId]);
+  }, []);
 
   useEffect(() => {
     if (!fullPreviewOpen) return;
@@ -104,7 +97,7 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
     }
   }, []);
 
-  const fileName = `mindswap-passport-${templateId}.png`;
+  const fileName = 'mindswap-passport.png';
 
   const handleDownload = async () => {
     const canvas = canvasRef.current;
@@ -166,30 +159,8 @@ export default function ShareCardModal({ data, pdfData, onClose }: ShareCardModa
       <div className="p-5 space-y-4">
         <div>
           <h3 id="share-card-title" className="display text-2xl text-ink leading-none">Share your passport</h3>
-          <p className="text-[11px] text-slate-500 mt-1">Pick a card, then share straight to Instagram or save it to your gallery.</p>
+          <p className="text-[11px] text-slate-500 mt-1">Your ink-stamped passport card — share straight to Instagram or save it to your gallery.</p>
         </div>
-
-        {/* Template picker */}
-        <div className="grid grid-cols-4 gap-2">
-          {SHARE_CARD_TEMPLATES.map(t => (
-            <button
-              key={t.id}
-              type="button"
-              onClick={() => setTemplateId(t.id)}
-              className={`rounded-xl border-2 p-2 text-center transition-all ${
-                templateId === t.id ? 'border-ink bg-cream-100 shadow-brut' : 'border-ink/15 hover:border-ink/40'
-              }`}
-            >
-              <span
-                className="block w-full aspect-[9/16] rounded-lg border-2 border-ink/20 mb-1.5"
-                style={{ background: t.swatch }}
-                aria-hidden="true"
-              />
-              <span className="text-[10px] font-extrabold text-ink block leading-tight">{t.label}</span>
-            </button>
-          ))}
-        </div>
-        <p className="text-[10px] text-slate-500 -mt-2">{SHARE_CARD_TEMPLATES.find(t => t.id === templateId)?.blurb}</p>
 
         {/* Live preview — tap to see it full size before deciding to share/save */}
         <button

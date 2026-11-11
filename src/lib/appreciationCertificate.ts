@@ -19,7 +19,52 @@ const NAME_BOX = { x: 648, yBaseline: 600, maxWidth: 1180 };
 const NAME_FONT = '"Space Grotesk"';
 const NAME_COLOR = '#ffffff';
 const NAME_MAX_SIZE = 56;
-const NAME_MIN_SIZE = 28;
+const NAME_MIN_SIZE = 26;
+
+/** Shrinks the name to fit on one line down to NAME_MIN_SIZE; if it's still
+ * too wide even there (an unusually long full name), wraps it onto two
+ * lines instead of letting it run off the card or overlap the seal. */
+function fitNameLines(
+  ctx: CanvasRenderingContext2D,
+  name: string,
+  maxWidth: number
+): { lines: string[]; size: number } {
+  let size = NAME_MAX_SIZE;
+  while (size > NAME_MIN_SIZE) {
+    ctx.font = `700 ${size}px ${NAME_FONT}`;
+    if (ctx.measureText(name).width <= maxWidth) return { lines: [name], size };
+    size -= 2;
+  }
+
+  const words = name.split(' ');
+  if (words.length < 2) return { lines: [name], size: NAME_MIN_SIZE };
+
+  // Split at whichever gap balances the two lines' widths best, measuring
+  // at the max size so the choice doesn't depend on a size we haven't
+  // picked yet.
+  ctx.font = `700 ${NAME_MAX_SIZE}px ${NAME_FONT}`;
+  let bestSplit = 1;
+  let bestDiff = Infinity;
+  for (let i = 1; i < words.length; i++) {
+    const w1 = ctx.measureText(words.slice(0, i).join(' ')).width;
+    const w2 = ctx.measureText(words.slice(i).join(' ')).width;
+    const diff = Math.abs(w1 - w2);
+    if (diff < bestDiff) {
+      bestDiff = diff;
+      bestSplit = i;
+    }
+  }
+  const line1 = words.slice(0, bestSplit).join(' ');
+  const line2 = words.slice(bestSplit).join(' ');
+
+  size = Math.round(NAME_MAX_SIZE * 0.8);
+  while (size > NAME_MIN_SIZE - 6) {
+    ctx.font = `700 ${size}px ${NAME_FONT}`;
+    if (ctx.measureText(line1).width <= maxWidth && ctx.measureText(line2).width <= maxWidth) break;
+    size -= 2;
+  }
+  return { lines: [line1, line2], size };
+}
 
 let fontReady: Promise<void> | null = null;
 function ensureFont(): Promise<void> {
@@ -58,16 +103,19 @@ export async function renderAppreciationCertificate(name: string, canvas: HTMLCa
     ctx.fillRect(0, 0, CERT_W, CERT_H);
   }
 
-  let size = NAME_MAX_SIZE;
   ctx.textAlign = 'left';
   ctx.textBaseline = 'alphabetic';
   ctx.fillStyle = NAME_COLOR;
-  do {
-    ctx.font = `700 ${size}px ${NAME_FONT}`;
-    if (ctx.measureText(name).width <= NAME_BOX.maxWidth || size <= NAME_MIN_SIZE) break;
-    size -= 2;
-  } while (true);
-  ctx.fillText(name, NAME_BOX.x, NAME_BOX.yBaseline);
+  const { lines, size } = fitNameLines(ctx, name, NAME_BOX.maxWidth);
+  ctx.font = `700 ${size}px ${NAME_FONT}`;
+  if (lines.length === 1) {
+    ctx.fillText(lines[0], NAME_BOX.x, NAME_BOX.yBaseline);
+  } else {
+    const lineGap = size * 1.08;
+    const firstBaseline = NAME_BOX.yBaseline - lineGap * 0.55;
+    ctx.fillText(lines[0], NAME_BOX.x, firstBaseline);
+    ctx.fillText(lines[1], NAME_BOX.x, firstBaseline + lineGap);
+  }
 }
 
 export function certificateCanvasToBlob(canvas: HTMLCanvasElement): Promise<Blob | null> {

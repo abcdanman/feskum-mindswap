@@ -14,6 +14,11 @@ export const FACULTIES = [
   'Faculty of Law',
   'Faculty of Education',
   'Faculty of Pharmacy',
+  'Faculty of Creative Arts',
+  'Faculty of Languages & Linguistics',
+  'Faculty of Sports & Exercise Science',
+  'Academy of Islamic Studies',
+  'Academy of Malay Studies',
   'UM Makers Club',
   'Others',
 ] as const;
