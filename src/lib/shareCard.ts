@@ -8,6 +8,8 @@
  * variants, since a single reused layout gets old fast across an event.
  */
 
+import { STAMP_COLORS, hashSeed } from '@/components/BoothStamp';
+
 export type ShareCardTemplateId = 'passport' | 'scoreboard' | 'ticket' | 'certificate';
 
 export interface ShareCardTemplate {
@@ -311,7 +313,6 @@ function drawPassport(ctx: CanvasRenderingContext2D, data: ShareCardData, logo: 
   const startX = (W - gridW) / 2;
   const gridH = rows * cell + (rows - 1) * gap;
   const startY = gridTop + Math.max(0, (footerTop - gridTop - gridH) / 2);
-  const stampColors = [BRAND, '#0e7a5f', '#9c3b17', '#6b3fa0'];
   const rotations = [-5, 4, 3, -4, 5, -3, 4, -5];
 
   for (let i = 0; i < slots; i++) {
@@ -322,10 +323,15 @@ function drawPassport(ctx: CanvasRenderingContext2D, data: ShareCardData, logo: 
     const booth = data.booths[i];
 
     if (booth) {
-      const color = stampColors[i % stampColors.length];
+      // Hashed on the booth's own name (not list position) so the same
+      // booth always stamps the same color/rotation here and in the live
+      // passport page's BoothStamp — a booth has one consistent "ink" look
+      // across the whole app.
+      const hash = hashSeed(booth.name);
+      const color = STAMP_COLORS[hash % STAMP_COLORS.length];
       ctx.save();
       ctx.translate(cx, cy);
-      ctx.rotate((rotations[i % rotations.length] * Math.PI) / 180);
+      ctx.rotate((rotations[hash % rotations.length] * Math.PI) / 180);
       const rOuter = cell * 0.41;
       ctx.strokeStyle = color;
       ctx.lineWidth = Math.max(3, cell * 0.022);

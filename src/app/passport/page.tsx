@@ -7,9 +7,10 @@ import { Checkpoint, BoothVisit, RewardSetting, VisitorReward, RankingMetric } f
 import StampCard from '@/components/StampCard';
 import RewardModal from '@/components/RewardModal';
 import ShareCardModal from '@/components/ShareCardModal';
+import BoothStamp from '@/components/BoothStamp';
 import { ShareCardData } from '@/lib/shareCard';
 import { PassportPdfData } from '@/lib/passportPdf';
-import { Ticket, Trophy, QrCode, Trophy as TrophyIcon, CheckCircle2, Share2 } from 'lucide-react';
+import { Ticket, Trophy, QrCode, Trophy as TrophyIcon, Share2 } from 'lucide-react';
 import Link from 'next/link';
 
 export default function PassportPage() {
@@ -24,11 +25,14 @@ export default function PassportPage() {
   const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
   const [pdfData, setPdfData] = useState<PassportPdfData | null>(null);
   const [shareLoading, setShareLoading] = useState<boolean>(false);
+  const [identity, setIdentity] = useState<{ name: string; username: string | null }>({ name: '', username: null });
 
   useEffect(() => {
     async function loadPassportData() {
       const id = getOrInitVisitorId();
       setVisitorId(id);
+      const localIdentity = getVisitorIdentity();
+      setIdentity({ name: localIdentity.name, username: localIdentity.username || null });
 
       const [cList, vList, rSetting] = await Promise.all([
         getCheckpoints(),
@@ -60,6 +64,9 @@ export default function PassportPage() {
     v => (checkpointMap.get(v.checkpoint_id)?.booth_type ?? 'required') !== 'partner'
   );
   const partnerCheckpoints = checkpoints.filter(c => c.booth_type === 'partner');
+  const sortedRequiredVisits = [...requiredVisits].sort(
+    (a, b) => new Date(a.visited_at).getTime() - new Date(b.visited_at).getTime()
+  );
   const completedRequired = requiredVisits.length;
   const completedPartner = visits.length - completedRequired;
   const partnerTrailComplete =
@@ -123,60 +130,70 @@ export default function PassportPage() {
 
   return (
     <div className="space-y-5 animate-fadeIn">
-      {/* PASSPORT HEADER */}
-      <div className="card p-5 space-y-4">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2.5">
-            <div className="w-11 h-11 rounded-xl bg-brand-500 border-2 border-ink flex items-center justify-center text-white shadow-brut">
-              <Ticket className="w-5 h-5" />
-            </div>
-            <div>
-              <h1 className="display text-3xl text-ink leading-none">Digital passport</h1>
-              <p className="text-[11px] text-slate-500">Kemuncak Aspirasi @ FESKUM 2026</p>
-            </div>
-          </div>
+      {/* PASSPORT HEADER — ink cover, matching the Passport share card's look */}
+      <div className="card p-5 bg-ink text-cream-50 space-y-4 relative overflow-hidden">
+        <div className="absolute inset-3 border border-gold-500/30 rounded-xl pointer-events-none" aria-hidden="true" />
 
-          <div className="text-right">
-            <span className="eyebrow text-slate-500 block">Required stamps</span>
-            <span className="mono text-xl font-bold text-brand-600">
-              {completedRequired} <span className="text-slate-400 font-normal text-sm">/ {threshold}</span>
-            </span>
+        <div className="flex items-center gap-2.5">
+          <div className="w-11 h-11 rounded-full border-2 border-gold-500 flex items-center justify-center text-gold-400 shrink-0">
+            <Ticket className="w-5 h-5" />
+          </div>
+          <div className="min-w-0">
+            <h1 className="display text-3xl text-gold-400 leading-none">Digital Passport</h1>
+            <p className="text-[11px] text-cream-50/55 uppercase tracking-wide">Innovation Passport · FESKUM 2026</p>
+          </div>
+        </div>
+
+        {/* Bio line — same three-column layout as the Passport share card */}
+        <div className="grid grid-cols-3 gap-2 pt-3 border-t border-gold-500/25">
+          <div className="min-w-0">
+            <span className="block mono text-[9.5px] text-cream-50/50 uppercase tracking-wide">Holder</span>
+            <span className="block font-bold text-sm text-cream-50 truncate">{identity.name || 'Visitor'}</span>
+          </div>
+          <div className="min-w-0">
+            <span className="block mono text-[9.5px] text-cream-50/50 uppercase tracking-wide">Stamps</span>
+            <span className="block font-bold text-sm text-cream-50">{completedRequired} / {threshold}</span>
             {partnerCheckpoints.length > 0 && (
-              <span className="block text-[10px] text-slate-500 font-semibold">
-                +{completedPartner} partner
-              </span>
+              <span className="block text-[9px] text-cream-50/45">+{completedPartner} partner</span>
             )}
+          </div>
+          <div className="min-w-0">
+            <span className="block mono text-[9.5px] text-cream-50/50 uppercase tracking-wide">Handle</span>
+            <span className="block font-bold text-sm text-cream-50 truncate">{identity.username ? `@${identity.username}` : '—'}</span>
           </div>
         </div>
 
         {/* Progress Bar */}
         <div className="space-y-1.5">
-          <div className="w-full bg-cream-200 h-4 rounded-full overflow-hidden border-2 border-ink">
+          <div className="w-full bg-cream-50/10 h-4 rounded-full overflow-hidden border-2 border-gold-500/40">
             <div
-              className="bg-brand-500 h-full transition-all duration-700"
+              className="bg-gold-400 h-full transition-all duration-700"
               style={{ width: `${progressPercent}%` }}
             />
           </div>
-          <div className="flex items-center justify-between text-[11px] text-slate-500 font-semibold px-0.5">
+          <div className="flex items-center justify-between text-[11px] text-cream-50/60 font-semibold px-0.5">
             <span>{completedRequired} of {threshold} required for reward</span>
             <span className="mono tnum">{progressPercent}%</span>
           </div>
         </div>
 
-        {/* Stamp slots meter */}
-        <div className="flex flex-wrap gap-1.5 pt-1">
+        {/* Stamp meter — the actual booths you've visited, in order, same
+           ink-stamp visual as the share card and the checkpoint success
+           screen, not a generic numbered square. */}
+        <div className="flex flex-wrap gap-2 justify-center pt-1">
           {Array.from({ length: threshold }).map((_, i) => {
-            const filled = i < completedRequired;
-            return (
-              <span
-                key={i}
-                aria-hidden="true"
-                className={`w-7 h-7 rounded-lg border-2 border-ink flex items-center justify-center ${
-                  filled ? 'bg-emerald-500 text-white' : 'bg-cream-100 text-slate-300'
-                }`}
-              >
-                {filled ? <CheckCircle2 className="w-4 h-4" /> : <span className="text-[10px] font-bold tnum">{i + 1}</span>}
-              </span>
+            const visit = sortedRequiredVisits[i];
+            const stampedCheckpoint = visit ? checkpointMap.get(visit.checkpoint_id) : null;
+            return stampedCheckpoint ? (
+              <BoothStamp
+                key={stampedCheckpoint.id}
+                faculty={stampedCheckpoint.faculty}
+                name={stampedCheckpoint.name}
+                seed={stampedCheckpoint.id}
+                size={54}
+              />
+            ) : (
+              <BoothStamp key={`open-${i}`} faculty="" name="" seed={String(i)} filled={false} placeholder={`${i + 1}`} size={54} tone="dark" />
             );
           })}
         </div>

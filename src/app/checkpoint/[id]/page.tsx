@@ -9,6 +9,7 @@ import { Checkpoint, BoothVisit, RewardSetting } from '@/lib/types';
 import { QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
 import { Star, CheckCircle2, Ticket, ArrowLeft, MapPin, Sparkles, AlertCircle, Send, QrCode, HelpCircle } from 'lucide-react';
 import BoothThumb from '@/components/BoothThumb';
+import BoothStamp from '@/components/BoothStamp';
 
 export default function CheckpointPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
@@ -210,8 +211,15 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
       {/* COMPLETED STAMP ALREADY COLLECTED VIEW */}
       {isCompleted ? (
         <div className="card p-6 border-emerald-300 text-center space-y-4 animate-stampBump">
-          <div className="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mx-auto border-2 border-ink">
-            <CheckCircle2 className="w-10 h-10" />
+          <div className="mx-auto">
+            <BoothStamp
+              faculty={checkpoint.faculty}
+              name={checkpoint.name}
+              seed={checkpoint.id}
+              color={isPartner ? '#b45309' : undefined}
+              size={132}
+              className="mx-auto"
+            />
           </div>
 
           <div>
