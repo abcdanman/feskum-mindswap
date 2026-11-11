@@ -170,22 +170,34 @@ function drawPassport(ctx: CanvasRenderingContext2D, data: ShareCardData, logo: 
   ctx.lineTo(W - 90, 420);
   ctx.stroke();
 
+  // Unequal columns — the name is usually the longest value of the three,
+  // so it gets the most room instead of an even three-way split.
   const bioCols = [
-    { label: 'HOLDER', value: truncate(ctx, data.name || 'Visitor', 280) },
-    { label: 'STAMPS', value: `${data.stamps} / ${data.threshold}` },
-    { label: 'HANDLE', value: data.username ? `@${data.username}` : '—' },
+    { label: 'HOLDER', value: data.name || 'Visitor', width: 460 },
+    { label: 'STAMPS', value: `${data.stamps} / ${data.threshold}`, width: 180 },
+    { label: 'HANDLE', value: data.username ? `@${data.username}` : '—', width: 260 },
   ];
-  const bioW = (W - 180) / 3;
-  ctx.font = `700 24px ${MONO_FONT}`;
-  bioCols.forEach((col, i) => {
-    const x = 90 + bioW * i;
+  let bioX = 90;
+  bioCols.forEach(col => {
+    const colMaxWidth = col.width - 20;
     ctx.textAlign = 'left';
     ctx.fillStyle = 'rgba(250,248,245,0.5)';
     ctx.font = `700 22px ${MONO_FONT}`;
-    ctx.fillText(col.label, x, 468);
+    ctx.fillText(col.label, bioX, 468);
+
+    // Shrink before truncating — a long full name reads better a size
+    // smaller than clipped with an ellipsis at full size.
+    let valueSize = 30;
+    const minSize = 20;
+    while (valueSize > minSize) {
+      ctx.font = `700 ${valueSize}px ${BODY_FONT}`;
+      if (ctx.measureText(col.value).width <= colMaxWidth) break;
+      valueSize -= 2;
+    }
     ctx.fillStyle = CREAM;
-    ctx.font = `700 30px ${BODY_FONT}`;
-    ctx.fillText(truncate(ctx, col.value, bioW - 20), x, 508);
+    ctx.font = `700 ${valueSize}px ${BODY_FONT}`;
+    ctx.fillText(truncate(ctx, col.value, colMaxWidth), bioX, 508);
+    bioX += col.width;
   });
 
   // ---- perforation ----

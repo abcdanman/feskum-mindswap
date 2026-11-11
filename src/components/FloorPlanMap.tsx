@@ -3,6 +3,7 @@
 import React from 'react';
 import { Checkpoint } from '@/lib/types';
 import { FIRST_EXTERNAL_POSITION, VENUE_NAME, SlotLayout, mapColorOption } from '@/lib/floorplan';
+import { facultyCode } from '@/lib/faculties';
 import FloorPlanCanvas from './FloorPlanCanvas';
 import { CheckCircle2, MapPin } from 'lucide-react';
 
@@ -73,7 +74,7 @@ export default function FloorPlanMap({
         ) : (
           <span className="text-[8px] font-extrabold text-slate-400 leading-none">{isExternal ? `E${displayNo}` : `#${displayNo}`}</span>
         )}
-        <span className="text-[7px] sm:text-[8px] font-bold leading-tight line-clamp-2">{checkpoint.faculty.replace('Faculty of ', '')}</span>
+        <span className="text-[7px] sm:text-[8px] font-bold leading-tight whitespace-nowrap">{facultyCode(checkpoint.faculty)}</span>
       </button>
     );
   };

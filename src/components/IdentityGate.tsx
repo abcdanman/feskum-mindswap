@@ -10,6 +10,7 @@ import { getOrInitVisitorId, setVisitorId, setVisitorIdentity, getVisitorIdentit
 import { registerVisitorIdentity, isUsernameAvailable } from '@/lib/supabase';
 import { validateUsername, USERNAME_RULES } from '@/lib/username';
 import { FACULTIES } from '@/lib/faculties';
+import Dropdown from '@/components/Dropdown';
 
 export default function IdentityGate({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
@@ -245,22 +246,13 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
               <label htmlFor="identity-faculty" className="eyebrow text-slate-500 block mb-1.5">
                 04 / Faculty
               </label>
-              <select
+              <Dropdown
                 id="identity-faculty"
-                name="faculty"
                 value={faculty}
-                onChange={e => setFaculty(e.target.value)}
-                className="w-full px-4 py-3 rounded-xl bg-cream-50 border-2 border-ink text-ink text-base font-semibold focus:bg-white"
-              >
-                <option value="" disabled>
-                  Select your faculty…
-                </option>
-                {FACULTIES.map(f => (
-                  <option key={f} value={f}>
-                    {f}
-                  </option>
-                ))}
-              </select>
+                onChange={setFaculty}
+                options={FACULTIES}
+                placeholder="Select your faculty…"
+              />
             </div>
 
             {error && (

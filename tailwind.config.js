@@ -1,6 +1,14 @@
 /** @type {import('tailwind-merge').Config} */
 module.exports = {
   darkMode: 'class',
+  // This is an event app, used mostly on phones — without this flag, every
+  // `hover:`/`group-hover:` style can get "stuck" on a touch device (a tap
+  // triggers :hover with nothing to ever un-hover it), which read as random
+  // cards being a different color for no reason. This scopes all hover:
+  // utilities to devices that actually have a mouse.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   content: [
     './src/pages/**/*.{js,ts,jsx,tsx,mdx}',
     './src/components/**/*.{js,ts,jsx,tsx,mdx}',

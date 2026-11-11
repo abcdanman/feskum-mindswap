@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Gift, Trophy, Mic, Share2, Award } from 'lucide-react';
+import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Gift, Trophy, Mic, Share2, Award, Lock } from 'lucide-react';
 import BoothThumb from '@/components/BoothThumb';
 import PushOptIn from '@/components/PushOptIn';
 import ShareCardModal from '@/components/ShareCardModal';
@@ -181,16 +181,23 @@ export default function HomePage() {
             {partnerCount > 0 && <span className="text-slate-400"> · {partnerCount} partner</span>}
           </span>
           <div className="flex items-center gap-3">
-            {unlocked && (
-              <button
-                type="button"
-                onClick={() => setShowCertModal(true)}
-                aria-label="Export your Certificate of Appreciation"
-                className="text-xs font-extrabold text-brand-600 hover:text-brand-700 flex items-center gap-1 uppercase"
-              >
-                <Award className="w-3.5 h-3.5" aria-hidden="true" /> Certificate
-              </button>
-            )}
+            {/* Always visible, not just once unlocked — hiding it entirely
+               made it unfindable while a visitor was still collecting
+               stamps and came looking for it. Locked state explains why
+               instead of just not being there. */}
+            <button
+              type="button"
+              onClick={() => unlocked && setShowCertModal(true)}
+              disabled={!unlocked}
+              aria-label={unlocked ? 'Export your Certificate of Appreciation' : `Certificate — unlocks after ${Math.max(threshold - stampCount, 0)} more stamps`}
+              title={unlocked ? undefined : `Unlocks after ${Math.max(threshold - stampCount, 0)} more stamps`}
+              className={`text-xs font-extrabold flex items-center gap-1 uppercase ${
+                unlocked ? 'text-brand-600 hover:text-brand-700' : 'text-slate-400'
+              }`}
+            >
+              {unlocked ? <Award className="w-3.5 h-3.5" aria-hidden="true" /> : <Lock className="w-3.5 h-3.5" aria-hidden="true" />}
+              Certificate
+            </button>
             {stampCount > 0 && (
               <button
                 type="button"
