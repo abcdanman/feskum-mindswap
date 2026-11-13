@@ -15,7 +15,7 @@ export const CERT_H = 1080;
 
 // Left-aligned box the name is drawn into — matches "PROUDLY PRESENTED TO"'s
 // left edge, sitting between that line and the underline rule beneath it.
-const NAME_BOX = { x: 648, yBaseline: 600, maxWidth: 1180 };
+const NAME_BOX = { x: 648, yBaseline: 628, maxWidth: 1180 };
 const NAME_FONT = '"Space Grotesk"';
 const NAME_COLOR = '#ffffff';
 const NAME_MAX_SIZE = 56;
