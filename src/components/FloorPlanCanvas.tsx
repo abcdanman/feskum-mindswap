@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useCallback, useRef, useState } from 'react';
-import { ArrowRight, ArrowLeft, ArrowLeftRight, Move } from 'lucide-react';
+import { ArrowRight, ArrowLeft, ArrowLeftRight, Move, Eye, EyeOff } from 'lucide-react';
 import {
   FACULTY_SLOTS,
   EXTERNAL_SLOTS,
@@ -28,6 +28,13 @@ interface FloorPlanCanvasProps {
   editable?: boolean;
   onMoveSlot?: (position: number, top: number, left: number) => void;
   onMoveLandmark?: (label: string, top: number, left: number) => void;
+  /** Landmarks an admin has hidden from the public map — when provided
+   * (admin only), every landmark gets a show/hide eye toggle and hidden
+   * ones render dimmed instead of disappearing, so the admin can still
+   * find and unhide them. The public map instead just omits hidden
+   * landmarks from the `landmarks` array it passes in. */
+  hiddenLandmarks?: Set<string>;
+  onToggleLandmarkHidden?: (label: string) => void;
 }
 
 type DragTarget = { kind: 'slot'; key: number } | { kind: 'landmark'; key: string };
@@ -40,6 +47,8 @@ export default function FloorPlanCanvas({
   editable = false,
   onMoveSlot,
   onMoveLandmark,
+  hiddenLandmarks,
+  onToggleLandmarkHidden,
 }: FloorPlanCanvasProps) {
   const surfaceRef = useRef<HTMLDivElement>(null);
   const dragState = useRef<{
@@ -113,29 +122,43 @@ export default function FloorPlanCanvas({
           className="relative w-full rounded-2xl border-2 border-ink bg-cream-50"
           style={{ aspectRatio: '4 / 3', minWidth }}
         >
-        {landmarks.map(l => (
-          <div
-            key={l.label}
-            className={`absolute flex items-center justify-center text-center rounded-md border-2 overflow-visible ${l.colorClass} ${
-              editable ? 'border-dashed border-brand-500/50' : 'border-ink/15'
-            }`}
-            style={{
-              top: `${l.top}%`,
-              left: `${l.left}%`,
-              width: `${l.width}%`,
-              height: `${l.height}%`,
-              clipPath: l.trapezoid ? 'polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%)' : undefined,
-            }}
-          >
-            {editable && dragHandle({ kind: 'landmark', key: l.label }, l.top, l.left)}
-            <span
-              className="text-[6px] sm:text-[8px] font-extrabold uppercase tracking-wide text-ink/55 leading-[1.05] px-0.5 whitespace-nowrap"
-              style={{ transform: l.rotate ? `rotate(${l.rotate}deg)` : undefined }}
+        {landmarks.map(l => {
+          const isHidden = Boolean(hiddenLandmarks?.has(l.label));
+          return (
+            <div
+              key={l.label}
+              className={`absolute flex items-center justify-center text-center rounded-md border-2 overflow-visible ${l.colorClass} ${
+                isHidden ? 'border-dashed border-ink/10 opacity-40' : editable ? 'border-dashed border-brand-500/50' : 'border-ink/15'
+              }`}
+              style={{
+                top: `${l.top}%`,
+                left: `${l.left}%`,
+                width: `${l.width}%`,
+                height: `${l.height}%`,
+                clipPath: l.trapezoid ? 'polygon(8% 0%, 92% 0%, 100% 100%, 0% 100%)' : undefined,
+              }}
             >
-              {l.label}
-            </span>
-          </div>
-        ))}
+              {editable && dragHandle({ kind: 'landmark', key: l.label }, l.top, l.left)}
+              {onToggleLandmarkHidden && (
+                <button
+                  type="button"
+                  onClick={() => onToggleLandmarkHidden(l.label)}
+                  aria-label={isHidden ? `Show ${l.label} on the public map` : `Hide ${l.label} from the public map`}
+                  title={isHidden ? 'Hidden from public map — click to show' : 'Hide from the public map'}
+                  className="absolute -top-1.5 -left-1.5 z-20 w-4 h-4 rounded-full border-2 border-ink bg-white text-slate-500 hover:text-slate-700 flex items-center justify-center"
+                >
+                  {isHidden ? <EyeOff className="w-2.5 h-2.5" aria-hidden="true" /> : <Eye className="w-2.5 h-2.5" aria-hidden="true" />}
+                </button>
+              )}
+              <span
+                className="text-[6px] sm:text-[8px] font-extrabold uppercase tracking-wide text-ink/55 leading-[1.05] px-0.5 whitespace-nowrap"
+                style={{ transform: l.rotate ? `rotate(${l.rotate}deg)` : undefined }}
+              >
+                {l.label}
+              </span>
+            </div>
+          );
+        })}
 
         {WALLS.map((w, i) => (
           <div

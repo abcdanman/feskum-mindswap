@@ -118,6 +118,23 @@ export async function saveFloorplanHiddenPositions(positions: number[]): Promise
   return { error: (result?.error as string | null) || null };
 }
 
+export async function getFloorplanHiddenLandmarks(fromAdmin = false): Promise<string[]> {
+  if (fromAdmin) {
+    const result = await adminRequest('floorplan.hiddenLandmarks');
+    return (result as string[] | null) || [];
+  }
+  return cachedFetch('floorplan.hiddenLandmarks', PUBLIC_DATA_TTL_MS, async () => {
+    const result = await dataRequest('floorplan.hiddenLandmarks');
+    return (result as string[] | null) || [];
+  });
+}
+
+export async function saveFloorplanHiddenLandmarks(labels: string[]): Promise<{ error: string | null }> {
+  const result = await adminRequest('floorplan.hiddenLandmarks.save', { labels });
+  invalidateCached('floorplan.hiddenLandmarks');
+  return { error: (result?.error as string | null) || null };
+}
+
 export async function getFloorplanLayoutOverrides(fromAdmin = false): Promise<LayoutOverrides> {
   if (fromAdmin) {
     const result = await adminRequest('floorplan.layout');

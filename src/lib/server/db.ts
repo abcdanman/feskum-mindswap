@@ -398,6 +398,25 @@ export async function saveFloorplanLayoutOverrides(overrides: LayoutOverrides): 
   return { error: error?.message || null };
 }
 
+export async function getFloorplanHiddenLandmarks(): Promise<string[]> {
+  if (!hasServerSupabase()) return [];
+  const { data, error } = await db()
+    .from('floorplan_settings')
+    .select('hidden_landmarks')
+    .eq('id', 1)
+    .maybeSingle();
+  if (error || !data) return [];
+  return (data.hidden_landmarks as string[]) || [];
+}
+
+export async function saveFloorplanHiddenLandmarks(labels: string[]): Promise<{ error: string | null }> {
+  if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
+  const { error } = await db()
+    .from('floorplan_settings')
+    .upsert({ id: 1, hidden_landmarks: labels });
+  return { error: error?.message || null };
+}
+
 // -------------------------------------------------------------
 // REWARDS
 // -------------------------------------------------------------

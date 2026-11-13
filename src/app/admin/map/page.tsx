@@ -4,9 +4,11 @@ import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
 import {
   getCheckpoints,
+  getFloorplanHiddenLandmarks,
   getFloorplanHiddenPositions,
   getFloorplanLayoutOverrides,
   saveCheckpoint,
+  saveFloorplanHiddenLandmarks,
   saveFloorplanHiddenPositions,
   saveFloorplanLayoutOverrides,
 } from '@/lib/supabase';
@@ -28,7 +30,7 @@ import { ArrowLeft, Save, MapPin, AlertTriangle, CheckCircle2, Palette, EyeOff, 
 
 const DEFAULT_SLOTS = [...FACULTY_SLOTS, ...EXTERNAL_SLOTS];
 
-function sameNumberSet(a: Set<number>, b: Set<number>) {
+function sameSet<T>(a: Set<T>, b: Set<T>) {
   if (a.size !== b.size) return false;
   for (const n of a) if (!b.has(n)) return false;
   return true;
@@ -42,6 +44,8 @@ export default function AdminMapPage() {
   const [initialColors, setInitialColors] = useState<Record<string, string>>({});
   const [hiddenPositions, setHiddenPositions] = useState<Set<number>>(new Set());
   const [initialHiddenPositions, setInitialHiddenPositions] = useState<Set<number>>(new Set());
+  const [hiddenLandmarks, setHiddenLandmarks] = useState<Set<string>>(new Set());
+  const [initialHiddenLandmarks, setInitialHiddenLandmarks] = useState<Set<string>>(new Set());
   const [layoutOverrides, setLayoutOverrides] = useState<LayoutOverrides>({});
   const [initialLayoutOverrides, setInitialLayoutOverrides] = useState<LayoutOverrides>({});
   const [editLayoutMode, setEditLayoutMode] = useState(false);
@@ -56,9 +60,10 @@ export default function AdminMapPage() {
 
   async function load() {
     setLoading(true);
-    const [list, hidden, layout] = await Promise.all([
+    const [list, hidden, hiddenLm, layout] = await Promise.all([
       getCheckpoints(true),
       getFloorplanHiddenPositions(true),
+      getFloorplanHiddenLandmarks(true),
       getFloorplanLayoutOverrides(true),
     ]);
     setCheckpoints(list);
@@ -74,6 +79,8 @@ export default function AdminMapPage() {
     setInitialColors(loadedColors);
     setHiddenPositions(new Set(hidden));
     setInitialHiddenPositions(new Set(hidden));
+    setHiddenLandmarks(new Set(hiddenLm));
+    setInitialHiddenLandmarks(new Set(hiddenLm));
     setLayoutOverrides(layout);
     setInitialLayoutOverrides(layout);
     setColorPickerFor(null);
@@ -85,7 +92,8 @@ export default function AdminMapPage() {
   const isDirty =
     JSON.stringify(assignments) !== JSON.stringify(initialAssignments) ||
     JSON.stringify(colors) !== JSON.stringify(initialColors) ||
-    !sameNumberSet(hiddenPositions, initialHiddenPositions) ||
+    !sameSet(hiddenPositions, initialHiddenPositions) ||
+    !sameSet(hiddenLandmarks, initialHiddenLandmarks) ||
     JSON.stringify(layoutOverrides) !== JSON.stringify(initialLayoutOverrides);
   const changeCount = useMemo(() => {
     const positions = new Set([...Object.keys(assignments), ...Object.keys(initialAssignments)]);
@@ -101,6 +109,10 @@ export default function AdminMapPage() {
     hiddenTouched.forEach(p => {
       if (hiddenPositions.has(p) !== initialHiddenPositions.has(p)) count += 1;
     });
+    const hiddenLandmarksTouched = new Set([...hiddenLandmarks, ...initialHiddenLandmarks]);
+    hiddenLandmarksTouched.forEach(label => {
+      if (hiddenLandmarks.has(label) !== initialHiddenLandmarks.has(label)) count += 1;
+    });
     if (JSON.stringify(layoutOverrides) !== JSON.stringify(initialLayoutOverrides)) count += 1;
     return count;
   }, [
@@ -110,6 +122,8 @@ export default function AdminMapPage() {
     initialColors,
     hiddenPositions,
     initialHiddenPositions,
+    hiddenLandmarks,
+    initialHiddenLandmarks,
     layoutOverrides,
     initialLayoutOverrides,
   ]);
@@ -120,6 +134,16 @@ export default function AdminMapPage() {
       const next = new Set(prev);
       if (next.has(position)) next.delete(position);
       else next.add(position);
+      return next;
+    });
+  };
+
+  const handleToggleLandmarkHidden = (label: string) => {
+    setMessage('');
+    setHiddenLandmarks(prev => {
+      const next = new Set(prev);
+      if (next.has(label)) next.delete(label);
+      else next.add(label);
       return next;
     });
   };
@@ -209,9 +233,15 @@ export default function AdminMapPage() {
     );
 
     let hiddenFailed = false;
-    if (!sameNumberSet(hiddenPositions, initialHiddenPositions)) {
+    if (!sameSet(hiddenPositions, initialHiddenPositions)) {
       const hiddenResult = await saveFloorplanHiddenPositions(Array.from(hiddenPositions).sort((a, b) => a - b));
       hiddenFailed = Boolean(hiddenResult.error);
+    }
+
+    let hiddenLandmarksFailed = false;
+    if (!sameSet(hiddenLandmarks, initialHiddenLandmarks)) {
+      const hiddenLmResult = await saveFloorplanHiddenLandmarks(Array.from(hiddenLandmarks).sort());
+      hiddenLandmarksFailed = Boolean(hiddenLmResult.error);
     }
 
     let layoutFailed = false;
@@ -221,7 +251,7 @@ export default function AdminMapPage() {
     }
 
     setSaving(false);
-    const failed = hiddenFailed || layoutFailed || results.some(r => r.error);
+    const failed = hiddenFailed || hiddenLandmarksFailed || layoutFailed || results.some(r => r.error);
     if (failed) {
       setMessage('Some changes failed to save — check your connection and try again.');
       return;
@@ -405,6 +435,8 @@ export default function AdminMapPage() {
             editable={editLayoutMode}
             onMoveSlot={handleMoveSlot}
             onMoveLandmark={handleMoveLandmark}
+            hiddenLandmarks={hiddenLandmarks}
+            onToggleLandmarkHidden={handleToggleLandmarkHidden}
           />
 
           <p className="text-[10px] text-slate-500 flex items-center gap-1.5 pt-1">

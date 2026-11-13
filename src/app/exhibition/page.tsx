@@ -2,7 +2,13 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getCheckpoints, getFloorplanHiddenPositions, getFloorplanLayoutOverrides, getVisitorVisits } from '@/lib/supabase';
+import {
+  getCheckpoints,
+  getFloorplanHiddenLandmarks,
+  getFloorplanHiddenPositions,
+  getFloorplanLayoutOverrides,
+  getVisitorVisits,
+} from '@/lib/supabase';
 import { Checkpoint, BoothVisit } from '@/lib/types';
 import type { LayoutOverrides } from '@/lib/floorplan';
 import { getOrInitVisitorId } from '@/lib/visitor';
@@ -15,6 +21,7 @@ export default function ExhibitionPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [visits, setVisits] = useState<BoothVisit[]>([]);
   const [hiddenPositions, setHiddenPositions] = useState<Set<number>>(new Set());
+  const [hiddenLandmarks, setHiddenLandmarks] = useState<Set<string>>(new Set());
   const [layoutOverrides, setLayoutOverrides] = useState<LayoutOverrides>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
@@ -25,14 +32,16 @@ export default function ExhibitionPage() {
   useEffect(() => {
     async function loadData() {
       const visitorId = getOrInitVisitorId();
-      const [cList, vList, hidden, layout] = await Promise.all([
+      const [cList, vList, hidden, hiddenLm, layout] = await Promise.all([
         getCheckpoints(),
         getVisitorVisits(visitorId),
         getFloorplanHiddenPositions(),
+        getFloorplanHiddenLandmarks(),
         getFloorplanLayoutOverrides(),
       ]);
       setCheckpoints(cList);
       setVisits(vList);
+      setHiddenLandmarks(new Set(hiddenLm));
       setHiddenPositions(new Set(hidden));
       setLayoutOverrides(layout);
     }
@@ -153,6 +162,7 @@ export default function ExhibitionPage() {
           onSelect={setSelectedBooth}
           highlightedIds={isFiltering ? new Set(filteredBooths.map(b => b.id)) : null}
           hiddenPositions={hiddenPositions}
+          hiddenLandmarks={hiddenLandmarks}
           layoutOverrides={layoutOverrides}
         />
       ) : (

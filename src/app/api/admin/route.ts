@@ -8,8 +8,10 @@ import {
   findVisitorByUsername,
   getAdminAnalytics,
   getEvaluationReport,
+  getFloorplanHiddenLandmarks,
   getFloorplanHiddenPositions,
   getFloorplanLayoutOverrides,
+  saveFloorplanHiddenLandmarks,
   saveFloorplanHiddenPositions,
   saveFloorplanLayoutOverrides,
   setVotingActive,
@@ -80,6 +82,12 @@ export async function POST(request: NextRequest) {
 
       case 'floorplan.layout.save':
         return json(await saveFloorplanLayoutOverrides((payload.overrides as LayoutOverrides) || {}));
+
+      case 'floorplan.hiddenLandmarks':
+        return json(await getFloorplanHiddenLandmarks());
+
+      case 'floorplan.hiddenLandmarks.save':
+        return json(await saveFloorplanHiddenLandmarks((payload.labels as string[]) || []));
 
       case 'speakers.list':
         return json(await listSpeakers(true));

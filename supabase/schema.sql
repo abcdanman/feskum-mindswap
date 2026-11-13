@@ -390,4 +390,10 @@ ALTER TABLE public.speakers
   ALTER COLUMN session_title DROP NOT NULL,
   ALTER COLUMN session_time DROP NOT NULL;
 
+-- 14. FLOOR PLAN HIDDEN LANDMARKS (extends the hide feature to non-booth
+-- landmarks too — stage, seating, judges, etc.; see
+-- migrations/20261113140000_floorplan_hidden_landmarks.sql)
+ALTER TABLE public.floorplan_settings
+  ADD COLUMN IF NOT EXISTS hidden_landmarks TEXT[] NOT NULL DEFAULT '{}';
+
 NOTIFY pgrst, 'reload schema';

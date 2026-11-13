@@ -32,6 +32,9 @@ interface FloorPlanMapProps {
    * (e.g. a slot that will never be filled) — rendered as nothing rather
    * than an empty placeholder tile. */
   hiddenPositions?: Set<number>;
+  /** Landmarks (stage, seating, judges, etc.) an admin has hidden from
+   * this public map. */
+  hiddenLandmarks?: Set<string>;
   /** Admin-dragged slot/landmark positions — same source of truth the
    * floor plan editor writes to, so the two layouts never drift apart. */
   layoutOverrides?: LayoutOverrides;
@@ -45,13 +48,15 @@ export default function FloorPlanMap({
   highlightedIds = null,
   venue = VENUE_NAME,
   hiddenPositions = new Set(),
+  hiddenLandmarks = new Set(),
   layoutOverrides,
 }: FloorPlanMapProps) {
-  const { slots: mergedSlots, landmarks: mergedLandmarks } = applyLayoutOverrides(
+  const { slots: mergedSlots, landmarks: allLandmarks } = applyLayoutOverrides(
     DEFAULT_SLOTS,
     LANDMARKS,
     layoutOverrides
   );
+  const mergedLandmarks = allLandmarks.filter(l => !hiddenLandmarks.has(l.label));
   const byPosition = new Map<number, Checkpoint>();
   checkpoints.forEach(c => {
     if (c.map_label) byPosition.set(c.map_label, c);
