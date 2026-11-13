@@ -358,4 +358,36 @@ CREATE INDEX IF NOT EXISTS push_subscriptions_visitor_id_idx ON public.push_subs
 ALTER TABLE public.push_subscriptions ENABLE ROW LEVEL SECURITY;
 REVOKE ALL ON TABLE public.push_subscriptions FROM anon, authenticated;
 
+-- 11. BOOTH MAP COLOR (admin's color tag for a booth on the floor plan
+-- editor and public map; see migrations/20261110_checkpoint_map_color.sql)
+ALTER TABLE public.checkpoints ADD COLUMN IF NOT EXISTS map_color TEXT NULL;
+
+-- 12. FLOOR PLAN SETTINGS (admin-hidden empty slots + dragged slot/landmark
+-- positions, a single settings row; see
+-- migrations/20261113_floorplan_hidden_positions.sql and
+-- migrations/20261113120000_floorplan_layout_overrides.sql)
+CREATE TABLE IF NOT EXISTS public.floorplan_settings (
+  id INT PRIMARY KEY DEFAULT 1,
+  hidden_positions INT[] NOT NULL DEFAULT '{}',
+  layout_overrides JSONB NOT NULL DEFAULT '{}'::jsonb,
+  CONSTRAINT floorplan_settings_singleton CHECK (id = 1)
+);
+
+INSERT INTO public.floorplan_settings (id, hidden_positions)
+VALUES (1, '{}')
+ON CONFLICT (id) DO NOTHING;
+
+ALTER TABLE public.floorplan_settings ENABLE ROW LEVEL SECURITY;
+REVOKE ALL ON TABLE public.floorplan_settings FROM anon, authenticated;
+
+-- 13. SPEAKERS, OPTIONAL FIELDS (admin can save a placeholder speaker with
+-- fields left blank; see migrations/20261113130000_speakers_optional_fields.sql)
+ALTER TABLE public.speakers
+  ALTER COLUMN name DROP NOT NULL,
+  ALTER COLUMN position DROP NOT NULL,
+  ALTER COLUMN organisation DROP NOT NULL,
+  ALTER COLUMN bio DROP NOT NULL,
+  ALTER COLUMN session_title DROP NOT NULL,
+  ALTER COLUMN session_time DROP NOT NULL;
+
 NOTIFY pgrst, 'reload schema';
