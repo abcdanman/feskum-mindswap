@@ -184,10 +184,10 @@ export default function AdminBoothsPage() {
   const handleCroppedImage = async (file: File) => {
     setCropFile(null);
     setUploading(true);
-    const url = await uploadImage(file, 'booths');
+    const { url, error: uploadError } = await uploadImage(file, 'booths');
     setUploading(false);
     if (!url) {
-      setError('Image upload failed — make sure the “booth-images” storage bucket exists, or paste an image URL instead.');
+      setError(`${uploadError || 'Image upload failed.'} You can paste an image URL instead.`);
       return;
     }
     setEditingBooth(prev => ({ ...prev, image_url: url }));

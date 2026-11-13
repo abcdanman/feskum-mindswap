@@ -314,7 +314,10 @@ export async function findVisitorByUsername(
   return (result?.visitor as AdminAnalyticsVisitor | null) || null;
 }
 
-export async function uploadImage(file: File, folder = 'booths'): Promise<string | null> {
+export async function uploadImage(
+  file: File,
+  folder = 'booths'
+): Promise<{ url: string | null; error: string | null }> {
   try {
     const form = new FormData();
     form.append('file', file);
@@ -324,11 +327,13 @@ export async function uploadImage(file: File, folder = 'booths'): Promise<string
       body: form,
       credentials: 'same-origin',
     });
-    if (!response.ok) return null;
-    const result = (await response.json()) as { url?: string };
-    return result.url || null;
+    const result = (await response.json().catch(() => null)) as { url?: string; error?: string } | null;
+    if (!response.ok) {
+      return { url: null, error: result?.error || `Upload failed (${response.status}).` };
+    }
+    return { url: result?.url || null, error: result?.url ? null : 'Upload did not return an image URL.' };
   } catch {
-    return null;
+    return { url: null, error: 'Could not reach the server — check your connection and try again.' };
   }
 }
 

@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { hasAdminSession } from '@/lib/server/session';
 import { getSupabaseAdmin } from '@/lib/server/supabaseAdmin';
 
-const MAX_BYTES = 5 * 1024 * 1024;
+// Vercel's serverless functions cap the request body at ~4.5MB regardless
+// of what we check here — stay comfortably under that so an oversized
+// upload fails with our own clear message instead of a raw platform error.
+const MAX_BYTES = 4 * 1024 * 1024;
 const FOLDERS = new Set(['booths', 'speakers']);
 const MIME_EXT: Record<string, string> = {
   'image/jpeg': 'jpg',
@@ -40,7 +43,7 @@ export async function POST(request: NextRequest) {
     return json({ error: 'Invalid upload folder.' }, 400);
   }
   if (file.size > MAX_BYTES) {
-    return json({ error: 'Image must be 5 MB or smaller.' }, 400);
+    return json({ error: `Image must be ${MAX_BYTES / (1024 * 1024)}MB or smaller.` }, 400);
   }
   const ext = MIME_EXT[file.type];
   if (!ext) {

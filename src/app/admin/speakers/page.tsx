@@ -112,10 +112,10 @@ export default function AdminSpeakersPage() {
   const handleCroppedImage = async (file: File) => {
     setCropFile(null);
     setUploading(true);
-    const url = await uploadImage(file, 'speakers');
+    const { url, error: uploadError } = await uploadImage(file, 'speakers');
     setUploading(false);
     if (!url) {
-      setError('Photo upload failed — check the “speakers” storage bucket or paste an image URL instead.');
+      setError(`${uploadError || 'Photo upload failed.'} You can paste an image URL instead.`);
       return;
     }
     setEditingSpeaker(prev => ({ ...prev, photo_url: url }));

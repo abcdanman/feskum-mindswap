@@ -22,20 +22,31 @@ async function loadImage(url: string): Promise<HTMLImageElement> {
   });
 }
 
-async function getCroppedFile(imageUrl: string, area: Area, sourceType: string): Promise<File> {
+// Phone photos routinely come in at 3000-4000px+ — cropping without ever
+// downscaling can produce a multi-megabyte file for what's only ever
+// displayed as a small thumbnail, and easily clears both our own 5MB
+// upload cap and Vercel's platform-level request body limit (~4.5MB).
+const MAX_OUTPUT_DIMENSION = 1600;
+
+async function getCroppedFile(imageUrl: string, area: Area): Promise<File> {
   const image = await loadImage(imageUrl);
+  const scale = Math.min(1, MAX_OUTPUT_DIMENSION / Math.max(area.width, area.height));
+  const outWidth = Math.max(1, Math.round(area.width * scale));
+  const outHeight = Math.max(1, Math.round(area.height * scale));
   const canvas = document.createElement('canvas');
-  canvas.width = Math.round(area.width);
-  canvas.height = Math.round(area.height);
+  canvas.width = outWidth;
+  canvas.height = outHeight;
   const ctx = canvas.getContext('2d');
   if (!ctx) throw new Error('Canvas not supported');
-  ctx.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, area.width, area.height);
+  ctx.drawImage(image, area.x, area.y, area.width, area.height, 0, 0, outWidth, outHeight);
 
-  const outputType = sourceType === 'image/png' ? 'image/png' : 'image/jpeg';
-  const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, outputType, 0.9));
+  // PNG source only kept as PNG when it has to stay lossless (none of our
+  // booth/speaker photos need that) — JPEG compresses far smaller, so
+  // everything else goes out as JPEG regardless of what it came in as.
+  const outputType = 'image/jpeg';
+  const blob: Blob | null = await new Promise(resolve => canvas.toBlob(resolve, outputType, 0.85));
   if (!blob) throw new Error('Could not process image');
-  const ext = outputType === 'image/png' ? 'png' : 'jpg';
-  return new File([blob], `cropped.${ext}`, { type: outputType });
+  return new File([blob], 'cropped.jpg', { type: outputType });
 }
 
 export default function ImageCropModal({ file, aspect, title, onCancel, onCropped }: ImageCropModalProps) {
@@ -59,7 +70,7 @@ export default function ImageCropModal({ file, aspect, title, onCancel, onCroppe
     if (!croppedAreaPixels || !imageUrl) return;
     setProcessing(true);
     try {
-      const cropped = await getCroppedFile(imageUrl, croppedAreaPixels, file.type);
+      const cropped = await getCroppedFile(imageUrl, croppedAreaPixels);
       onCropped(cropped);
     } catch {
       setProcessing(false);
