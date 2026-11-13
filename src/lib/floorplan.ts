@@ -73,7 +73,7 @@ export const LANDMARKS: LandmarkLayout[] = [
   { label: 'Technical', top: 0, left: 65, width: 20, height: 4.5, colorClass: 'bg-slate-200/60' },
   { label: 'Fire Exit & VIP Lounge Entry', top: 5, left: 0, width: 4.5, height: 20, colorClass: 'bg-rose-100/60', rotate: -90 },
   { label: 'VIP Seating', top: 11, left: 35, width: 27, height: 6, colorClass: 'bg-orange-300/50', trapezoid: true },
-  { label: 'Judges', top: 10, left: 69, width: 9, height: 6.5, colorClass: 'bg-slate-200/60', rotate: -25 },
+  { label: 'Judges', top: 10, left: 69, width: 9, height: 6.5, colorClass: 'bg-slate-200/60' },
   { label: 'General Audience Seating', top: 19, left: 21, width: 59, height: 10, colorClass: 'bg-orange-200/50' },
   { label: 'Ruang Berlegar 2', top: 45, left: 0, width: 4.5, height: 19, colorClass: 'bg-slate-100/70', rotate: -90 },
   { label: 'Ruang Berlegar 1', top: 64, left: 94, width: 4.5, height: 19, colorClass: 'bg-slate-100/70', rotate: -90 },

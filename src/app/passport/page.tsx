@@ -73,6 +73,10 @@ export default function PassportPage() {
     partnerCheckpoints.length > 0 && completedPartner >= partnerCheckpoints.length;
   const isUnlocked = completedRequired >= threshold;
   const progressPercent = Math.min(Math.round((completedRequired / threshold) * 100), 100);
+  // More required booths can exist than the reward threshold — a visitor
+  // only needs `threshold` of them, so the headline count never shows past
+  // it (reading "9 / 8" looks like a bug even though it's just bonus visits).
+  const displayStamps = Math.min(completedRequired, threshold);
 
   const visitsMap = new Map<string, BoothVisit>();
   visits.forEach(v => visitsMap.set(v.checkpoint_id, v));
@@ -96,7 +100,7 @@ export default function PassportPage() {
     setShareCardData({
       name: identity.name || 'Visitor',
       username: identity.username || null,
-      stamps: completedRequired,
+      stamps: displayStamps,
       threshold,
       partnerStamps: completedPartner,
       totalBooths: checkpoints.length,
@@ -109,7 +113,7 @@ export default function PassportPage() {
     setPdfData({
       name: identity.name || 'Visitor',
       username: identity.username || null,
-      stamps: completedRequired,
+      stamps: displayStamps,
       threshold,
       totalBooths: checkpoints.length,
       rank: rank?.rank || null,
@@ -152,7 +156,7 @@ export default function PassportPage() {
           </div>
           <div className="min-w-0">
             <span className="block mono text-[9.5px] text-cream-50/50 uppercase tracking-wide">Stamps</span>
-            <span className="block font-bold text-sm text-cream-50">{completedRequired} / {threshold}</span>
+            <span className="block font-bold text-sm text-cream-50">{displayStamps} / {threshold}</span>
             {partnerCheckpoints.length > 0 && (
               <span className="block text-[9px] text-cream-50/45">+{completedPartner} external</span>
             )}
@@ -172,7 +176,7 @@ export default function PassportPage() {
             />
           </div>
           <div className="flex items-center justify-between text-[11px] text-cream-50/60 font-semibold px-0.5">
-            <span>{completedRequired} of {threshold} required for reward</span>
+            <span>{displayStamps} of {threshold} required for reward</span>
             <span className="mono tnum">{progressPercent}%</span>
           </div>
         </div>

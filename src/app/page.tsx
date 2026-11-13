@@ -80,6 +80,10 @@ export default function HomePage() {
   const threshold = rewardSetting?.stamp_threshold || 8;
   const progressPercent = Math.min(Math.round((stampCount / threshold) * 100), 100);
   const unlocked = stampCount >= threshold;
+  // More required booths can exist than the reward threshold, so a visitor
+  // can out-collect it — never show past the denominator ("9 / 8" reads as
+  // a bug even though it's just bonus visits beyond what's needed).
+  const displayStampCount = Math.min(stampCount, threshold);
 
   const handleOpenShare = async () => {
     setShareLoading(true);
@@ -93,7 +97,7 @@ export default function HomePage() {
     const shared = {
       name: identity.name || 'Visitor',
       username: identity.username || null,
-      stamps: stampCount,
+      stamps: displayStampCount,
       threshold,
       partnerStamps: partnerCount,
       totalBooths,
@@ -167,7 +171,7 @@ export default function HomePage() {
             <Ticket className="w-3.5 h-3.5 text-brand-600" /> Digital Passport
           </span>
           <span className="mono tnum text-sm font-bold text-brand-600">
-            {stampCount} / {threshold}
+            {displayStampCount} / {threshold}
           </span>
         </div>
 
