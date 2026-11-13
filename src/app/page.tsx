@@ -362,10 +362,19 @@ export default function HomePage() {
               <h4 className="font-extrabold text-ink text-sm leading-tight group-hover:text-brand-600 transition-colors truncate">
                 {featuredSpeaker.name}
               </h4>
-              <p className="text-[11px] text-brand-600 font-bold truncate">{featuredSpeaker.position}</p>
-              <p className="text-[10px] text-slate-500 truncate mt-0.5">
-                &ldquo;{featuredSpeaker.session_title}&rdquo; · {featuredSpeaker.session_time}
-              </p>
+              {featuredSpeaker.position ? (
+                <p className="text-[11px] text-brand-600 font-bold truncate">{featuredSpeaker.position}</p>
+              ) : featuredSpeaker.organisation ? (
+                <p className="text-[11px] text-brand-600 font-bold truncate">{featuredSpeaker.organisation}</p>
+              ) : null}
+              {featuredSpeaker.session_title ? (
+                <p className="text-[10px] text-slate-500 truncate mt-0.5">
+                  &ldquo;{featuredSpeaker.session_title}&rdquo;
+                  {featuredSpeaker.session_time ? ` · ${featuredSpeaker.session_time}` : ''}
+                </p>
+              ) : featuredSpeaker.position && featuredSpeaker.organisation ? (
+                <p className="text-[10px] text-slate-500 truncate mt-0.5">{featuredSpeaker.organisation}</p>
+              ) : null}
             </div>
           </Link>
         </div>

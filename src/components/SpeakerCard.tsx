@@ -30,15 +30,21 @@ export default function SpeakerCard({ speaker, hasVoted = false, onVote, votable
       <div className="card card-hover p-4 flex flex-col justify-between group">
         <div>
           {/* Header Time Badge */}
-          <div className="flex items-center justify-between gap-2 mb-3">
-            <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-ink text-cream-50 text-[11px] font-mono font-bold">
-              <Clock className="w-3.5 h-3.5 text-gold-400" aria-hidden="true" />
-              {speaker.session_time}
-            </span>
-            <span className="text-[10px] text-slate-500 font-bold mono px-2 py-0.5 rounded bg-cream-100 border-2 border-ink/10">
-              {speaker.session_date}
-            </span>
-          </div>
+          {(speaker.session_time || speaker.session_date) && (
+            <div className="flex items-center justify-between gap-2 mb-3">
+              {speaker.session_time && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-ink text-cream-50 text-[11px] font-mono font-bold">
+                  <Clock className="w-3.5 h-3.5 text-gold-400" aria-hidden="true" />
+                  {speaker.session_time}
+                </span>
+              )}
+              {speaker.session_date && (
+                <span className="text-[10px] text-slate-500 font-bold mono px-2 py-0.5 rounded bg-cream-100 border-2 border-ink/10">
+                  {speaker.session_date}
+                </span>
+              )}
+            </div>
+          )}
 
           {/* Speaker Profile Header */}
           <div className="flex items-start gap-3 mb-3">
@@ -63,19 +69,23 @@ export default function SpeakerCard({ speaker, hasVoted = false, onVote, votable
               <h4 className="display text-lg text-ink leading-tight group-hover:text-brand-600 transition-colors">
                 {speaker.name}
               </h4>
-              <p className="text-xs text-brand-600 font-bold">{speaker.position}</p>
-              <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
-                <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
-                <span className="truncate">{speaker.organisation}</span>
-              </p>
+              {speaker.position && <p className="text-xs text-brand-600 font-bold">{speaker.position}</p>}
+              {speaker.organisation && (
+                <p className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                  <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" aria-hidden="true" />
+                  <span className="truncate">{speaker.organisation}</span>
+                </p>
+              )}
             </div>
           </div>
 
           {/* Session Topic */}
-          <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink/10 mb-4">
-            <span className="eyebrow text-slate-400 block mb-0.5">Session topic</span>
-            <p className="text-xs font-bold text-ink line-clamp-2">&ldquo;{speaker.session_title}&rdquo;</p>
-          </div>
+          {speaker.session_title && (
+            <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink/10 mb-4">
+              <span className="eyebrow text-slate-400 block mb-0.5">Session topic</span>
+              <p className="text-xs font-bold text-ink line-clamp-2">&ldquo;{speaker.session_title}&rdquo;</p>
+            </div>
+          )}
         </div>
 
         {/* Footer Vote Action */}
@@ -136,28 +146,38 @@ export default function SpeakerCard({ speaker, hasVoted = false, onVote, votable
               </div>
               <div className="min-w-0">
                 <h3 id="speaker-bio-title" className="display text-xl text-ink leading-none">{speaker.name}</h3>
-                <p className="text-xs text-brand-600 font-bold mt-1">{speaker.position}</p>
-                <p className="text-xs text-slate-500">{speaker.organisation}</p>
+                {speaker.position && <p className="text-xs text-brand-600 font-bold mt-1">{speaker.position}</p>}
+                {speaker.organisation && <p className="text-xs text-slate-500">{speaker.organisation}</p>}
               </div>
             </div>
 
-            <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink/10 mb-4 space-y-1">
-              <span className="eyebrow text-slate-400">Scheduled session</span>
-              <p className="text-xs font-bold text-ink">&ldquo;{speaker.session_title}&rdquo;</p>
-              <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1">
-                <span className="flex items-center gap-1">
-                  <Clock className="w-3.5 h-3.5 text-brand-500" aria-hidden="true" /> {speaker.session_time}
-                </span>
-                <span className="flex items-center gap-1">
-                  <Calendar className="w-3.5 h-3.5 text-brand-500" aria-hidden="true" /> {speaker.session_date}
-                </span>
+            {(speaker.session_title || speaker.session_time || speaker.session_date) && (
+              <div className="p-3 rounded-xl bg-cream-100 border-2 border-ink/10 mb-4 space-y-1">
+                <span className="eyebrow text-slate-400">Scheduled session</span>
+                {speaker.session_title && <p className="text-xs font-bold text-ink">&ldquo;{speaker.session_title}&rdquo;</p>}
+                {(speaker.session_time || speaker.session_date) && (
+                  <div className="flex items-center gap-3 text-[11px] text-slate-500 pt-1">
+                    {speaker.session_time && (
+                      <span className="flex items-center gap-1">
+                        <Clock className="w-3.5 h-3.5 text-brand-500" aria-hidden="true" /> {speaker.session_time}
+                      </span>
+                    )}
+                    {speaker.session_date && (
+                      <span className="flex items-center gap-1">
+                        <Calendar className="w-3.5 h-3.5 text-brand-500" aria-hidden="true" /> {speaker.session_date}
+                      </span>
+                    )}
+                  </div>
+                )}
               </div>
-            </div>
+            )}
 
-            <div className="mb-6">
-              <h5 className="eyebrow text-slate-500 mb-1">Biography</h5>
-              <p className="text-sm text-slate-600 leading-relaxed">{speaker.bio}</p>
-            </div>
+            {speaker.bio && (
+              <div className="mb-6">
+                <h5 className="eyebrow text-slate-500 mb-1">Biography</h5>
+                <p className="text-sm text-slate-600 leading-relaxed">{speaker.bio}</p>
+              </div>
+            )}
 
             {votable && (
               <button
