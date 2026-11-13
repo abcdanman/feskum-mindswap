@@ -343,7 +343,7 @@ function drawHighlightsPage(doc: jsPDF, W: number, H: number, margin: number) {
   doc.setFontSize(10.5);
   const about = doc.splitTextToSize(
     'Kemuncak Aspirasi is MindSwap’s innovation passport challenge: explore every faculty booth across the exhibition floor, ' +
-      'collect a stamp at each one, and unlock a reward at the HIR Helpdesk once your passport is complete.',
+      'collect a stamp at each one, and complete your passport.',
     W - margin * 2 - 32
   );
   doc.text(about, cx, y, { align: 'center' });

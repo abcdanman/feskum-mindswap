@@ -276,7 +276,7 @@ export default function ExhibitionPage() {
 
             {selectedBooth.booth_type === 'partner' && (
               <p className="text-[11px] text-slate-500 mb-4 p-2.5 rounded-xl bg-amber-50 border-2 border-ink/10">
-                Optional partner booth · +5 leaderboard points. Does not count toward the 8-stamp souvenir.
+                Optional external booth · +5 leaderboard points. Does not count toward your required stamps.
               </p>
             )}
 
@@ -285,7 +285,7 @@ export default function ExhibitionPage() {
               className="btn w-full py-3 bg-brand-500 text-white text-sm flex items-center justify-center gap-2"
             >
               <QrCode className="w-4 h-4" aria-hidden="true" />
-              {selectedBooth.booth_type === 'partner' ? ' Scan partner QR for bonus stamp' : ' Scan booth QR to collect stamp'}
+              {selectedBooth.booth_type === 'partner' ? ' Scan external QR for bonus stamp' : ' Scan booth QR to collect stamp'}
             </Link>
           </div>
         </Modal>

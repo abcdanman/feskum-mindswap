@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Gift, Trophy, Mic, Share2, Award, Lock } from 'lucide-react';
+import { Ticket, Compass, MapPin, Calendar, ArrowRight, QrCode, ScanLine, Star, Trophy, Mic, Share2, Award, Lock } from 'lucide-react';
 import BoothThumb from '@/components/BoothThumb';
 import PushOptIn from '@/components/PushOptIn';
 import ShareCardModal from '@/components/ShareCardModal';
@@ -185,7 +185,7 @@ export default function HomePage() {
 
         <div className="flex flex-col items-center gap-2 pt-1 text-center">
           <span className="text-[11px] text-slate-500 font-medium">
-            {unlocked ? 'Reward unlocked!' : `${Math.max(threshold - stampCount, 0)} more required stamps`}
+            {unlocked ? 'Passport complete — thank you!' : `${Math.max(threshold - stampCount, 0)} more required stamps`}
           </span>
           <div className="flex items-center justify-center gap-3">
             {/* Always visible, not just once unlocked — hiding it entirely
@@ -277,7 +277,7 @@ export default function HomePage() {
           {[
             { n: '01', t: 'Scan QR', s: 'Point phone camera', icon: ScanLine, accent: 'bg-brand-500' },
             { n: '02', t: 'Rate booth', s: 'Give 1–5 stars', icon: Star, accent: 'bg-gold-500' },
-            { n: '03', t: 'Redeem', s: 'Claim at helpdesk', icon: Gift, accent: 'bg-emerald-600' },
+            { n: '03', t: 'Complete', s: 'Finish your passport', icon: Trophy, accent: 'bg-emerald-600' },
           ].map((step, i, arr) => {
             const Icon = step.icon;
             return (

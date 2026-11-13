@@ -164,7 +164,7 @@ export default function IdentityGate({ children }: { children: React.ReactNode }
               Start your<br />passport
             </h1>
             <p className="text-sm text-slate-600 max-w-[34ch]">
-              Scan booth QR codes to collect stamps and unlock your reward.
+              Scan booth QR codes to collect stamps and complete your passport.
             </p>
           </div>
 

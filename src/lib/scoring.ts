@@ -11,7 +11,7 @@ export const POINTS = {
 export const QUIZ_MAX_QUESTIONS = 2;
 
 export const SCORING_RULES = [
-  { label: 'Required faculty stamp', points: POINTS.requiredStamp, detail: 'Counts toward the 8-stamp souvenir.' },
+  { label: 'Required faculty stamp', points: POINTS.requiredStamp, detail: 'Counts toward your passport completion.' },
   { label: 'External booth stamp', points: POINTS.partnerStamp, detail: 'Optional bonus stop.' },
   { label: 'External trail complete', points: POINTS.partnerTrail, detail: 'All active external booths visited.' },
   { label: 'Quiz answer', points: POINTS.quizPerCorrect, detail: `Per correct answer, max ${QUIZ_MAX_QUESTIONS} per booth.` },

@@ -5,7 +5,6 @@ import { getOrInitVisitorId, getVisitorIdentity } from '@/lib/visitor';
 import { getCheckpoints, getVisitorVisits, getRewardSetting, getVisitorRewardStatus, unlockVisitorReward, getVisitorRank } from '@/lib/supabase';
 import { Checkpoint, BoothVisit, RewardSetting, VisitorReward, RankingMetric } from '@/lib/types';
 import StampCard from '@/components/StampCard';
-import RewardModal from '@/components/RewardModal';
 import ShareCardModal from '@/components/ShareCardModal';
 import BoothStamp from '@/components/BoothStamp';
 import { ShareCardData } from '@/lib/shareCard';
@@ -18,8 +17,7 @@ export default function PassportPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [visits, setVisits] = useState<BoothVisit[]>([]);
   const [rewardSetting, setRewardSetting] = useState<RewardSetting | null>(null);
-  const [visitorReward, setVisitorReward] = useState<VisitorReward | null>(null);
-  const [showRewardModal, setShowRewardModal] = useState<boolean>(false);
+  const [, setVisitorReward] = useState<VisitorReward | null>(null);
   const [filter, setFilter] = useState<'all' | 'completed' | 'pending'>('all');
   const [showShareModal, setShowShareModal] = useState<boolean>(false);
   const [shareCardData, setShareCardData] = useState<ShareCardData | null>(null);
@@ -202,7 +200,7 @@ export default function PassportPage() {
           })}
         </div>
 
-        {/* Reward Status Banner */}
+        {/* Completion Banner — no physical prize to redeem, just a thank you. */}
         {isUnlocked && (
           <div className="p-4 rounded-xl bg-gold-400 border-2 border-ink flex items-center justify-between gap-2 animate-pulseGlow">
             <div className="flex items-center gap-3 min-w-0">
@@ -210,27 +208,19 @@ export default function PassportPage() {
                 <Trophy className="w-5 h-5" />
               </div>
               <div className="min-w-0">
-                <h4 className="display text-lg text-ink leading-none">Reward unlocked!</h4>
-                <p className="text-[11px] text-ink/70">Show your badge at the HIR Helpdesk.</p>
+                <h4 className="display text-lg text-ink leading-none">Congratulations!</h4>
+                <p className="text-[11px] text-ink/70">Thank you for completing your passport.</p>
               </div>
             </div>
 
-            <div className="flex items-center gap-1.5 shrink-0">
-              <button
-                onClick={handleOpenShare}
-                disabled={shareLoading}
-                aria-label="Share your progress"
-                className="p-2.5 rounded-xl bg-ink text-gold-400 disabled:opacity-50"
-              >
-                <Share2 className="w-4 h-4" />
-              </button>
-              <button
-                onClick={() => setShowRewardModal(true)}
-                className="px-3.5 py-2 rounded-xl bg-ink text-cream-50 font-extrabold text-xs"
-              >
-                Show badge
-              </button>
-            </div>
+            <button
+              onClick={handleOpenShare}
+              disabled={shareLoading}
+              aria-label="Share your progress"
+              className="p-2.5 rounded-xl bg-ink text-gold-400 disabled:opacity-50 shrink-0"
+            >
+              <Share2 className="w-4 h-4" />
+            </button>
           </div>
         )}
 
@@ -347,15 +337,6 @@ export default function PassportPage() {
         )}
       </div>
 
-      {/* REWARD MODAL POPUP */}
-      {showRewardModal && rewardSetting && visitorReward && (
-        <RewardModal
-          rewardSetting={rewardSetting}
-          visitorReward={visitorReward}
-          visitorId={visitorId}
-          onClose={() => setShowRewardModal(false)}
-        />
-      )}
 
       {showShareModal && shareCardData && (
         <ShareCardModal data={shareCardData} pdfData={pdfData} onClose={() => setShowShareModal(false)} />

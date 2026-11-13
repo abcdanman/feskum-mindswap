@@ -233,7 +233,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
             </h3>
             <p className="text-xs text-slate-600 mt-1">
               {isPartner ? (
-                <>This optional bonus stop is logged in your passport. Your souvenir still needs {rewardSetting?.stamp_threshold || 8} required faculty stamps.</>
+                <>This optional bonus stop is logged in your passport. Your passport still needs {rewardSetting?.stamp_threshold || 8} required faculty stamps to complete.</>
               ) : (
                 <>Your stamp for <span className="text-brand-600 font-bold">{checkpoint.faculty}</span> has been logged in your passport.</>
               )}
@@ -263,7 +263,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
 
           {isPartner && (
             <p className="text-[11px] text-slate-500">
-              External bonus: +5 points per stamp. This booth does not count toward the 8-stamp souvenir.
+              External bonus: +5 points per stamp. This booth does not count toward your required stamps.
             </p>
           )}
 
@@ -345,7 +345,7 @@ export default function CheckpointPage({ params }: { params: Promise<{ id: strin
           )}
 
           <Link href="/passport" className="btn w-full py-3 bg-brand-500 text-white text-sm flex items-center justify-center gap-2">
-            <Ticket className="w-4 h-4" /> View passport & claim rewards
+            <Ticket className="w-4 h-4" /> View passport
           </Link>
         </div>
       ) : (
