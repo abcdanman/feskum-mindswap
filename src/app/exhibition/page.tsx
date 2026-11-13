@@ -2,8 +2,9 @@
 
 import React, { useEffect, useState } from 'react';
 import Link from 'next/link';
-import { getCheckpoints, getVisitorVisits } from '@/lib/supabase';
+import { getCheckpoints, getFloorplanHiddenPositions, getFloorplanLayoutOverrides, getVisitorVisits } from '@/lib/supabase';
 import { Checkpoint, BoothVisit } from '@/lib/types';
+import type { LayoutOverrides } from '@/lib/floorplan';
 import { getOrInitVisitorId } from '@/lib/visitor';
 import { Compass, Search, MapPin, QrCode, CheckCircle2, ChevronRight, LayoutList, Map as MapIcon } from 'lucide-react';
 import BoothThumb from '@/components/BoothThumb';
@@ -13,6 +14,8 @@ import FloorPlanMap from '@/components/FloorPlanMap';
 export default function ExhibitionPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
   const [visits, setVisits] = useState<BoothVisit[]>([]);
+  const [hiddenPositions, setHiddenPositions] = useState<Set<number>>(new Set());
+  const [layoutOverrides, setLayoutOverrides] = useState<LayoutOverrides>({});
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [selectedBooth, setSelectedBooth] = useState<Checkpoint | null>(null);
@@ -22,12 +25,16 @@ export default function ExhibitionPage() {
   useEffect(() => {
     async function loadData() {
       const visitorId = getOrInitVisitorId();
-      const [cList, vList] = await Promise.all([
+      const [cList, vList, hidden, layout] = await Promise.all([
         getCheckpoints(),
         getVisitorVisits(visitorId),
+        getFloorplanHiddenPositions(),
+        getFloorplanLayoutOverrides(),
       ]);
       setCheckpoints(cList);
       setVisits(vList);
+      setHiddenPositions(new Set(hidden));
+      setLayoutOverrides(layout);
     }
     loadData();
   }, []);
@@ -145,6 +152,8 @@ export default function ExhibitionPage() {
           lastCheckpointId={lastCheckpointId}
           onSelect={setSelectedBooth}
           highlightedIds={isFiltering ? new Set(filteredBooths.map(b => b.id)) : null}
+          hiddenPositions={hiddenPositions}
+          layoutOverrides={layoutOverrides}
         />
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">

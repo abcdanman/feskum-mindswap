@@ -84,6 +84,10 @@ export default function HomePage() {
   // can out-collect it — never show past the denominator ("9 / 8" reads as
   // a bug even though it's just bonus visits beyond what's needed).
   const displayStampCount = Math.min(stampCount, threshold);
+  // The certificate only proves attendance — it doesn't need the full
+  // reward threshold like the souvenir redemption does, so one scanned
+  // required booth is enough to generate it.
+  const certificateEligible = stampCount >= 1;
 
   const handleOpenShare = async () => {
     setShareLoading(true);
@@ -190,15 +194,15 @@ export default function HomePage() {
                instead of just not being there. */}
             <button
               type="button"
-              onClick={() => unlocked && setShowCertModal(true)}
-              disabled={!unlocked}
-              aria-label={unlocked ? 'Export your Certificate of Appreciation' : `Certificate — unlocks after ${Math.max(threshold - stampCount, 0)} more stamps`}
-              title={unlocked ? undefined : `Unlocks after ${Math.max(threshold - stampCount, 0)} more stamps`}
+              onClick={() => certificateEligible && setShowCertModal(true)}
+              disabled={!certificateEligible}
+              aria-label={certificateEligible ? 'Export your Certificate of Appreciation' : 'Certificate — unlocks after your first stamp'}
+              title={certificateEligible ? undefined : 'Unlocks after your first stamp'}
               className={`text-xs font-extrabold flex items-center gap-1 uppercase ${
-                unlocked ? 'text-brand-600 hover:text-brand-700' : 'text-slate-400'
+                certificateEligible ? 'text-brand-600 hover:text-brand-700' : 'text-slate-400'
               }`}
             >
-              {unlocked ? <Award className="w-3.5 h-3.5" aria-hidden="true" /> : <Lock className="w-3.5 h-3.5" aria-hidden="true" />}
+              {certificateEligible ? <Award className="w-3.5 h-3.5" aria-hidden="true" /> : <Lock className="w-3.5 h-3.5" aria-hidden="true" />}
               Certificate
             </button>
             {stampCount > 0 && (

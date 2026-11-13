@@ -2,7 +2,19 @@
 
 import React from 'react';
 import { Checkpoint } from '@/lib/types';
-import { FIRST_EXTERNAL_POSITION, VENUE_NAME, SlotLayout, mapColorOption } from '@/lib/floorplan';
+import {
+  FACULTY_SLOTS,
+  EXTERNAL_SLOTS,
+  LANDMARKS,
+  FIRST_EXTERNAL_POSITION,
+  VENUE_NAME,
+  SlotLayout,
+  LayoutOverrides,
+  applyLayoutOverrides,
+  mapColorOption,
+} from '@/lib/floorplan';
+
+const DEFAULT_SLOTS = [...FACULTY_SLOTS, ...EXTERNAL_SLOTS];
 import { facultyCode } from '@/lib/faculties';
 import FloorPlanCanvas from './FloorPlanCanvas';
 import { CheckCircle2, MapPin, Gift } from 'lucide-react';
@@ -16,6 +28,13 @@ interface FloorPlanMapProps {
    * than removed — removing one would leave a gap in the real layout. */
   highlightedIds?: Set<string> | null;
   venue?: string;
+  /** Empty positions an admin has chosen to hide from this public map
+   * (e.g. a slot that will never be filled) — rendered as nothing rather
+   * than an empty placeholder tile. */
+  hiddenPositions?: Set<number>;
+  /** Admin-dragged slot/landmark positions — same source of truth the
+   * floor plan editor writes to, so the two layouts never drift apart. */
+  layoutOverrides?: LayoutOverrides;
 }
 
 export default function FloorPlanMap({
@@ -25,7 +44,14 @@ export default function FloorPlanMap({
   onSelect,
   highlightedIds = null,
   venue = VENUE_NAME,
+  hiddenPositions = new Set(),
+  layoutOverrides,
 }: FloorPlanMapProps) {
+  const { slots: mergedSlots, landmarks: mergedLandmarks } = applyLayoutOverrides(
+    DEFAULT_SLOTS,
+    LANDMARKS,
+    layoutOverrides
+  );
   const byPosition = new Map<number, Checkpoint>();
   checkpoints.forEach(c => {
     if (c.map_label) byPosition.set(c.map_label, c);
@@ -38,6 +64,7 @@ export default function FloorPlanMap({
     const displayNo = isExternal ? slot.position - FIRST_EXTERNAL_POSITION + 1 : slot.position;
 
     if (!checkpoint) {
+      if (hiddenPositions.has(slot.position)) return null;
       return (
         <div
           className="w-full h-full rounded-lg border-2 border-dashed border-ink/15 bg-white/40 flex items-center justify-center"
@@ -94,7 +121,7 @@ export default function FloorPlanMap({
   return (
     <div className="space-y-3">
       <div className="card p-3 space-y-2 bg-cream-100">
-        <FloorPlanCanvas renderSlot={renderSlot} />
+        <FloorPlanCanvas renderSlot={renderSlot} slots={mergedSlots} landmarks={mergedLandmarks} />
 
         {!anyAssigned && (
           <p className="text-[10px] text-slate-400 text-center pt-1">Booth positions will appear here once announced.</p>

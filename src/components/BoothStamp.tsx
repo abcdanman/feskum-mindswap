@@ -44,7 +44,6 @@ interface BoothStampProps {
 
 export default function BoothStamp({
   faculty,
-  name,
   size = 96,
   seed,
   color,
@@ -85,16 +84,10 @@ export default function BoothStamp({
         aria-hidden="true"
       />
       <span
-        className="mono font-bold uppercase leading-none opacity-70"
-        style={{ color: ringColor, fontSize: Math.max(7, size * 0.075) }}
+        className="display leading-[1.05] line-clamp-3"
+        style={{ color: ringColor, fontSize: Math.max(9, size * 0.115) }}
       >
         {facultyAbbr(faculty)}
-      </span>
-      <span
-        className="display leading-[1.08] line-clamp-2 mt-0.5"
-        style={{ color: ringColor, fontSize: Math.max(10, size * 0.135) }}
-      >
-        {name}
       </span>
     </div>
   );

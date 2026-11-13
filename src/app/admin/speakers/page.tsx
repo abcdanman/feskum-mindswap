@@ -80,19 +80,6 @@ export default function AdminSpeakersPage() {
   const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    const missing = [
-      ['name', editingSpeaker.name],
-      ['position', editingSpeaker.position],
-      ['organisation', editingSpeaker.organisation],
-      ['session title', editingSpeaker.session_title],
-      ['session time', editingSpeaker.session_time],
-      ['biography', editingSpeaker.bio],
-    ].filter(([, value]) => !String(value || '').trim());
-
-    if (missing.length > 0) {
-      setError(`Please fill in: ${missing.map(([label]) => label).join(', ')}.`);
-      return;
-    }
 
     setSaving(true);
     const { error: saveError } = await saveSpeaker(editingSpeaker);
@@ -260,7 +247,7 @@ export default function AdminSpeakersPage() {
               <p className="text-[11px] text-slate-500 mt-1">
                 {editingSpeaker.id
                   ? 'Update the public UM Talk profile and session details.'
-                  : 'Add a UM Talk speaker. Required fields are marked by the browser.'}
+                  : 'Add a UM Talk speaker. Every field is optional — fill in what you have.'}
               </p>
             </div>
 
@@ -335,7 +322,6 @@ export default function AdminSpeakersPage() {
                     id="speaker-name"
                     name="name"
                     type="text"
-                    required
                     autoComplete="name"
                     placeholder="e.g. Prof. Dr. Imran"
                     value={editingSpeaker.name || ''}
@@ -349,7 +335,6 @@ export default function AdminSpeakersPage() {
                     id="speaker-position"
                     name="position"
                     type="text"
-                    required
                     autoComplete="organization-title"
                     placeholder="e.g. Chair of AI Research"
                     value={editingSpeaker.position || ''}
@@ -365,7 +350,6 @@ export default function AdminSpeakersPage() {
                   id="speaker-organisation"
                   name="organisation"
                   type="text"
-                  required
                   autoComplete="organization"
                   placeholder="e.g. Faculty of Computer Science & IT"
                   value={editingSpeaker.organisation || ''}
@@ -380,7 +364,6 @@ export default function AdminSpeakersPage() {
                   id="speaker-session-title"
                   name="session_title"
                   type="text"
-                  required
                   autoComplete="off"
                   placeholder="e.g. Building Responsible AI"
                   value={editingSpeaker.session_title || ''}
@@ -409,7 +392,6 @@ export default function AdminSpeakersPage() {
                     id="speaker-time"
                     name="session_time"
                     type="text"
-                    required
                     autoComplete="off"
                     placeholder="e.g. 10:00 AM – 10:30 AM"
                     value={editingSpeaker.session_time || ''}
@@ -438,7 +420,6 @@ export default function AdminSpeakersPage() {
                   id="speaker-bio"
                   name="bio"
                   rows={4}
-                  required
                   autoComplete="off"
                   placeholder="Short public biography for the speaker card and profile modal."
                   value={editingSpeaker.bio || ''}

@@ -3,6 +3,8 @@ import type { LeaderboardDay, RankingMetric } from '@/lib/types';
 import {
   adoptLegacySession,
   getCheckpointByToken,
+  getFloorplanHiddenPositions,
+  getFloorplanLayoutOverrides,
   getLeaderboard,
   getRewardSetting,
   getVisitorRank,
@@ -91,6 +93,12 @@ export async function POST(request: NextRequest) {
 
       case 'checkpoints.list':
         return json(await listCheckpoints(false, true));
+
+      case 'floorplan.hidden':
+        return json(await getFloorplanHiddenPositions());
+
+      case 'floorplan.layout':
+        return json(await getFloorplanLayoutOverrides());
 
       case 'checkpoint.token': {
         const token = typeof payload.token === 'string' ? payload.token : '';

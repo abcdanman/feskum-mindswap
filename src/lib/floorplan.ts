@@ -117,6 +117,29 @@ export const MAP_COLORS: MapColorOption[] = [
   { token: 'slate', label: 'Slate', swatchClass: 'bg-slate-500', slotClass: 'bg-slate-100 border-slate-500' },
 ];
 
+/** Admin-dragged positions, overriding the hand-tuned defaults above —
+ * keyed by slot position number / landmark label so a save only needs to
+ * record what moved, not the whole layout. Shared by the admin editor
+ * (which writes it) and the public map (which just applies it), so the
+ * two can never drift apart. */
+export interface LayoutOverrides {
+  slots?: Record<number, { top: number; left: number }>;
+  landmarks?: Record<string, { top: number; left: number }>;
+}
+
+export function applyLayoutOverrides(
+  slots: SlotLayout[],
+  landmarks: LandmarkLayout[],
+  overrides: LayoutOverrides | null | undefined
+): { slots: SlotLayout[]; landmarks: LandmarkLayout[] } {
+  const slotOverrides = overrides?.slots || {};
+  const landmarkOverrides = overrides?.landmarks || {};
+  return {
+    slots: slots.map(s => (slotOverrides[s.position] ? { ...s, ...slotOverrides[s.position] } : s)),
+    landmarks: landmarks.map(l => (landmarkOverrides[l.label] ? { ...l, ...landmarkOverrides[l.label] } : l)),
+  };
+}
+
 export function mapColorOption(token: string | null | undefined): MapColorOption | null {
   if (!token) return null;
   return MAP_COLORS.find(c => c.token === token) || null;

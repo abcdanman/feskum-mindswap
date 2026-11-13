@@ -291,21 +291,14 @@ function drawPassport(ctx: CanvasRenderingContext2D, data: ShareCardData, logo: 
       ctx.arc(0, 0, rOuter + cell * 0.07, 0, Math.PI * 2);
       ctx.stroke();
 
-      // Fixed, non-overlapping anchors (faculty caption near the top of the
-      // ring, name block starting a clear gap below it) rather than
-      // centering both around the middle — a 2-line name block centered on
-      // its own would otherwise climb up into the caption above it.
+      // Just the faculty label, word-wrapped and vertically centered in the
+      // ring — the booth name was dropped so the stamp reads as "which
+      // faculty", matching the live BoothStamp component.
       ctx.textAlign = 'center';
       ctx.fillStyle = color;
-      const facSize = Math.max(13, Math.round(cell * 0.062));
-      ctx.font = `700 ${facSize}px ${MONO_FONT}`;
-      ctx.globalAlpha = 0.75;
-      ctx.fillText(truncate(ctx, facultyAbbr(booth.faculty).toUpperCase(), rOuter * 1.35), 0, -rOuter * 0.56);
-      ctx.globalAlpha = 1;
-
-      const nameSize = Math.max(17, Math.round(cell * 0.108));
-      ctx.font = `900 ${nameSize}px ${DISPLAY_FONT}`;
-      const words = booth.name.split(' ');
+      const facSize = Math.max(16, Math.round(cell * 0.098));
+      ctx.font = `900 ${facSize}px ${DISPLAY_FONT}`;
+      const words = facultyAbbr(booth.faculty).split(' ');
       const lineBudget = rOuter * 1.5;
       const lines: string[] = [];
       let current = '';
@@ -319,12 +312,13 @@ function drawPassport(ctx: CanvasRenderingContext2D, data: ShareCardData, logo: 
         }
       });
       if (current) lines.push(current);
-      const shown = lines.slice(0, 2);
+      const shown = lines.slice(0, 3);
       if (lines.length > shown.length) shown[shown.length - 1] += '…';
-      const lineH = nameSize * 1.1;
-      const nameTop = -rOuter * 0.14;
+      const lineH = facSize * 1.08;
+      const blockH = shown.length * lineH;
+      const firstBaseline = -blockH / 2 + lineH * 0.78;
       shown.forEach((line, li) => {
-        ctx.fillText(truncate(ctx, line, lineBudget), 0, nameTop + li * lineH + lineH * 0.78);
+        ctx.fillText(truncate(ctx, line, lineBudget), 0, firstBaseline + li * lineH);
       });
       ctx.restore();
 

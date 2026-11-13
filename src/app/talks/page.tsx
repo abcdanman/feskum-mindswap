@@ -48,7 +48,7 @@ export default function TalksPage() {
           <div>
             <h1 className="display text-2xl leading-none">UM Talk Live</h1>
             <p className="text-[11px] text-white/80">
-              {speakers.length || 16} speakers · Kemuncak Aspirasi Main Stage
+              {speakers.length} speakers · Kemuncak Aspirasi Main Stage
             </p>
           </div>
         </div>

@@ -15,6 +15,7 @@ import {
 } from './types';
 import { INITIAL_REWARD_SETTING } from './mockData';
 import { cachedFetch, invalidateCached } from './clientCache';
+import type { LayoutOverrides } from './floorplan';
 
 /** Shared, rarely-changing data — safe to reuse across tab navigations
  * for a short window instead of refetching every time. */
@@ -98,6 +99,42 @@ export async function getCheckpoints(includeInactive = false): Promise<Checkpoin
     const result = await dataRequest('checkpoints.list');
     return (result as Checkpoint[] | null) || [];
   });
+}
+
+export async function getFloorplanHiddenPositions(fromAdmin = false): Promise<number[]> {
+  if (fromAdmin) {
+    const result = await adminRequest('floorplan.hidden');
+    return (result as number[] | null) || [];
+  }
+  return cachedFetch('floorplan.hidden', PUBLIC_DATA_TTL_MS, async () => {
+    const result = await dataRequest('floorplan.hidden');
+    return (result as number[] | null) || [];
+  });
+}
+
+export async function saveFloorplanHiddenPositions(positions: number[]): Promise<{ error: string | null }> {
+  const result = await adminRequest('floorplan.hidden.save', { positions });
+  invalidateCached('floorplan.hidden');
+  return { error: (result?.error as string | null) || null };
+}
+
+export async function getFloorplanLayoutOverrides(fromAdmin = false): Promise<LayoutOverrides> {
+  if (fromAdmin) {
+    const result = await adminRequest('floorplan.layout');
+    return (result as LayoutOverrides | null) || {};
+  }
+  return cachedFetch('floorplan.layout', PUBLIC_DATA_TTL_MS, async () => {
+    const result = await dataRequest('floorplan.layout');
+    return (result as LayoutOverrides | null) || {};
+  });
+}
+
+export async function saveFloorplanLayoutOverrides(
+  overrides: LayoutOverrides
+): Promise<{ error: string | null }> {
+  const result = await adminRequest('floorplan.layout.save', { overrides });
+  invalidateCached('floorplan.layout');
+  return { error: (result?.error as string | null) || null };
 }
 
 export async function getCheckpointByQrToken(qrToken: string): Promise<Checkpoint | null> {

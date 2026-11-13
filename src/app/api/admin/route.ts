@@ -8,6 +8,10 @@ import {
   findVisitorByUsername,
   getAdminAnalytics,
   getEvaluationReport,
+  getFloorplanHiddenPositions,
+  getFloorplanLayoutOverrides,
+  saveFloorplanHiddenPositions,
+  saveFloorplanLayoutOverrides,
   setVotingActive,
   getVisitorReward,
   listAllVisitors,
@@ -23,6 +27,7 @@ import {
 } from '@/lib/server/db';
 import { hasAdminSession } from '@/lib/server/session';
 import type { LeaderboardDay } from '@/lib/types';
+import type { LayoutOverrides } from '@/lib/floorplan';
 
 function json(data: unknown, status = 200) {
   return NextResponse.json(data, {
@@ -63,6 +68,18 @@ export async function POST(request: NextRequest) {
 
       case 'checkpoints.delete':
         return json(await deleteCheckpoint(String(payload.id || '')));
+
+      case 'floorplan.hidden':
+        return json(await getFloorplanHiddenPositions());
+
+      case 'floorplan.hidden.save':
+        return json(await saveFloorplanHiddenPositions((payload.positions as number[]) || []));
+
+      case 'floorplan.layout':
+        return json(await getFloorplanLayoutOverrides());
+
+      case 'floorplan.layout.save':
+        return json(await saveFloorplanLayoutOverrides((payload.overrides as LayoutOverrides) || {}));
 
       case 'speakers.list':
         return json(await listSpeakers(true));

@@ -2,12 +2,37 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { getCheckpoints, saveCheckpoint } from '@/lib/supabase';
+import {
+  getCheckpoints,
+  getFloorplanHiddenPositions,
+  getFloorplanLayoutOverrides,
+  saveCheckpoint,
+  saveFloorplanHiddenPositions,
+  saveFloorplanLayoutOverrides,
+} from '@/lib/supabase';
 import { Checkpoint } from '@/lib/types';
-import { FIRST_EXTERNAL_POSITION, SlotLayout, MAP_COLORS, mapColorOption } from '@/lib/floorplan';
+import {
+  FACULTY_SLOTS,
+  EXTERNAL_SLOTS,
+  LANDMARKS,
+  FIRST_EXTERNAL_POSITION,
+  SlotLayout,
+  MAP_COLORS,
+  mapColorOption,
+  applyLayoutOverrides,
+  LayoutOverrides,
+} from '@/lib/floorplan';
 import FloorPlanCanvas from '@/components/FloorPlanCanvas';
 import BoothSlotPicker from '@/components/BoothSlotPicker';
-import { ArrowLeft, Save, MapPin, AlertTriangle, CheckCircle2, Palette } from 'lucide-react';
+import { ArrowLeft, Save, MapPin, AlertTriangle, CheckCircle2, Palette, EyeOff, Eye, Move, RotateCcw } from 'lucide-react';
+
+const DEFAULT_SLOTS = [...FACULTY_SLOTS, ...EXTERNAL_SLOTS];
+
+function sameNumberSet(a: Set<number>, b: Set<number>) {
+  if (a.size !== b.size) return false;
+  for (const n of a) if (!b.has(n)) return false;
+  return true;
+}
 
 export default function AdminMapPage() {
   const [checkpoints, setCheckpoints] = useState<Checkpoint[]>([]);
@@ -15,6 +40,11 @@ export default function AdminMapPage() {
   const [initialAssignments, setInitialAssignments] = useState<Record<number, string>>({});
   const [colors, setColors] = useState<Record<string, string>>({});
   const [initialColors, setInitialColors] = useState<Record<string, string>>({});
+  const [hiddenPositions, setHiddenPositions] = useState<Set<number>>(new Set());
+  const [initialHiddenPositions, setInitialHiddenPositions] = useState<Set<number>>(new Set());
+  const [layoutOverrides, setLayoutOverrides] = useState<LayoutOverrides>({});
+  const [initialLayoutOverrides, setInitialLayoutOverrides] = useState<LayoutOverrides>({});
+  const [editLayoutMode, setEditLayoutMode] = useState(false);
   const [colorPickerFor, setColorPickerFor] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -26,7 +56,11 @@ export default function AdminMapPage() {
 
   async function load() {
     setLoading(true);
-    const list = await getCheckpoints(true);
+    const [list, hidden, layout] = await Promise.all([
+      getCheckpoints(true),
+      getFloorplanHiddenPositions(true),
+      getFloorplanLayoutOverrides(true),
+    ]);
     setCheckpoints(list);
     const loaded: Record<number, string> = {};
     const loadedColors: Record<string, string> = {};
@@ -38,6 +72,10 @@ export default function AdminMapPage() {
     setInitialAssignments(loaded);
     setColors(loadedColors);
     setInitialColors(loadedColors);
+    setHiddenPositions(new Set(hidden));
+    setInitialHiddenPositions(new Set(hidden));
+    setLayoutOverrides(layout);
+    setInitialLayoutOverrides(layout);
     setColorPickerFor(null);
     setLoading(false);
   }
@@ -46,7 +84,9 @@ export default function AdminMapPage() {
 
   const isDirty =
     JSON.stringify(assignments) !== JSON.stringify(initialAssignments) ||
-    JSON.stringify(colors) !== JSON.stringify(initialColors);
+    JSON.stringify(colors) !== JSON.stringify(initialColors) ||
+    !sameNumberSet(hiddenPositions, initialHiddenPositions) ||
+    JSON.stringify(layoutOverrides) !== JSON.stringify(initialLayoutOverrides);
   const changeCount = useMemo(() => {
     const positions = new Set([...Object.keys(assignments), ...Object.keys(initialAssignments)]);
     let count = 0;
@@ -57,8 +97,56 @@ export default function AdminMapPage() {
     colorIds.forEach(id => {
       if (colors[id] !== initialColors[id]) count += 1;
     });
+    const hiddenTouched = new Set([...hiddenPositions, ...initialHiddenPositions]);
+    hiddenTouched.forEach(p => {
+      if (hiddenPositions.has(p) !== initialHiddenPositions.has(p)) count += 1;
+    });
+    if (JSON.stringify(layoutOverrides) !== JSON.stringify(initialLayoutOverrides)) count += 1;
     return count;
-  }, [assignments, initialAssignments, colors, initialColors]);
+  }, [
+    assignments,
+    initialAssignments,
+    colors,
+    initialColors,
+    hiddenPositions,
+    initialHiddenPositions,
+    layoutOverrides,
+    initialLayoutOverrides,
+  ]);
+
+  const handleToggleHidden = (position: number) => {
+    setMessage('');
+    setHiddenPositions(prev => {
+      const next = new Set(prev);
+      if (next.has(position)) next.delete(position);
+      else next.add(position);
+      return next;
+    });
+  };
+
+  const handleMoveSlot = (position: number, top: number, left: number) => {
+    setLayoutOverrides(prev => ({
+      ...prev,
+      slots: { ...prev.slots, [position]: { top, left } },
+    }));
+  };
+
+  const handleMoveLandmark = (label: string, top: number, left: number) => {
+    setLayoutOverrides(prev => ({
+      ...prev,
+      landmarks: { ...prev.landmarks, [label]: { top, left } },
+    }));
+  };
+
+  const handleResetLayout = () => {
+    setMessage('');
+    setLayoutOverrides({});
+  };
+
+  const { slots: mergedSlots, landmarks: mergedLandmarks } = useMemo(
+    () => applyLayoutOverrides(DEFAULT_SLOTS, LANDMARKS, layoutOverrides),
+    [layoutOverrides]
+  );
 
   const handleAssign = (position: number, checkpointId: string) => {
     setMessage('');
@@ -120,8 +208,20 @@ export default function AdminMapPage() {
       })
     );
 
+    let hiddenFailed = false;
+    if (!sameNumberSet(hiddenPositions, initialHiddenPositions)) {
+      const hiddenResult = await saveFloorplanHiddenPositions(Array.from(hiddenPositions).sort((a, b) => a - b));
+      hiddenFailed = Boolean(hiddenResult.error);
+    }
+
+    let layoutFailed = false;
+    if (JSON.stringify(layoutOverrides) !== JSON.stringify(initialLayoutOverrides)) {
+      const layoutResult = await saveFloorplanLayoutOverrides(layoutOverrides);
+      layoutFailed = Boolean(layoutResult.error);
+    }
+
     setSaving(false);
-    const failed = results.some(r => r.error);
+    const failed = hiddenFailed || layoutFailed || results.some(r => r.error);
     if (failed) {
       setMessage('Some changes failed to save — check your connection and try again.');
       return;
@@ -141,6 +241,7 @@ export default function AdminMapPage() {
       (assignedId && colors[assignedId] !== initialColors[assignedId]);
     const colorOpt = mapColorOption(assignedId ? colors[assignedId] : null);
     const pickerOpen = colorPickerFor === String(position);
+    const isHidden = !assignedId && hiddenPositions.has(position);
 
     return (
       <div
@@ -151,14 +252,16 @@ export default function AdminMapPage() {
               ? colorOpt.slotClass
               : assignedId
                 ? 'border-ink bg-white'
-                : 'border-ink/20 bg-white/40'
+                : isHidden
+                  ? 'border-ink/10 bg-white/20 opacity-50'
+                  : 'border-ink/20 bg-white/40'
         }`}
       >
         <div className="flex items-center justify-between gap-0.5">
           <span className="text-[6px] sm:text-[8px] font-extrabold uppercase tracking-wide text-slate-400 leading-none shrink-0">
             {isExternal ? `Ext #${displayNo}` : `#${displayNo}`}
           </span>
-          {assignedId && (
+          {assignedId ? (
             <button
               type="button"
               onClick={() => setColorPickerFor(pickerOpen ? null : String(position))}
@@ -171,6 +274,16 @@ export default function AdminMapPage() {
                 <Palette className="w-full h-full text-slate-300" aria-hidden="true" />
               )}
             </button>
+          ) : (
+            <button
+              type="button"
+              onClick={() => handleToggleHidden(position)}
+              aria-label={isHidden ? 'Show this empty slot on the public map' : 'Hide this empty slot from the public map'}
+              title={isHidden ? 'Hidden from public map — click to show' : 'Hide this empty slot from the public map'}
+              className="shrink-0 text-slate-300 hover:text-slate-500"
+            >
+              {isHidden ? <EyeOff className="w-2 h-2 sm:w-2.5 sm:h-2.5" aria-hidden="true" /> : <Eye className="w-2 h-2 sm:w-2.5 sm:h-2.5" aria-hidden="true" />}
+            </button>
           )}
         </div>
         <BoothSlotPicker
@@ -178,6 +291,9 @@ export default function AdminMapPage() {
           onChange={id => handleAssign(position, id)}
           checkpoints={checkpoints}
         />
+        {isHidden && (
+          <span className="text-[6px] sm:text-[7px] font-bold uppercase tracking-wide text-slate-300 leading-none">Hidden</span>
+        )}
 
         {pickerOpen && assignedId && (
           <div className="absolute z-10 top-full left-0 mt-1 p-1.5 rounded-lg border-2 border-ink bg-white shadow-brut flex items-center gap-1 flex-wrap w-max max-w-[140px]">
@@ -220,19 +336,48 @@ export default function AdminMapPage() {
             <p className="text-[11px] text-slate-500">Assign booths and tag colors on the 24 numbered positions</p>
           </div>
         </div>
-        <button
-          onClick={handleSave}
-          disabled={!isDirty || saving}
-          className="btn px-3.5 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white text-xs flex items-center gap-1.5 shrink-0"
-        >
-          {saving ? (
-            <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
-          ) : (
-            <Save className="w-3.5 h-3.5" aria-hidden="true" />
-          )}
-          {saving ? 'Saving…' : isDirty ? `Save (${changeCount})` : 'Saved'}
-        </button>
+        <div className="flex items-center gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={() => setEditLayoutMode(m => !m)}
+            aria-pressed={editLayoutMode}
+            className={`btn px-3 py-2 text-xs flex items-center gap-1.5 border-2 border-ink ${
+              editLayoutMode ? 'bg-gold-400 text-ink' : 'bg-white text-ink'
+            }`}
+          >
+            <Move className="w-3.5 h-3.5" aria-hidden="true" />
+            {editLayoutMode ? 'Done arranging' : 'Edit layout'}
+          </button>
+          <button
+            onClick={handleSave}
+            disabled={!isDirty || saving}
+            className="btn px-3.5 py-2 bg-brand-500 hover:bg-brand-600 disabled:opacity-50 text-white text-xs flex items-center gap-1.5 shrink-0"
+          >
+            {saving ? (
+              <span className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+            ) : (
+              <Save className="w-3.5 h-3.5" aria-hidden="true" />
+            )}
+            {saving ? 'Saving…' : isDirty ? `Save (${changeCount})` : 'Saved'}
+          </button>
+        </div>
       </div>
+
+      {editLayoutMode && (
+        <div className="p-2.5 rounded-xl text-xs font-semibold text-center border-2 border-ink bg-gold-100 flex items-center justify-center gap-2 flex-wrap">
+          <Move className="w-3.5 h-3.5 shrink-0" aria-hidden="true" />
+          Drag a gold handle to move that box. Remember to hit Save when you're done.
+          {Object.keys(layoutOverrides.slots || {}).length + Object.keys(layoutOverrides.landmarks || {}).length > 0 && (
+            <button
+              type="button"
+              onClick={handleResetLayout}
+              className="inline-flex items-center gap-1 text-rose-600 hover:text-rose-700 underline underline-offset-2"
+            >
+              <RotateCcw className="w-3 h-3" aria-hidden="true" /> Reset all positions
+            </button>
+          )}
+        </div>
+      )}
 
       {message && (
         <div
@@ -253,7 +398,14 @@ export default function AdminMapPage() {
         </div>
       ) : (
         <div className="card p-4 bg-cream-100 space-y-3">
-          <FloorPlanCanvas renderSlot={renderSlot} />
+          <FloorPlanCanvas
+            renderSlot={renderSlot}
+            slots={mergedSlots}
+            landmarks={mergedLandmarks}
+            editable={editLayoutMode}
+            onMoveSlot={handleMoveSlot}
+            onMoveLandmark={handleMoveLandmark}
+          />
 
           <p className="text-[10px] text-slate-500 flex items-center gap-1.5 pt-1">
             <MapPin className="w-3 h-3 shrink-0" aria-hidden="true" /> Layout mirrors the printed floor plan's actual positions, gaps and walkways — not to scale.

@@ -18,6 +18,7 @@ import {
   type VotingStatus,
 } from '@/lib/types';
 import { INITIAL_CHECKPOINTS, INITIAL_REWARD_SETTING, INITIAL_SPEAKERS } from '@/lib/mockData';
+import type { LayoutOverrides } from '@/lib/floorplan';
 import { getLeaderboardScore, calculateQuizScore, QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
 import { getLeaderboardDayRange, EVENT_TIME_ZONE } from '@/lib/event';
 import { validateUsername } from '@/lib/username';
@@ -354,6 +355,47 @@ export async function submitBoothQuiz(
     return { success: false, correct: 0, total: quizQuestions.length, points: 0, message };
   }
   return { success: true, visit: data as BoothVisit, ...score };
+}
+
+// -------------------------------------------------------------
+// FLOOR PLAN SETTINGS
+// -------------------------------------------------------------
+export async function getFloorplanHiddenPositions(): Promise<number[]> {
+  if (!hasServerSupabase()) return [];
+  const { data, error } = await db()
+    .from('floorplan_settings')
+    .select('hidden_positions')
+    .eq('id', 1)
+    .maybeSingle();
+  if (error || !data) return [];
+  return (data.hidden_positions as number[]) || [];
+}
+
+export async function saveFloorplanHiddenPositions(positions: number[]): Promise<{ error: string | null }> {
+  if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
+  const { error } = await db()
+    .from('floorplan_settings')
+    .upsert({ id: 1, hidden_positions: positions });
+  return { error: error?.message || null };
+}
+
+export async function getFloorplanLayoutOverrides(): Promise<LayoutOverrides> {
+  if (!hasServerSupabase()) return {};
+  const { data, error } = await db()
+    .from('floorplan_settings')
+    .select('layout_overrides')
+    .eq('id', 1)
+    .maybeSingle();
+  if (error || !data) return {};
+  return (data.layout_overrides as LayoutOverrides) || {};
+}
+
+export async function saveFloorplanLayoutOverrides(overrides: LayoutOverrides): Promise<{ error: string | null }> {
+  if (!hasServerSupabase()) return { error: 'Server database is not configured.' };
+  const { error } = await db()
+    .from('floorplan_settings')
+    .upsert({ id: 1, layout_overrides: overrides });
+  return { error: error?.message || null };
 }
 
 // -------------------------------------------------------------
