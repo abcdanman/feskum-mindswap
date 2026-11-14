@@ -158,8 +158,8 @@ export default function AdminSpeakersPage() {
             <h3 className="font-extrabold text-ink text-sm">People&apos;s Choice voting</h3>
             <p className="text-[11px] text-slate-500">
               {votingStatus?.is_active
-                ? 'Open — visitors can vote at /talks/vote for everyone not marked Top 3.'
-                : 'Closed — mark Top 3 winners below, then open voting for everyone else.'}
+                ? 'Open — visitors can vote at /talks/vote for anyone in the Day 2 lineup.'
+                : 'Closed — set each speaker’s date to Day 2 (or both days), then open voting.'}
             </p>
           </div>
         </div>
@@ -411,7 +411,7 @@ export default function AdminSpeakersPage() {
                 />
                 <span className="text-xs font-semibold text-ink flex items-center gap-1.5">
                   <Crown className="w-3.5 h-3.5 text-gold-600" aria-hidden="true" />
-                  Judges&apos; Top 3 — excludes this speaker from the People&apos;s Choice vote
+                  Judges&apos; Top 3 — a separate award, shown on the admin list only
                 </span>
               </label>
 

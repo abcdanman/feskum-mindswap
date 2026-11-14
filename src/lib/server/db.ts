@@ -20,7 +20,7 @@ import {
 import { INITIAL_CHECKPOINTS, INITIAL_REWARD_SETTING, INITIAL_SPEAKERS } from '@/lib/mockData';
 import type { LayoutOverrides } from '@/lib/floorplan';
 import { getLeaderboardScore, calculateQuizScore, QUIZ_MAX_QUESTIONS } from '@/lib/scoring';
-import { getLeaderboardDayRange, EVENT_TIME_ZONE } from '@/lib/event';
+import { getLeaderboardDayRange, EVENT_TIME_ZONE, isDay2Speaker } from '@/lib/event';
 import { validateUsername } from '@/lib/username';
 import { getSupabaseAdmin, hasServerSupabase } from './supabaseAdmin';
 
@@ -1159,12 +1159,12 @@ export async function submitSpeakerVote(
   if (await hasVisitorVoted(visitorId)) {
     return { success: false, message: 'You have already cast your vote for the People Choice Award!' };
   }
-  const { data: speaker } = await db().from('speakers').select('id, is_active, is_winner').eq('id', speakerId).maybeSingle();
+  const { data: speaker } = await db().from('speakers').select('id, is_active, session_date').eq('id', speakerId).maybeSingle();
   if (!speaker?.id || speaker.is_active === false) {
     return { success: false, message: 'That speaker is not available for voting.' };
   }
-  if (speaker.is_winner) {
-    return { success: false, message: 'This speaker has already been selected as a top-3 winner and is not eligible for the People’s Choice vote.' };
+  if (!isDay2Speaker(speaker.session_date)) {
+    return { success: false, message: 'This speaker is not part of the Day 2 lineup eligible for the People’s Choice vote.' };
   }
   const { error } = await db().from('speaker_votes').insert({
     visitor_id: visitorId,

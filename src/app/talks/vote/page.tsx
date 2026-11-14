@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { getSpeakers, getVotingStatus, hasVisitorVoted, submitSpeakerVote } from '@/lib/supabase';
 import { Speaker, VotingStatus } from '@/lib/types';
 import { getOrInitVisitorId } from '@/lib/visitor';
+import { isDay2Speaker } from '@/lib/event';
 import SpeakerCard from '@/components/SpeakerCard';
 import { Award, ArrowLeft, Clock } from 'lucide-react';
 
@@ -40,9 +41,9 @@ export default function PeoplesChoiceVotePage() {
     setTimeout(() => setMessage(null), 4000);
   };
 
-  // Judges' top-3 picks are not eligible — this is specifically the
-  // audience vote for everyone else.
-  const eligibleSpeakers = speakers.filter(s => !s.is_winner);
+  // Eligible pool is whoever presents on Day 2 — the shortlist that moved
+  // forward from Day 1, not just the judges' top 3.
+  const eligibleSpeakers = speakers.filter(s => isDay2Speaker(s.session_date));
 
   return (
     <div className="space-y-4 animate-fadeIn">
@@ -58,7 +59,7 @@ export default function PeoplesChoiceVotePage() {
           <div>
             <h1 className="display text-2xl leading-none">{votingStatus?.title || "People's Choice Award"}</h1>
             <p className="text-[11px] text-white/80 mt-1">
-              {votingStatus?.description || 'Vote for your favourite speaker — the judges already picked their top 3.'}
+              {votingStatus?.description || 'Vote for your favourite speaker from the Day 2 lineup.'}
             </p>
           </div>
         </div>
@@ -85,7 +86,7 @@ export default function PeoplesChoiceVotePage() {
           <Clock className="w-10 h-10 text-slate-300 mx-auto" aria-hidden="true" />
           <h4 className="font-bold text-ink text-sm">Voting isn&apos;t open yet</h4>
           <p className="text-xs text-slate-500">
-            This opens once judges announce the top 3 finalists. Check back soon.
+            This opens once the Day 2 lineup is confirmed. Check back soon.
           </p>
           <Link
             href="/talks"

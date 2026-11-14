@@ -76,7 +76,7 @@ export default function TalksPage() {
             <Award className="w-5 h-5 text-gold-300 shrink-0" aria-hidden="true" />
             <div>
               <h4 className="font-bold text-xs">People&apos;s Choice Award 2026</h4>
-              <p className="text-[10px] text-white/70">Opens once judges announce the top 3 finalists</p>
+              <p className="text-[10px] text-white/70">Opens once the Day 2 lineup is confirmed</p>
             </div>
           </div>
         )}

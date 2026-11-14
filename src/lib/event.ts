@@ -41,3 +41,10 @@ export function getLeaderboardDayLabel(day: LeaderboardDay): string {
   if (day === 'all') return 'All days';
   return EVENT_DAYS.find(item => item.key === day)?.shortLabel ?? 'All days';
 }
+
+/** People's Choice eligibility: any speaker presenting on Day 2 (14 Nov),
+ * including one scheduled for both days ("13-14 Nov 2026") — these are
+ * the speakers who "moved forward" from Day 1's shortlist. */
+export function isDay2Speaker(sessionDate: string | null | undefined): boolean {
+  return Boolean(sessionDate && sessionDate.includes('14'));
+}

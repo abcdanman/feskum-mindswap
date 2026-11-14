@@ -103,7 +103,7 @@ export interface Speaker {
   session_date: string;
   display_order: number;
   is_active: boolean;
-  /** Judges' top-3 pick — excluded from the People's Choice vote. */
+  /** Judges' top-3 pick — a separate award; no longer affects People's Choice eligibility. */
   is_winner?: boolean;
   vote_count?: number;
 }
