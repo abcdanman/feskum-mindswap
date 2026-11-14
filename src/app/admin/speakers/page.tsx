@@ -384,6 +384,7 @@ export default function AdminSpeakersPage() {
                   >
                     <option value="13 Nov 2026">13 Nov 2026</option>
                     <option value="14 Nov 2026">14 Nov 2026</option>
+                    <option value="13-14 Nov 2026">Both days (13 &amp; 14 Nov)</option>
                   </select>
                 </div>
                 <div>
